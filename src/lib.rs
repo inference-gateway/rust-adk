@@ -1,4 +1,12 @@
 pub mod a2a_types;
+pub mod client;
+pub mod config;
+pub mod server;
+
+// Re-export commonly used types and structs
+pub use client::{A2AClient, HealthStatus};
+pub use config::{Config, AgentConfig, ClientConfig};
+pub use server::{A2AServer, A2AServerBuilder, AgentBuilder, Agent};
 
 pub fn add(left: u64, right: u64) -> u64 {
     left + right
