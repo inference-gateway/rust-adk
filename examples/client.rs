@@ -5,17 +5,14 @@ use tracing::{error, info};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize tracing
     tracing_subscriber::fmt().init();
 
-    // Create A2A client (connects to A2A server that uses SDK internally)
-    let client = A2AClient::new("http://localhost:8081")?; // A2A server port
+    let client = A2AClient::new("http://localhost:8081")?;
 
     info!("A2A Client starting with SDK integration...");
     info!("Connecting to A2A server at: http://localhost:8081");
     info!("A2A server uses Inference Gateway SDK at: http://localhost:8080/v1");
 
-    // Test health check
     match client.get_health().await {
         Ok(health) => {
             info!("Health check successful: {}", health.status);
@@ -30,7 +27,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    // Test agent card retrieval
     match client.get_agent_card().await {
         Ok(agent_card) => {
             info!("Agent card retrieved successfully");
@@ -45,7 +41,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    // Test A2A task sending with JSON-RPC format
     let task_params = json!({
         "jsonrpc": "2.0",
         "id": "test-001",
@@ -70,7 +65,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    // Test streaming task
     let streaming_params = json!({
         "jsonrpc": "2.0",
         "id": "stream-001",
@@ -103,7 +97,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    // Periodic health monitoring example
     info!("Starting periodic health monitoring (3 checks)...");
 
     for i in 1..=3 {
