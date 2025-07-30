@@ -1,4 +1,4 @@
-use inference_gateway_adk::{A2AServerBuilder, AgentBuilder, Config};
+use inference_gateway_adk::{A2AServerBuilder, AgentBuilder, AgentCardOverrides, Config};
 use std::env;
 use tracing::{error, info};
 
@@ -27,7 +27,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let server = A2AServerBuilder::new()
         .with_config(config)
         .with_agent(agent)
-        .with_agent_card_from_file(".well-known/agent.json")
+        .with_agent_card_from_file(
+            ".well-known/agent.json",
+            Some(AgentCardOverrides::new()
+                .with_name("My Custom Agent")
+                .with_version("2.0.0")
+                .with_description("A customized A2A assistant built with Rust and powered by the Inference Gateway SDK.")
+            )
+        )
         .with_gateway_url(gateway_url)
         .build()
         .await?;

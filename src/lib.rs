@@ -5,7 +5,7 @@ pub mod server;
 
 pub use client::{A2AClient, HealthStatus};
 pub use config::{AgentConfig, ClientConfig, Config};
-pub use server::{A2AServer, A2AServerBuilder, Agent, AgentBuilder};
+pub use server::{A2AServer, A2AServerBuilder, Agent, AgentBuilder, AgentCardOverrides};
 
 #[cfg(test)]
 mod tests {

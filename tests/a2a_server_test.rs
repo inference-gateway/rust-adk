@@ -431,8 +431,8 @@ impl A2AValidationSuite {
             Ok(response) => {
                 if response.get("result").is_some()
                     || (response.get("error").is_some()
-                        && (response["error"]["code"].as_i64() == Some(-32001) ||
-                     response["error"]["code"].as_i64() == Some(-32002)))
+                        && (response["error"]["code"].as_i64() == Some(-32001)
+                            || response["error"]["code"].as_i64() == Some(-32002)))
                 {
                     info!("✅ tasks/cancel test passed (expected error for non-existent task)");
                     self.test_results.insert(

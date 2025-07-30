@@ -21,6 +21,41 @@ use tower::ServiceBuilder;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing::{debug, error, info};
 
+/// Agent card field overrides
+#[derive(Debug, Clone, Default)]
+pub struct AgentCardOverrides {
+    pub name: Option<String>,
+    pub description: Option<String>,
+    pub version: Option<String>,
+    pub url: Option<String>,
+}
+
+impl AgentCardOverrides {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn with_name(mut self, name: impl Into<String>) -> Self {
+        self.name = Some(name.into());
+        self
+    }
+
+    pub fn with_description(mut self, description: impl Into<String>) -> Self {
+        self.description = Some(description.into());
+        self
+    }
+
+    pub fn with_version(mut self, version: impl Into<String>) -> Self {
+        self.version = Some(version.into());
+        self
+    }
+
+    pub fn with_url(mut self, url: impl Into<String>) -> Self {
+        self.url = Some(url.into());
+        self
+    }
+}
+
 /// Trait for handling tool calls
 #[async_trait::async_trait]
 pub trait ToolHandler: Send + Sync {
@@ -148,6 +183,7 @@ pub struct A2AServerBuilder {
     config: Option<Config>,
     agent_card: Option<AgentCard>,
     agent_card_path: Option<String>,
+    agent_card_overrides: Option<AgentCardOverrides>,
     agent: Option<Agent>,
     gateway_url: Option<String>,
 }
@@ -172,6 +208,7 @@ impl A2AServerBuilder {
             config: None,
             agent_card: None,
             agent_card_path: None,
+            agent_card_overrides: None,
             agent: None,
             gateway_url: None,
         }
@@ -187,8 +224,13 @@ impl A2AServerBuilder {
         self
     }
 
-    pub fn with_agent_card_from_file(mut self, path: impl Into<String>) -> Self {
+    pub fn with_agent_card_from_file(
+        mut self,
+        path: impl Into<String>,
+        overrides: Option<AgentCardOverrides>,
+    ) -> Self {
         self.agent_card_path = Some(path.into());
+        self.agent_card_overrides = overrides;
         self
     }
 
@@ -205,7 +247,7 @@ impl A2AServerBuilder {
     pub async fn build(self) -> Result<A2AServer> {
         let config = self.config.unwrap_or_default();
 
-        let agent_card = if let Some(path) = self.agent_card_path {
+        let mut agent_card = if let Some(path) = self.agent_card_path {
             match tokio::fs::read_to_string(&path).await {
                 Ok(content) => match serde_json::from_str::<AgentCard>(&content) {
                     Ok(card) => {
@@ -228,6 +270,30 @@ impl A2AServerBuilder {
             return Err(anyhow!(
                 "Agent card is required. Use with_agent_card() or with_agent_card_from_file() to configure the server."
             ));
+        }
+
+        if let Some(ref mut card) = agent_card {
+            if let Some(overrides) = self.agent_card_overrides {
+                if let Some(name) = overrides.name {
+                    info!("Overriding agent card name: {} -> {}", card.name, name);
+                    card.name = name;
+                }
+                if let Some(description) = overrides.description {
+                    info!("Overriding agent card description");
+                    card.description = description;
+                }
+                if let Some(version) = overrides.version {
+                    info!(
+                        "Overriding agent card version: {} -> {}",
+                        card.version, version
+                    );
+                    card.version = version;
+                }
+                if let Some(url) = overrides.url {
+                    info!("Overriding agent card URL: {} -> {}", card.url, url);
+                    card.url = url;
+                }
+            }
         }
 
         let gateway_url = self
