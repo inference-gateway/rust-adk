@@ -8,7 +8,7 @@ documentation = "https://docs.rs/inference-gateway-adk"
 authors = ["Inference Gateway Team"]
 repository = "https://github.com/inference-gateway/rust-adk"
 homepage = "https://github.com/inference-gateway/rust-adk"
-keywords = ["agent", "ai", "inference", "gateway", "a2a", "adk"]
+keywords = ["agent", "ai", "inference", "gateway", "a2a"]
 categories = ["api-bindings", "development-tools"]
 
 [dependencies]
