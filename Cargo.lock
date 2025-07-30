@@ -723,6 +723,7 @@ dependencies = [
  "futures",
  "futures-util",
  "inference-gateway-sdk",
+ "reqwest",
  "serde",
  "serde_json",
  "thiserror",

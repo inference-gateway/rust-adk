@@ -18,6 +18,7 @@ pub struct HealthStatus {
 #[derive(Debug)]
 pub struct A2AClient {
     gateway_client: InferenceGatewayClient,
+    http_client: reqwest::Client,
     #[allow(dead_code)]
     base_url: String,
     #[allow(dead_code)]
@@ -30,9 +31,11 @@ impl A2AClient {
         let config = ClientConfig::new(base_url.clone());
 
         let gateway_client = InferenceGatewayClient::new(&base_url);
+        let http_client = reqwest::Client::new();
 
         Ok(Self {
             gateway_client,
+            http_client,
             base_url,
             config,
         })
@@ -40,60 +43,64 @@ impl A2AClient {
 
     pub fn with_config(config: ClientConfig) -> Result<Self> {
         let gateway_client = InferenceGatewayClient::new(&config.base_url);
+        let http_client = reqwest::Client::new();
 
         Ok(Self {
             gateway_client,
+            http_client,
             base_url: config.base_url.clone(),
             config,
         })
     }
 
     pub async fn get_health(&self) -> Result<HealthStatus> {
-        debug!("Making health check request via SDK");
+        debug!("Making health check request to A2A server");
 
-        let is_healthy = self
-            .gateway_client
-            .health_check()
+        let url = format!("{}/health", self.base_url);
+        let response = self
+            .http_client
+            .get(&url)
+            .send()
             .await
             .map_err(|e| anyhow!("Health check request failed: {}", e))?;
 
-        let status = if is_healthy { "healthy" } else { "unhealthy" };
+        if !response.status().is_success() {
+            return Err(anyhow!("Health check failed: HTTP {}", response.status()));
+        }
 
-        let health_status = HealthStatus {
-            status: status.to_string(),
-            timestamp: chrono::Utc::now(),
-            details: Some(serde_json::json!({
-                "gateway_available": is_healthy,
-                "sdk_version": "0.11.0"
-            })),
-        };
+        let health_status = response
+            .json::<HealthStatus>()
+            .await
+            .map_err(|e| anyhow!("Failed to parse health response: {}", e))?;
 
         debug!("Health check response: {:?}", health_status);
         Ok(health_status)
     }
 
     pub async fn get_agent_card(&self) -> Result<AgentCard> {
-        debug!("Agent card request - returning default A2A agent card");
+        debug!("Fetching agent card from server");
 
-        let agent_card = serde_json::from_str::<AgentCard>(
-            r#"{
-            "name": "A2A Agent",
-            "description": "A2A compatible agent using Inference Gateway SDK",
-            "version": "0.1.0",
-            "capabilities": {
-                "streaming": true,
-                "push_notifications": false,
-                "state_transition_history": false
-            },
-            "interface": {
-                "protocol": "a2a",
-                "version": "1.0"
-            }
-        }"#,
-        )
-        .map_err(|e| anyhow!("Failed to create default agent card: {}", e))?;
+        let url = format!("{}/.well-known/agent.json", self.base_url);
+        let response = self
+            .http_client
+            .get(&url)
+            .send()
+            .await
+            .map_err(|e| anyhow!("Failed to fetch agent card: {}", e))?;
 
-        debug!("Agent card response created");
+        if !response.status().is_success() {
+            return Err(anyhow!(
+                "Failed to fetch agent card: HTTP {}",
+                response.status()
+            ));
+        }
+
+        let agent_card = response
+            .json::<AgentCard>()
+            .await
+            .map_err(|e| anyhow!("Failed to parse agent card response: {}", e))?;
+
+        debug!("Agent card retrieved successfully");
         Ok(agent_card)
     }
 

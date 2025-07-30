@@ -213,18 +213,22 @@ impl A2AServerBuilder {
                         Some(card)
                     }
                     Err(e) => {
-                        error!("Failed to parse agent card from {}: {}", path, e);
-                        None
+                        return Err(anyhow!("Failed to parse agent card from {}: {}", path, e));
                     }
                 },
                 Err(e) => {
-                    debug!("Could not load agent card from {}: {}", path, e);
-                    None
+                    return Err(anyhow!("Could not load agent card from {}: {}", path, e));
                 }
             }
         } else {
             self.agent_card
         };
+
+        if agent_card.is_none() {
+            return Err(anyhow!(
+                "Agent card is required. Use with_agent_card() or with_agent_card_from_file() to configure the server."
+            ));
+        }
 
         let gateway_url = self
             .gateway_url
@@ -413,29 +417,8 @@ async fn agent_card_handler(
         return Ok(Json(agent_card.clone()));
     }
 
-    let default_card = serde_json::from_str::<AgentCard>(
-        r#"{
-        "name": "A2A Server with Inference Gateway SDK",
-        "description": "A2A compatible server built with Rust ADK and Inference Gateway SDK",
-        "version": "0.1.0",
-        "capabilities": {
-            "streaming": true,
-            "push_notifications": false,
-            "state_transition_history": false
-        },
-        "interface": {
-            "protocol": "a2a",
-            "version": "1.0"
-        }
-    }"#,
-    )
-    .map_err(|e| {
-        error!("Failed to create default agent card: {}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
-
-    debug!("Returning default agent card");
-    Ok(Json(default_card))
+    error!("No agent card configured - server should not have started without one");
+    Err(StatusCode::INTERNAL_SERVER_ERROR)
 }
 
 async fn a2a_handler(
@@ -727,12 +710,69 @@ mod tests {
         for test_case in test_cases {
             match test_case.name {
                 "default_builder" => {
-                    let server = A2AServerBuilder::new().build().await;
+                    let agent_card_json = serde_json::json!({
+                        "name": "Test Agent",
+                        "description": "A test agent for unit testing",
+                        "version": "1.0.0",
+                        "protocolVersion": "0.2.6",
+                        "url": "http://localhost:8080/a2a",
+                        "preferredTransport": "JSONRPC",
+                        "capabilities": {
+                            "streaming": true,
+                            "pushNotifications": false,
+                            "stateTransitionHistory": false
+                        },
+                        "defaultInputModes": ["text/plain"],
+                        "defaultOutputModes": ["text/plain"],
+                        "skills": [
+                            {
+                                "id": "test-skill",
+                                "name": "Test Skill",
+                                "description": "A test skill",
+                                "tags": ["test"]
+                            }
+                        ]
+                    });
+                    let agent_card: AgentCard = serde_json::from_value(agent_card_json).unwrap();
+
+                    let server = A2AServerBuilder::new()
+                        .with_agent_card(agent_card)
+                        .build()
+                        .await;
                     assert!(server.is_ok(), "Default builder should succeed");
                 }
                 "with_config" => {
+                    let agent_card_json = serde_json::json!({
+                        "name": "Test Agent",
+                        "description": "A test agent for unit testing",
+                        "version": "1.0.0",
+                        "protocolVersion": "0.2.6",
+                        "url": "http://localhost:8080/a2a",
+                        "preferredTransport": "JSONRPC",
+                        "capabilities": {
+                            "streaming": true,
+                            "pushNotifications": false,
+                            "stateTransitionHistory": false
+                        },
+                        "defaultInputModes": ["text/plain"],
+                        "defaultOutputModes": ["text/plain"],
+                        "skills": [
+                            {
+                                "id": "test-skill",
+                                "name": "Test Skill",
+                                "description": "A test skill",
+                                "tags": ["test"]
+                            }
+                        ]
+                    });
+                    let agent_card: AgentCard = serde_json::from_value(agent_card_json).unwrap();
+
                     let config = Config::default();
-                    let server = A2AServerBuilder::new().with_config(config).build().await;
+                    let server = A2AServerBuilder::new()
+                        .with_config(config)
+                        .with_agent_card(agent_card)
+                        .build()
+                        .await;
                     assert!(server.is_ok(), "Builder with config should succeed");
                 }
                 _ => {}
