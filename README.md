@@ -111,7 +111,7 @@ Add the ADK to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rust-adk = "0.1.0"
+inference-gateway-adk = "0.1.0"
 ```
 
 ### Basic Usage (Minimal Server)
@@ -380,7 +380,7 @@ cargo build --release
 
 ```dockerfile
 # Build with custom metadata in Docker
-FROM rust:1.70 AS builder
+FROM rust:1.88 AS builder
 
 ARG AGENT_NAME="Production Agent"
 ARG AGENT_DESCRIPTION="Production deployment agent with enhanced capabilities"
