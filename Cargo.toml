@@ -8,14 +8,14 @@ inference-gateway-sdk = "0.11.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tokio = { version = "1.0", features = ["full"] }
-axum = { version = "0.7", features = ["json", "http2"] }
+axum = { version = "0.8.4", features = ["json", "http2"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1.0", features = ["v4", "serde"] }
 anyhow = "1.0"
-thiserror = "1.0"
-tower = "0.4"
-tower-http = { version = "0.5", features = ["cors", "trace"] }
+thiserror = "2.0.12"
+tower = "0.5.2"
+tower-http = { version = "0.6.6", features = ["cors", "trace"] }
 futures = "0.3"
 futures-util = "0.3"
