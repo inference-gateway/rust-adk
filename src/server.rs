@@ -19,6 +19,23 @@ use tower::ServiceBuilder;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing::{debug, error, info};
 
+fn parse_provider(provider_str: &str) -> Result<Provider> {
+    match provider_str.to_lowercase().as_str() {
+        "groq" => Ok(Provider::Groq),
+        "google" => Ok(Provider::Google),
+        "openai" => Ok(Provider::OpenAI),
+        "anthropic" => Ok(Provider::Anthropic),
+        "cohere" => Ok(Provider::Cohere),
+        "cloudflare" => Ok(Provider::Cloudflare),
+        "deepseek" => Ok(Provider::Deepseek),
+        "ollama" => Ok(Provider::Ollama),
+        _ => Err(anyhow!(
+            "Unsupported provider: {}. Supported providers: groq, google, openai, anthropic, cohere, cloudflare, ollama",
+            provider_str
+        )),
+    }
+}
+
 #[derive(Debug)]
 pub struct A2AServer {
     #[allow(dead_code)]
@@ -33,6 +50,8 @@ pub struct Agent {
     #[allow(dead_code)]
     config: AgentConfig,
     system_prompt: Option<String>,
+    provider: Provider,
+    model: String,
     #[allow(dead_code)]
     max_chat_completion: u32,
     #[allow(dead_code)]
@@ -171,9 +190,20 @@ impl AgentBuilder {
     pub async fn build(self) -> Result<Agent> {
         let config = self.config.unwrap_or_default();
 
+        let provider = parse_provider(&config.provider)?;
+        let model = config.model.clone();
+
+        if model.is_empty() {
+            return Err(anyhow!(
+                "Model cannot be empty. Please configure a model in the agent config"
+            ));
+        }
+
         Ok(Agent {
             config,
             system_prompt: self.system_prompt,
+            provider,
+            model,
             max_chat_completion: self.max_chat_completion,
             max_conversation_history: self.max_conversation_history,
         })
@@ -325,12 +355,25 @@ async fn a2a_handler(
 
     let gateway_client = InferenceGatewayClient::new(&state.server.gateway_url);
 
-    // TODO - remove default
-    let provider = Provider::Groq;
-    let model = "deepseek-r1-distill-llama-70b";
+    let (provider, model) = match &state.server.agent {
+        Some(agent) => (agent.provider, agent.model.clone()),
+        None => {
+            error!("No agent configured for A2A request");
+            let error_response = serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": payload.get("id"),
+                "error": {
+                    "code": -32603,
+                    "message": "Internal error",
+                    "data": "No agent configured. Agent with provider and model must be configured before handling A2A requests."
+                }
+            });
+            return Ok(Json(error_response));
+        }
+    };
 
     match gateway_client
-        .generate_content(provider, model, final_messages)
+        .generate_content(provider, &model, final_messages)
         .await
     {
         Ok(response) => {
