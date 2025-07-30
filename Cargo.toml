@@ -1,6 +1,6 @@
 [package]
 name = "inference-gateway-adk"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 description = "Agent Development Kit (ADK) for building powerful, interoperable AI agents with the Agent-to-Agent (A2A) protocol"
 license = "MIT"
