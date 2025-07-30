@@ -12,10 +12,11 @@ tasks:
       - curl -o schema.yaml https://raw.githubusercontent.com/inference-gateway/schemas/refs/heads/main/a2a/a2a-schema.yaml
 
   a2a:generate-types:
-    desc: Generate the Golang ADK types from the A2A schema
+    desc: Generate the Rust ADK types from the A2A schema
     cmds:
-      # TODO - implement language specific codegeneration or use existing generator tool - research
-      - go run github.com/inference-gateway/tools/cmd/generator@v0.1.1 -generator jsonrpc -package types schema.yaml types/generated_types.rs
+      - cargo run --bin convert_schema
+      - cargo typify schema.json -o src/a2a_types.rs
+      - echo "A2A types generated successfully in src/a2a_types.rs"
 
   lint:
     desc: Run linter
