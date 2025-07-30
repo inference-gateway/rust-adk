@@ -933,7 +933,7 @@ impl A2AValidationSuite {
 
             if !result.passed {
                 if let Some(error) = &result.error {
-                    println!("   Error: {}", error);
+                    println!("   Error: {error}");
                 }
             }
 
@@ -993,9 +993,9 @@ impl A2AValidationSuite {
                 } else {
                     "❌ NOT IMPLEMENTED"
                 };
-                println!("  {} {}", status, method);
+                println!("  {status} {method}");
             } else {
-                println!("  ❓ UNKNOWN {}", method);
+                println!("  ❓ UNKNOWN {method}");
             }
         }
 
