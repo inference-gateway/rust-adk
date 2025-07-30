@@ -111,13 +111,13 @@ Add the ADK to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-inference-gateway-adk = "0.1.0"
+inference_gateway_adk = "0.1.0"
 ```
 
 ### Basic Usage (Minimal Server)
 
 ```rust
-use rust_adk::server::{A2AServer, A2AServerBuilder};
+use inference_gateway_adk::server::{A2AServer, A2AServerBuilder};
 use tokio;
 use tracing::{info, error};
 
@@ -146,7 +146,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### AI-Powered Server
 
 ```rust
-use rust_adk::{
+use inference_gateway_adk::{
     server::{A2AServer, A2AServerBuilder, AgentBuilder},
     config::Config,
     tools::ToolBox,
@@ -233,7 +233,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 Monitor the health status of A2A agents for service discovery and load balancing:
 
 ```rust
-use rust_adk::client::A2AClient;
+use inference_gateway_adk::client::A2AClient;
 use tokio::time::{sleep, Duration};
 use tracing::{info, error};
 
@@ -296,7 +296,6 @@ For complete working examples, see the [examples](./examples/) directory:
 
 - ⚙️ **Environment Configuration**: Simple setup through environment variables
 - 📊 **Task Management**: Built-in task queuing, polling, and lifecycle management
-- 📋 **Task Listing**: Listing with filtering and pagination (`tasks/list`)
 - 🏗️ **Extensible Architecture**: Pluggable components for custom business logic
 - 📚 **Type-Safe**: Generated types from A2A schema for compile-time safety
 - 🧪 **Well Tested**: Comprehensive test coverage with table-driven tests
@@ -313,7 +312,7 @@ For complete working examples, see the [examples](./examples/) directory:
 
 ### Prerequisites
 
-- Rust 1.70 or later
+- Rust 1.88 or later
 - [Task](https://taskfile.dev/) for build automation (optional, can use `cargo` directly)
 
 ### Development Workflow
@@ -412,7 +411,7 @@ CMD ["./rust-adk"]
 The main server trait that handles A2A protocol communication.
 
 ```rust
-use rust_adk::server::{A2AServer, A2AServerBuilder};
+use inference_gateway_adk::server::{A2AServer, A2AServerBuilder};
 
 // Create a default A2A server
 let server = A2AServerBuilder::new()
@@ -440,7 +439,7 @@ let server = A2AServerBuilder::new()
 Build A2A servers with custom configurations using a fluent interface:
 
 ```rust
-use rust_adk::server::{A2AServerBuilder, AgentBuilder};
+use inference_gateway_adk::server::{A2AServerBuilder, AgentBuilder};
 
 // Basic server with agent
 let server = A2AServerBuilder::new()
@@ -471,7 +470,7 @@ let server = A2AServerBuilder::new()
 Build OpenAI-compatible agents that live inside the A2A server using a fluent interface:
 
 ```rust
-use rust_adk::server::AgentBuilder;
+use inference_gateway_adk::server::AgentBuilder;
 
 // Basic agent with custom LLM
 let agent = AgentBuilder::new()
@@ -500,7 +499,7 @@ let server = A2AServerBuilder::new()
 The client struct for communicating with A2A servers:
 
 ```rust
-use rust_adk::client::A2AClient;
+use inference_gateway_adk::client::A2AClient;
 
 // Basic client creation
 let client = A2AClient::new("http://localhost:8080")?;
@@ -525,7 +524,7 @@ client.send_task_streaming(params, event_handler).await?;
 Monitor the health status of A2A agents to ensure they are operational:
 
 ```rust
-use rust_adk::client::A2AClient;
+use inference_gateway_adk::client::A2AClient;
 
 // Check agent health
 let health = client.get_health().await?;
@@ -557,7 +556,7 @@ match health.status.as_str() {
 Create OpenAI-compatible LLM clients for agents:
 
 ```rust
-use rust_adk::llm::OpenAICompatibleClient;
+use inference_gateway_adk::llm::OpenAICompatibleClient;
 
 // Create LLM client with configuration
 let llm_client = OpenAICompatibleClient::new(agent_config).await?;
@@ -574,21 +573,21 @@ let agent = AgentBuilder::new()
 The configuration is managed through environment variables and the config module:
 
 ```rust
-use rust_adk::config::{Config, AgentConfig};
+use inference_gateway_adk::config::{Config, AgentConfig};
 
 #[derive(Debug, Clone)]
 pub struct Config {
-    pub agent_url: String,                    // AGENT_URL (default: http://helloworld-agent:8080)
-    pub debug: bool,                          // DEBUG (default: false)
-    pub port: u16,                           // PORT (default: 8080)
-    pub streaming_status_update_interval: Duration, // STREAMING_STATUS_UPDATE_INTERVAL (default: 1s)
-    pub agent_config: AgentConfig,           // AGENT_CLIENT_*
-    pub capabilities_config: CapabilitiesConfig, // CAPABILITIES_*
-    pub tls_config: Option<TlsConfig>,       // TLS_*
-    pub auth_config: Option<AuthConfig>,     // AUTH_*
-    pub queue_config: QueueConfig,           // QUEUE_*
-    pub server_config: ServerConfig,         // SERVER_*
-    pub telemetry_config: TelemetryConfig,   // TELEMETRY_*
+    pub agent_url: String,                           // AGENT_URL (default: http://helloworld-agent:8080)
+    pub debug: bool,                                 // DEBUG (default: false)
+    pub port: u16,                                   // PORT (default: 8080)
+    pub streaming_status_update_interval: Duration,  // STREAMING_STATUS_UPDATE_INTERVAL (default: 1s)
+    pub agent_config: AgentConfig,                   // AGENT_CLIENT_*
+    pub capabilities_config: CapabilitiesConfig,     // CAPABILITIES_*
+    pub tls_config: Option<TlsConfig>,               // TLS_*
+    pub auth_config: Option<AuthConfig>,             // AUTH_*
+    pub queue_config: QueueConfig,                   // QUEUE_*
+    pub server_config: ServerConfig,                 // SERVER_*
+    pub telemetry_config: TelemetryConfig,           // TELEMETRY_*
 }
 
 #[derive(Debug, Clone)]
@@ -615,7 +614,7 @@ The `AgentBuilder` provides a fluent interface for creating highly customized ag
 #### Basic Agent Creation
 
 ```rust
-use rust_adk::server::AgentBuilder;
+use inference_gateway_adk::server::AgentBuilder;
 use tracing;
 
 // Create a simple agent with defaults
@@ -635,7 +634,7 @@ let agent = AgentBuilder::new()
 #### Agent with Custom Configuration
 
 ```rust
-use rust_adk::config::AgentConfig;
+use inference_gateway_adk::config::AgentConfig;
 use std::time::Duration;
 
 let config = AgentConfig {
@@ -659,7 +658,7 @@ let agent = AgentBuilder::new()
 #### Agent with Custom LLM Client
 
 ```rust
-use rust_adk::llm::OpenAICompatibleClient;
+use inference_gateway_adk::llm::OpenAICompatibleClient;
 
 // Create a custom LLM client
 let llm_client = OpenAICompatibleClient::new(&config).await?;
@@ -675,7 +674,7 @@ let agent = AgentBuilder::new()
 #### Fully Configured Agent
 
 ```rust
-use rust_adk::tools::ToolBox;
+use inference_gateway_adk::tools::ToolBox;
 use serde_json::json;
 
 // Create toolbox with custom tools
@@ -725,7 +724,7 @@ let server = A2AServerBuilder::new()
 Create custom tools to extend your agent's capabilities:
 
 ```rust
-use rust_adk::tools::ToolBox;
+use inference_gateway_adk::tools::ToolBox;
 use serde_json::json;
 
 // Create a toolbox
@@ -768,8 +767,8 @@ let agent = AgentBuilder::new()
 Implement custom business logic for task completion:
 
 ```rust
-use rust_adk::server::{TaskProcessor, TaskResult};
-use rust_adk::types::Message;
+use inference_gateway_adk::server::{TaskProcessor, TaskResult};
+use inference_gateway_adk::types::Message;
 
 struct CustomTaskProcessor;
 
@@ -807,8 +806,8 @@ let server = A2AServerBuilder::new()
 Configure webhook notifications to receive real-time updates when task states change:
 
 ```rust
-use rust_adk::notifications::{HttpPushNotificationSender, TaskPushNotificationConfig};
-use rust_adk::server::TaskManager;
+use inference_gateway_adk::notifications::{HttpPushNotificationSender, TaskPushNotificationConfig};
+use inference_gateway_adk::server::TaskManager;
 
 // Create an HTTP push notification sender
 let notification_sender = HttpPushNotificationSender::new();
@@ -884,7 +883,7 @@ cargo build --release
 For development or when dynamic configuration is needed, you can override the build-time metadata through the server's configuration:
 
 ```rust
-use rust_adk::config::Config;
+use inference_gateway_adk::config::Config;
 
 let mut config = Config::from_env()?;
 
