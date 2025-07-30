@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.3](https://github.com/inference-gateway/rust-adk/compare/0.1.2...0.1.3) (2025-07-30)
+
+### ♻️ Improvements
+
+* **package:** Remove redundant keyword from Cargo.toml ([d38394f](https://github.com/inference-gateway/rust-adk/commit/d38394f7be5aaf2e302881f537edb5fc113e76ed))
+
 ## [0.1.2](https://github.com/inference-gateway/rust-adk/compare/0.1.1...0.1.2) (2025-07-30)
 
 ### ♻️ Improvements
