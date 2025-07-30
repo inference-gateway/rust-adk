@@ -9,7 +9,6 @@
 - Always run `task test` before committing code to ensure all tests pass.
 - Always search for the simplest solution first before considering more complex alternatives.
 - Always prefer type safety over dynamic typing: Use strong typing and interfaces to ensure type safety and reduce runtime errors.
-- When working on MCP (Model Context Protocol) related tasks, always refer to the official MCP documentation and examples for guidance and ensure you run `task jrpc-mcp-schema-download` and `task generate` to keep the MCP Golang types up to date.
 - When possible code to an interface so it's easier to mock in tests.
 - When writing tests, each test case should have it's own isolated mock server mock dependecies so it's easier to understand and maintain.
 
@@ -19,12 +18,10 @@
 
 When adding new configuration fields:
 
-1. Run `task oas-download` - OpenAPI is the source of truth - readonly file.
-2. If added new Schemas to openapi.yaml, update internal/openapi/schemas.go to include the new schemas
-3. Run `task lint` to ensure code quality
-4. Run `task analyse` to catch potential issues
-5. Run `task test` to ensure all tests pass
-6. Update the README.md file or any documentation files with the recently added implementation
+1. Run `task lint` to ensure code quality
+2. Run `task analyse` to catch potential issues
+3. Run `task test` to ensure all tests pass
+4. Update the README.md file or any documentation files with the recently added implementation
 
 ## Available Tools and MCPs
 

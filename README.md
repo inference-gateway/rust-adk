@@ -20,7 +20,7 @@
     <img src="https://img.shields.io/github/license/inference-gateway/rust-adk?color=blue&style=flat-square" alt="License"/>
   </a>
   <!-- Rust Version -->
-  <img src="https://img.shields.io/badge/rust-1.70+-blue.svg?style=flat-square" alt="Rust Version"/>
+  <img src="https://img.shields.io/badge/rust-1.88+-blue.svg?style=flat-square" alt="Rust Version"/>
 </p>
 
 ---
