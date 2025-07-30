@@ -1,7 +1,7 @@
 use inference_gateway_adk::A2AClient;
 use serde_json::json;
-use tokio::time::{sleep, Duration};
-use tracing::{info, error};
+use tokio::time::{Duration, sleep};
+use tracing::{error, info};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -35,9 +35,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Ok(agent_card) => {
             info!("Agent card retrieved successfully");
             info!("Agent: {} - {}", agent_card.name, agent_card.description);
-            info!("Protocol version: {}, Transport: {}", 
-                agent_card.protocol_version, 
-                agent_card.preferred_transport);
+            info!(
+                "Protocol version: {}, Transport: {}",
+                agent_card.protocol_version, agent_card.preferred_transport
+            );
         }
         Err(e) => {
             error!("Failed to get agent card: {}", e);
@@ -84,10 +85,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
-    match client.send_task_streaming(streaming_params, |event| {
-        info!("Streaming event received: {}", serde_json::to_string_pretty(&event)?);
-        Ok(())
-    }).await {
+    match client
+        .send_task_streaming(streaming_params, |event| {
+            info!(
+                "Streaming event received: {}",
+                serde_json::to_string_pretty(&event)?
+            );
+            Ok(())
+        })
+        .await
+    {
         Ok(_) => {
             info!("Streaming task completed successfully");
         }
@@ -98,18 +105,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Periodic health monitoring example
     info!("Starting periodic health monitoring (3 checks)...");
-    
+
     for i in 1..=3 {
         sleep(Duration::from_secs(3)).await;
-        
+
         match client.get_health().await {
             Ok(health) => {
-                info!("[Check {}] A2A Server status: {} at {}", 
-                    i, health.status, health.timestamp.format("%H:%M:%S"));
-                
+                info!(
+                    "[Check {}] A2A Server status: {} at {}",
+                    i,
+                    health.status,
+                    health.timestamp.format("%H:%M:%S")
+                );
+
                 if let Some(details) = &health.details {
                     if let Some(gateway_healthy) = details.get("gateway_healthy") {
-                        info!("[Check {}] Inference Gateway healthy: {}", i, gateway_healthy);
+                        info!(
+                            "[Check {}] Inference Gateway healthy: {}",
+                            i, gateway_healthy
+                        );
                     }
                 }
             }

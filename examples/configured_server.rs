@@ -1,7 +1,7 @@
 use inference_gateway_adk::{A2AServerBuilder, AgentBuilder, Config};
-use tokio;
-use tracing::{info, error};
 use std::env;
+use tokio;
+use tracing::{error, info};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -10,7 +10,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Load configuration from environment
     let config = Config::from_env()?;
-    
+
     // Get gateway URL from environment or use default
     let gateway_url = env::var("INFERENCE_GATEWAY_URL")
         .unwrap_or_else(|_| "http://localhost:8080/v1".to_string());

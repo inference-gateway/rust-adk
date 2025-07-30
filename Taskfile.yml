@@ -38,6 +38,11 @@ tasks:
     cmds:
       - cargo fmt --all -- --check
 
+  lint:fix:
+    desc: Run linter and fix issues
+    cmds:
+      - cargo fmt --all
+
   analyse:
     desc: Run static analysis
     cmds:

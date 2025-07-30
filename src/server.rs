@@ -1,16 +1,16 @@
 use crate::a2a_types::AgentCard;
 use crate::client::HealthStatus;
-use crate::config::{Config, AgentConfig};
-use anyhow::{anyhow, Result};
+use crate::config::{AgentConfig, Config};
+use anyhow::{Result, anyhow};
 use axum::{
+    Router,
     extract::State,
     http::StatusCode,
     response::Json,
     routing::{get, post},
-    Router,
 };
 use inference_gateway_sdk::{
-    InferenceGatewayAPI, InferenceGatewayClient, Message, MessageRole, Provider
+    InferenceGatewayAPI, InferenceGatewayClient, Message, MessageRole, Provider,
 };
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -97,18 +97,16 @@ impl A2AServerBuilder {
         // Load agent card from file if specified
         let agent_card = if let Some(path) = self.agent_card_path {
             match tokio::fs::read_to_string(&path).await {
-                Ok(content) => {
-                    match serde_json::from_str::<AgentCard>(&content) {
-                        Ok(card) => {
-                            info!("Loaded agent card from: {}", path);
-                            Some(card)
-                        }
-                        Err(e) => {
-                            error!("Failed to parse agent card from {}: {}", path, e);
-                            None
-                        }
+                Ok(content) => match serde_json::from_str::<AgentCard>(&content) {
+                    Ok(card) => {
+                        info!("Loaded agent card from: {}", path);
+                        Some(card)
                     }
-                }
+                    Err(e) => {
+                        error!("Failed to parse agent card from {}: {}", path, e);
+                        None
+                    }
+                },
                 Err(e) => {
                     debug!("Could not load agent card from {}: {}", path, e);
                     None
@@ -119,7 +117,9 @@ impl A2AServerBuilder {
         };
 
         // Store gateway URL for later client creation
-        let gateway_url = self.gateway_url.unwrap_or_else(|| "http://localhost:8080/v1".to_string());
+        let gateway_url = self
+            .gateway_url
+            .unwrap_or_else(|| "http://localhost:8080/v1".to_string());
 
         Ok(A2AServer {
             config,
@@ -168,7 +168,7 @@ impl AgentBuilder {
 
     pub async fn build(self) -> Result<Agent> {
         let config = self.config.unwrap_or_default();
-        
+
         Ok(Agent {
             config,
             system_prompt: self.system_prompt,
@@ -186,9 +186,7 @@ impl Default for AgentBuilder {
 
 impl A2AServer {
     pub async fn serve(self, addr: SocketAddr) -> Result<()> {
-        let state = AppState {
-            server: self,
-        };
+        let state = AppState { server: self };
 
         let app = Router::new()
             .route("/health", get(health_handler))
@@ -197,7 +195,7 @@ impl A2AServer {
             .layer(
                 ServiceBuilder::new()
                     .layer(TraceLayer::new_for_http())
-                    .layer(CorsLayer::permissive())
+                    .layer(CorsLayer::permissive()),
             )
             .with_state(Arc::new(state));
 
@@ -215,15 +213,14 @@ impl A2AServer {
     }
 }
 
-async fn health_handler(State(state): State<Arc<AppState>>) -> Result<Json<HealthStatus>, StatusCode> {
+async fn health_handler(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<HealthStatus>, StatusCode> {
     debug!("Health check requested");
 
     // Create gateway client and check health
     let gateway_client = InferenceGatewayClient::new(&state.server.gateway_url);
-    let gateway_healthy = gateway_client
-        .health_check()
-        .await
-        .unwrap_or(false);
+    let gateway_healthy = gateway_client.health_check().await.unwrap_or(false);
 
     let status = if gateway_healthy && state.server.agent.is_some() {
         "healthy"
@@ -248,7 +245,9 @@ async fn health_handler(State(state): State<Arc<AppState>>) -> Result<Json<Healt
     Ok(Json(health))
 }
 
-async fn agent_card_handler(State(state): State<Arc<AppState>>) -> Result<Json<AgentCard>, StatusCode> {
+async fn agent_card_handler(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<AgentCard>, StatusCode> {
     debug!("Agent card requested");
 
     if let Some(ref agent_card) = state.server.agent_card {
@@ -257,7 +256,8 @@ async fn agent_card_handler(State(state): State<Arc<AppState>>) -> Result<Json<A
     }
 
     // Return a default agent card if none is configured
-    let default_card = serde_json::from_str::<AgentCard>(r#"{
+    let default_card = serde_json::from_str::<AgentCard>(
+        r#"{
         "name": "A2A Server with Inference Gateway SDK",
         "description": "A2A compatible server built with Rust ADK and Inference Gateway SDK",
         "version": "0.1.0",
@@ -270,7 +270,9 @@ async fn agent_card_handler(State(state): State<Arc<AppState>>) -> Result<Json<A
             "protocol": "a2a",
             "version": "1.0"
         }
-    }"#).map_err(|e| {
+    }"#,
+    )
+    .map_err(|e| {
         error!("Failed to create default agent card: {}", e);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
@@ -288,12 +290,13 @@ async fn a2a_handler(
     // Extract messages from the JSON-RPC request
     let messages = if let Some(params) = payload.get("params") {
         if let Some(messages_array) = params.get("messages") {
-            serde_json::from_value(messages_array.clone())
-                .unwrap_or_else(|_| vec![Message {
+            serde_json::from_value(messages_array.clone()).unwrap_or_else(|_| {
+                vec![Message {
                     role: MessageRole::User,
                     content: "Hello from A2A!".to_string(),
                     ..Default::default()
-                }])
+                }]
+            })
         } else {
             vec![Message {
                 role: MessageRole::User,
@@ -329,10 +332,12 @@ async fn a2a_handler(
 
     match gateway_client
         .generate_content(provider, model, final_messages)
-        .await 
+        .await
     {
         Ok(response) => {
-            let content = response.choices.get(0)
+            let content = response
+                .choices
+                .get(0)
                 .map(|c| c.message.content.clone())
                 .unwrap_or_else(|| "No response generated".to_string());
 
@@ -357,7 +362,7 @@ async fn a2a_handler(
         }
         Err(e) => {
             error!("Failed to generate content via SDK: {}", e);
-            
+
             // Return error response
             let error_response = serde_json::json!({
                 "jsonrpc": "2.0",
@@ -405,10 +410,7 @@ mod tests {
                 }
                 "with_config" => {
                     let config = Config::default();
-                    let server = A2AServerBuilder::new()
-                        .with_config(config)
-                        .build()
-                        .await;
+                    let server = A2AServerBuilder::new().with_config(config).build().await;
                     assert!(server.is_ok(), "Builder with config should succeed");
                 }
                 _ => {}
@@ -440,9 +442,15 @@ mod tests {
                         .with_system_prompt("You are a helpful assistant")
                         .build()
                         .await;
-                    assert!(agent.is_ok(), "Agent builder with system prompt should succeed");
+                    assert!(
+                        agent.is_ok(),
+                        "Agent builder with system prompt should succeed"
+                    );
                     let agent = agent.unwrap();
-                    assert_eq!(agent.system_prompt, Some("You are a helpful assistant".to_string()));
+                    assert_eq!(
+                        agent.system_prompt,
+                        Some("You are a helpful assistant".to_string())
+                    );
                 }
                 _ => {}
             }

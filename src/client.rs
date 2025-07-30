@@ -1,8 +1,9 @@
 use crate::a2a_types::AgentCard;
 use crate::config::ClientConfig;
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use inference_gateway_sdk::{
-    CreateChatCompletionResponse, InferenceGatewayAPI, InferenceGatewayClient, Message, MessageRole, Provider
+    CreateChatCompletionResponse, InferenceGatewayAPI, InferenceGatewayClient, Message,
+    MessageRole, Provider,
 };
 use serde::{Deserialize, Serialize};
 use tracing::debug;
@@ -25,7 +26,7 @@ impl A2AClient {
     pub fn new(base_url: impl Into<String>) -> Result<Self> {
         let base_url = base_url.into();
         let config = ClientConfig::new(base_url.clone());
-        
+
         // Create inference gateway client
         let gateway_client = InferenceGatewayClient::new(&base_url);
 
@@ -49,13 +50,14 @@ impl A2AClient {
     pub async fn get_health(&self) -> Result<HealthStatus> {
         debug!("Making health check request via SDK");
 
-        let is_healthy = self.gateway_client
+        let is_healthy = self
+            .gateway_client
             .health_check()
             .await
             .map_err(|e| anyhow!("Health check request failed: {}", e))?;
 
         let status = if is_healthy { "healthy" } else { "unhealthy" };
-        
+
         let health_status = HealthStatus {
             status: status.to_string(),
             timestamp: chrono::Utc::now(),
@@ -73,7 +75,8 @@ impl A2AClient {
         debug!("Agent card request - returning default A2A agent card");
 
         // Since the SDK doesn't have agent card functionality, return a default
-        let agent_card = serde_json::from_str::<AgentCard>(r#"{
+        let agent_card = serde_json::from_str::<AgentCard>(
+            r#"{
             "name": "A2A Agent",
             "description": "A2A compatible agent using Inference Gateway SDK",
             "version": "0.1.0",
@@ -86,7 +89,9 @@ impl A2AClient {
                 "protocol": "a2a",
                 "version": "1.0"
             }
-        }"#).map_err(|e| anyhow!("Failed to create default agent card: {}", e))?;
+        }"#,
+        )
+        .map_err(|e| anyhow!("Failed to create default agent card: {}", e))?;
 
         debug!("Agent card response created");
         Ok(agent_card)
@@ -97,12 +102,13 @@ impl A2AClient {
 
         // Extract messages from params or create default
         let messages = if let Some(messages_val) = params.get("messages") {
-            serde_json::from_value(messages_val.clone())
-                .unwrap_or_else(|_| vec![Message {
+            serde_json::from_value(messages_val.clone()).unwrap_or_else(|_| {
+                vec![Message {
                     role: MessageRole::User,
                     content: params.to_string(),
                     ..Default::default()
-                }])
+                }]
+            })
         } else {
             vec![Message {
                 role: MessageRole::User,
@@ -115,7 +121,8 @@ impl A2AClient {
         let provider = Provider::Groq;
         let model = "deepseek-r1-distill-llama-70b";
 
-        let response: CreateChatCompletionResponse = self.gateway_client
+        let response: CreateChatCompletionResponse = self
+            .gateway_client
             .generate_content(provider, model, messages)
             .await
             .map_err(|e| anyhow!("Task request failed: {}", e))?;
@@ -143,7 +150,11 @@ impl A2AClient {
         Ok(result)
     }
 
-    pub async fn send_task_streaming<F>(&self, params: serde_json::Value, mut event_handler: F) -> Result<()>
+    pub async fn send_task_streaming<F>(
+        &self,
+        params: serde_json::Value,
+        mut event_handler: F,
+    ) -> Result<()>
     where
         F: FnMut(serde_json::Value) -> Result<()>,
     {

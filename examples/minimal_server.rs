@@ -1,6 +1,6 @@
 use inference_gateway_adk::A2AServerBuilder;
 use tokio;
-use tracing::{info, error};
+use tracing::{error, info};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

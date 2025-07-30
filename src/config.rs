@@ -139,7 +139,6 @@ impl Default for ServerConfig {
     }
 }
 
-
 impl Config {
     pub fn from_env() -> Result<Self, Box<dyn std::error::Error>> {
         let mut config = Config::default();
@@ -215,11 +214,13 @@ impl Config {
         }
 
         if let Ok(push_notifications) = std::env::var("CAPABILITIES_PUSH_NOTIFICATIONS") {
-            config.capabilities_config.push_notifications = push_notifications.to_lowercase() == "true";
+            config.capabilities_config.push_notifications =
+                push_notifications.to_lowercase() == "true";
         }
 
         if let Ok(state_history) = std::env::var("CAPABILITIES_STATE_TRANSITION_HISTORY") {
-            config.capabilities_config.state_transition_history = state_history.to_lowercase() == "true";
+            config.capabilities_config.state_transition_history =
+                state_history.to_lowercase() == "true";
         }
 
         // TLS configuration
@@ -231,8 +232,10 @@ impl Config {
                     key_path: std::env::var("SERVER_TLS_KEY_PATH").unwrap_or_default(),
                 });
                 config.server_config.tls_enable = true;
-                config.server_config.tls_cert_path = Some(config.tls_config.as_ref().unwrap().cert_path.clone());
-                config.server_config.tls_key_path = Some(config.tls_config.as_ref().unwrap().key_path.clone());
+                config.server_config.tls_cert_path =
+                    Some(config.tls_config.as_ref().unwrap().cert_path.clone());
+                config.server_config.tls_key_path =
+                    Some(config.tls_config.as_ref().unwrap().key_path.clone());
             }
         }
 
