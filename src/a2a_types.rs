@@ -2,11 +2,6 @@
 #![allow(clippy::needless_lifetimes)]
 #![allow(clippy::match_single_binding)]
 #![allow(clippy::clone_on_copy)]
-#![allow(irrefutable_let_patterns)]
-#![allow(clippy::derivable_impls)]
-#![allow(clippy::large_enum_variant)]
-#![allow(clippy::uninlined_format_args)]
-#![allow(clippy::unit_arg)]
 
 #[doc = r" Error types."]
 pub mod error {

@@ -18,7 +18,7 @@ mod tests {
     fn test_a2a_types_module_exists() {
         // Basic test to ensure the a2a_types module is accessible
         // If this compiles, the module is successfully integrated
-        
+
         // Test that we can access basic types from the module
         use crate::a2a_types::JsonrpcMessage;
         let _type_exists = std::mem::size_of::<JsonrpcMessage>();

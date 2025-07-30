@@ -6,17 +6,25 @@ tasks:
     cmds:
       - task --list
 
+  install:typify:
+    desc: Install Typify CLI tool
+    cmds:
+      - cargo install cargo-typify
+
   a2a:download-schema:
     desc: Download the latest A2A schema and convert to YAML
     cmds:
+      - curl -o schema.json https://raw.githubusercontent.com/inference-gateway/schemas/refs/heads/main/a2a/a2a-schema.json
       - curl -o schema.yaml https://raw.githubusercontent.com/inference-gateway/schemas/refs/heads/main/a2a/a2a-schema.yaml
 
   a2a:generate-types:
+    deps:
+      - install:typify
     desc: Generate the Rust ADK types from the A2A schema
     cmds:
-      - cargo run --bin convert_schema
       - cargo typify schema.json -o src/a2a_types.rs
       - echo "A2A types generated successfully in src/a2a_types.rs"
+      - cargo fmt --all
 
   lint:
     desc: Run linter
