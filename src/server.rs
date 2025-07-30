@@ -10,14 +10,80 @@ use axum::{
     routing::{get, post},
 };
 use inference_gateway_sdk::{
-    InferenceGatewayAPI, InferenceGatewayClient, Message, MessageRole, Provider,
+    InferenceGatewayAPI, InferenceGatewayClient, Message, MessageRole, Provider, Tool,
 };
+use serde_json::Value;
+use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tower::ServiceBuilder;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing::{debug, error, info};
+
+/// Trait for handling tool calls
+#[async_trait::async_trait]
+pub trait ToolHandler: Send + Sync {
+    /// Handle a tool call with the given arguments and return the result
+    async fn handle(&self, args: Value) -> Result<String>;
+}
+
+/// A simple function-based tool handler
+pub struct FunctionToolHandler<F>
+where
+    F: Fn(Value) -> Result<String> + Send + Sync,
+{
+    handler: F,
+}
+
+impl<F> FunctionToolHandler<F>
+where
+    F: Fn(Value) -> Result<String> + Send + Sync,
+{
+    pub fn new(handler: F) -> Self {
+        Self { handler }
+    }
+}
+
+#[async_trait::async_trait]
+impl<F> ToolHandler for FunctionToolHandler<F>
+where
+    F: Fn(Value) -> Result<String> + Send + Sync,
+{
+    async fn handle(&self, args: Value) -> Result<String> {
+        (self.handler)(args)
+    }
+}
+
+/// An async function-based tool handler
+pub struct AsyncFunctionToolHandler<F, Fut>
+where
+    F: Fn(Value) -> Fut + Send + Sync,
+    Fut: std::future::Future<Output = Result<String>> + Send,
+{
+    handler: F,
+}
+
+impl<F, Fut> AsyncFunctionToolHandler<F, Fut>
+where
+    F: Fn(Value) -> Fut + Send + Sync,
+    Fut: std::future::Future<Output = Result<String>> + Send,
+{
+    pub fn new(handler: F) -> Self {
+        Self { handler }
+    }
+}
+
+#[async_trait::async_trait]
+impl<F, Fut> ToolHandler for AsyncFunctionToolHandler<F, Fut>
+where
+    F: Fn(Value) -> Fut + Send + Sync,
+    Fut: std::future::Future<Output = Result<String>> + Send,
+{
+    async fn handle(&self, args: Value) -> Result<String> {
+        (self.handler)(args).await
+    }
+}
 
 fn parse_provider(provider_str: &str) -> Result<Provider> {
     match provider_str.to_lowercase().as_str() {
@@ -45,7 +111,6 @@ pub struct A2AServer {
     gateway_url: String,
 }
 
-#[derive(Debug, Clone)]
 pub struct Agent {
     #[allow(dead_code)]
     config: AgentConfig,
@@ -56,6 +121,27 @@ pub struct Agent {
     max_chat_completion: u32,
     #[allow(dead_code)]
     max_conversation_history: u32,
+    #[allow(dead_code)]
+    toolbox: Option<Vec<Tool>>,
+    tool_handlers: HashMap<String, Box<dyn ToolHandler>>,
+}
+
+impl std::fmt::Debug for Agent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Agent")
+            .field("config", &self.config)
+            .field("system_prompt", &self.system_prompt)
+            .field("provider", &self.provider)
+            .field("model", &self.model)
+            .field("max_chat_completion", &self.max_chat_completion)
+            .field("max_conversation_history", &self.max_conversation_history)
+            .field("toolbox", &self.toolbox)
+            .field(
+                "tool_handlers",
+                &format!("{} handlers", self.tool_handlers.len()),
+            )
+            .finish()
+    }
 }
 
 pub struct A2AServerBuilder {
@@ -71,6 +157,8 @@ pub struct AgentBuilder {
     system_prompt: Option<String>,
     max_chat_completion: u32,
     max_conversation_history: u32,
+    toolbox: Option<Vec<Tool>>,
+    tool_handlers: HashMap<String, Box<dyn ToolHandler>>,
 }
 
 #[derive(Debug)]
@@ -164,6 +252,8 @@ impl AgentBuilder {
             system_prompt: None,
             max_chat_completion: 10,
             max_conversation_history: 20,
+            toolbox: None,
+            tool_handlers: HashMap::new(),
         }
     }
 
@@ -187,6 +277,35 @@ impl AgentBuilder {
         self
     }
 
+    pub fn with_toolbox(mut self, tools: Vec<Tool>) -> Self {
+        self.toolbox = Some(tools);
+        self
+    }
+
+    pub fn with_tool_handler<H: ToolHandler + 'static>(mut self, name: String, handler: H) -> Self {
+        self.tool_handlers.insert(name, Box::new(handler));
+        self
+    }
+
+    pub fn with_function_tool<F>(mut self, name: String, handler: F) -> Self
+    where
+        F: Fn(Value) -> Result<String> + Send + Sync + 'static,
+    {
+        self.tool_handlers
+            .insert(name, Box::new(FunctionToolHandler::new(handler)));
+        self
+    }
+
+    pub fn with_async_function_tool<F, Fut>(mut self, name: String, handler: F) -> Self
+    where
+        F: Fn(Value) -> Fut + Send + Sync + 'static,
+        Fut: std::future::Future<Output = Result<String>> + Send + 'static,
+    {
+        self.tool_handlers
+            .insert(name, Box::new(AsyncFunctionToolHandler::new(handler)));
+        self
+    }
+
     pub async fn build(self) -> Result<Agent> {
         let config = self.config.unwrap_or_default();
 
@@ -206,6 +325,8 @@ impl AgentBuilder {
             model,
             max_chat_completion: self.max_chat_completion,
             max_conversation_history: self.max_conversation_history,
+            toolbox: self.toolbox,
+            tool_handlers: self.tool_handlers,
         })
     }
 }
@@ -213,6 +334,12 @@ impl AgentBuilder {
 impl Default for AgentBuilder {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl Agent {
+    pub fn toolbox(&self) -> Option<&Vec<Tool>> {
+        self.toolbox.as_ref()
     }
 }
 
@@ -355,8 +482,8 @@ async fn a2a_handler(
 
     let gateway_client = InferenceGatewayClient::new(&state.server.gateway_url);
 
-    let (provider, model) = match &state.server.agent {
-        Some(agent) => (agent.provider, agent.model.clone()),
+    let (provider, model, toolbox) = match &state.server.agent {
+        Some(agent) => (agent.provider, agent.model.clone(), agent.toolbox.clone()),
         None => {
             error!("No agent configured for A2A request");
             let error_response = serde_json::json!({
@@ -372,35 +499,187 @@ async fn a2a_handler(
         }
     };
 
-    match gateway_client
-        .generate_content(provider, &model, final_messages)
+    let client_with_tools = if let Some(tools) = toolbox {
+        gateway_client.with_tools(Some(tools))
+    } else {
+        gateway_client
+    };
+
+    match client_with_tools
+        .generate_content(provider, &model, final_messages.clone())
         .await
     {
         Ok(response) => {
-            let content = response
-                .choices
-                .first()
-                .map(|c| c.message.content.clone())
-                .unwrap_or_else(|| "No response generated".to_string());
-
-            let a2a_response = serde_json::json!({
-                "jsonrpc": "2.0",
-                "id": payload.get("id"),
-                "result": {
-                    "status": "completed",
-                    "message": {
-                        "role": "assistant",
-                        "parts": [{
-                            "kind": "text",
-                            "content": content
-                        }]
-                    },
-                    "timestamp": chrono::Utc::now().to_rfc3339()
+            let choice = match response.choices.first() {
+                Some(choice) => choice,
+                None => {
+                    debug!("No choice returned from LLM");
+                    let error_response = serde_json::json!({
+                        "jsonrpc": "2.0",
+                        "id": payload.get("id"),
+                        "error": {
+                            "code": -32603,
+                            "message": "Internal error",
+                            "data": "No response generated from LLM"
+                        }
+                    });
+                    return Ok(Json(error_response));
                 }
-            });
+            };
 
-            debug!("A2A response generated via SDK");
-            Ok(Json(a2a_response))
+            if let Some(tool_calls) = &choice.message.tool_calls {
+                debug!("Processing {} tool calls", tool_calls.len());
+
+                let agent = state.server.agent.as_ref().unwrap();
+
+                let mut follow_up_convo = final_messages.clone();
+
+                follow_up_convo.push(Message {
+                    role: MessageRole::Assistant,
+                    content: choice.message.content.clone(),
+                    tool_calls: choice.message.tool_calls.clone(),
+                    ..Default::default()
+                });
+
+                for tool_call in tool_calls {
+                    debug!("Processing tool call: {}", tool_call.function.name);
+
+                    if let Some(handler) = agent.tool_handlers.get(&tool_call.function.name) {
+                        match tool_call.function.parse_arguments() {
+                            Ok(args) => match handler.handle(args).await {
+                                Ok(result) => {
+                                    debug!(
+                                        "Tool call '{}' completed successfully",
+                                        tool_call.function.name
+                                    );
+
+                                    follow_up_convo.push(Message {
+                                        role: MessageRole::Tool,
+                                        content: result,
+                                        tool_call_id: Some(tool_call.id.clone()),
+                                        ..Default::default()
+                                    });
+                                }
+                                Err(e) => {
+                                    error!("Tool call '{}' failed: {}", tool_call.function.name, e);
+
+                                    follow_up_convo.push(Message {
+                                        role: MessageRole::Tool,
+                                        content: format!("Error: {e}"),
+                                        tool_call_id: Some(tool_call.id.clone()),
+                                        ..Default::default()
+                                    });
+                                }
+                            },
+                            Err(e) => {
+                                error!(
+                                    "Failed to parse arguments for tool '{}': {}",
+                                    tool_call.function.name, e
+                                );
+
+                                follow_up_convo.push(Message {
+                                    role: MessageRole::Tool,
+                                    content: format!("Error parsing arguments: {e}"),
+                                    tool_call_id: Some(tool_call.id.clone()),
+                                    ..Default::default()
+                                });
+                            }
+                        }
+                    } else {
+                        error!("No handler found for tool: {}", tool_call.function.name);
+
+                        follow_up_convo.push(Message {
+                            role: MessageRole::Tool,
+                            content: format!(
+                                "Error: No handler found for tool '{}'",
+                                tool_call.function.name
+                            ),
+                            tool_call_id: Some(tool_call.id.clone()),
+                            ..Default::default()
+                        });
+                    }
+                }
+
+                debug!("Sending follow-up request with tool results");
+
+                let follow_up_client = InferenceGatewayClient::new(&state.server.gateway_url);
+                let follow_up_client_with_tools =
+                    if let Some(tools) = &state.server.agent.as_ref().unwrap().toolbox {
+                        follow_up_client.with_tools(Some(tools.clone()))
+                    } else {
+                        follow_up_client
+                    };
+
+                match follow_up_client_with_tools
+                    .generate_content(provider, &model, follow_up_convo)
+                    .await
+                {
+                    Ok(follow_up_response) => {
+                        let final_content = follow_up_response
+                            .choices
+                            .first()
+                            .map(|c| c.message.content.clone())
+                            .unwrap_or_else(|| "No final response generated".to_string());
+
+                        let a2a_response = serde_json::json!({
+                            "jsonrpc": "2.0",
+                            "id": payload.get("id"),
+                            "result": {
+                                "status": "completed",
+                                "message": {
+                                    "role": "assistant",
+                                    "parts": [{
+                                        "kind": "text",
+                                        "content": final_content
+                                    }]
+                                },
+                                "timestamp": chrono::Utc::now().to_rfc3339()
+                            }
+                        });
+
+                        debug!("A2A response generated via SDK with tool calls");
+                        Ok(Json(a2a_response))
+                    }
+                    Err(e) => {
+                        error!("Follow-up request failed: {}", e);
+
+                        let error_response = serde_json::json!({
+                            "jsonrpc": "2.0",
+                            "id": payload.get("id"),
+                            "error": {
+                                "code": -32603,
+                                "message": "Internal error",
+                                "data": format!("Follow-up request failed: {}", e)
+                            }
+                        });
+
+                        Ok(Json(error_response))
+                    }
+                }
+            } else {
+                debug!("No tool calls in response, returning direct content");
+
+                let content = choice.message.content.clone();
+
+                let a2a_response = serde_json::json!({
+                    "jsonrpc": "2.0",
+                    "id": payload.get("id"),
+                    "result": {
+                        "status": "completed",
+                        "message": {
+                            "role": "assistant",
+                            "parts": [{
+                                "kind": "text",
+                                "content": content
+                            }]
+                        },
+                        "timestamp": chrono::Utc::now().to_rfc3339()
+                    }
+                });
+
+                debug!("A2A response generated via SDK");
+                Ok(Json(a2a_response))
+            }
         }
         Err(e) => {
             error!("Failed to generate content via SDK: {}", e);
@@ -423,6 +702,7 @@ async fn a2a_handler(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use inference_gateway_sdk::{FunctionObject, ToolType};
 
     #[derive(Debug)]
     struct TestCase {
@@ -472,6 +752,14 @@ mod tests {
                 description: "Should create agent with custom system prompt",
             },
             TestCase {
+                name: "with_toolbox",
+                description: "Should create agent with toolbox",
+            },
+            TestCase {
+                name: "with_tool_handlers",
+                description: "Should create agent with tool handlers",
+            },
+            TestCase {
                 name: "empty_model_error",
                 description: "Should fail when model is empty",
             },
@@ -502,9 +790,86 @@ mod tests {
                         Some("You are a helpful assistant".to_string())
                     );
                 }
+                "with_toolbox" => {
+                    let tool = Tool {
+                        r#type: ToolType::Function,
+                        function: FunctionObject {
+                            name: "test_tool".to_string(),
+                            description: "A test tool".to_string(),
+                            parameters: serde_json::json!({
+                                "type": "object",
+                                "properties": {
+                                    "input": {
+                                        "type": "string",
+                                        "description": "Test input"
+                                    }
+                                },
+                                "required": ["input"]
+                            }),
+                        },
+                    };
+                    let tools = vec![tool];
+                    let agent = AgentBuilder::new()
+                        .with_toolbox(tools.clone())
+                        .build()
+                        .await;
+                    assert!(agent.is_ok(), "Agent builder with toolbox should succeed");
+                    let agent = agent.unwrap();
+                    assert!(agent.toolbox.is_some(), "Agent should have toolbox");
+                    assert_eq!(
+                        agent.toolbox.as_ref().unwrap().len(),
+                        1,
+                        "Toolbox should have one tool"
+                    );
+                }
+                "with_tool_handlers" => {
+                    let tool = Tool {
+                        r#type: ToolType::Function,
+                        function: FunctionObject {
+                            name: "test_handler".to_string(),
+                            description: "A test tool with handler".to_string(),
+                            parameters: serde_json::json!({
+                                "type": "object",
+                                "properties": {
+                                    "input": {
+                                        "type": "string",
+                                        "description": "Test input"
+                                    }
+                                },
+                                "required": ["input"]
+                            }),
+                        },
+                    };
+                    let tools = vec![tool];
+                    let agent = AgentBuilder::new()
+                        .with_toolbox(tools.clone())
+                        .with_function_tool("test_handler".to_string(), |args| {
+                            let input = args["input"].as_str().unwrap_or("default");
+                            Ok(format!("Processed: {input}"))
+                        })
+                        .build()
+                        .await;
+                    assert!(
+                        agent.is_ok(),
+                        "Agent builder with tool handlers should succeed"
+                    );
+                    let agent = agent.unwrap();
+                    assert!(agent.toolbox.is_some(), "Agent should have toolbox");
+                    assert_eq!(
+                        agent.tool_handlers.len(),
+                        1,
+                        "Agent should have one tool handler"
+                    );
+                    assert!(
+                        agent.tool_handlers.contains_key("test_handler"),
+                        "Agent should have the test_handler"
+                    );
+                }
                 "empty_model_error" => {
-                    let mut config = AgentConfig::default();
-                    config.model = "".to_string();
+                    let config = AgentConfig {
+                        model: "".to_string(),
+                        ..Default::default()
+                    };
                     let agent = AgentBuilder::new().with_config(&config).build().await;
                     assert!(agent.is_err(), "Agent builder should fail with empty model");
                     assert!(
@@ -515,8 +880,10 @@ mod tests {
                     );
                 }
                 "invalid_provider_error" => {
-                    let mut config = AgentConfig::default();
-                    config.provider = "invalid_provider".to_string();
+                    let config = AgentConfig {
+                        provider: "invalid_provider".to_string(),
+                        ..Default::default()
+                    };
                     let agent = AgentBuilder::new().with_config(&config).build().await;
                     assert!(
                         agent.is_err(),
