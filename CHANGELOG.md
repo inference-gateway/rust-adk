@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.1](https://github.com/inference-gateway/rust-adk/compare/0.2.0...0.2.1) (2025-07-30)
+
+### 👷 CI
+
+* **release:** Update GitHub Actions workflow for improved token handling and configuration ([c69747a](https://github.com/inference-gateway/rust-adk/commit/c69747ab2ba3afe4effca48388ac46f06a53e883))
+
 ## [0.2.0](https://github.com/inference-gateway/rust-adk/compare/0.1.3...0.2.0) (2025-07-30)
 
 ### ✨ Features
