@@ -94,7 +94,6 @@ impl A2AServerBuilder {
     pub async fn build(self) -> Result<A2AServer> {
         let config = self.config.unwrap_or_default();
 
-        // Load agent card from file if specified
         let agent_card = if let Some(path) = self.agent_card_path {
             match tokio::fs::read_to_string(&path).await {
                 Ok(content) => match serde_json::from_str::<AgentCard>(&content) {
@@ -116,7 +115,6 @@ impl A2AServerBuilder {
             self.agent_card
         };
 
-        // Store gateway URL for later client creation
         let gateway_url = self
             .gateway_url
             .unwrap_or_else(|| "http://localhost:8080/v1".to_string());
@@ -218,7 +216,6 @@ async fn health_handler(
 ) -> Result<Json<HealthStatus>, StatusCode> {
     debug!("Health check requested");
 
-    // Create gateway client and check health
     let gateway_client = InferenceGatewayClient::new(&state.server.gateway_url);
     let gateway_healthy = gateway_client.health_check().await.unwrap_or(false);
 
@@ -255,7 +252,6 @@ async fn agent_card_handler(
         return Ok(Json(agent_card.clone()));
     }
 
-    // Return a default agent card if none is configured
     let default_card = serde_json::from_str::<AgentCard>(
         r#"{
         "name": "A2A Server with Inference Gateway SDK",
@@ -287,7 +283,6 @@ async fn a2a_handler(
 ) -> Result<Json<serde_json::Value>, StatusCode> {
     debug!("A2A request received: {:?}", payload);
 
-    // Extract messages from the JSON-RPC request
     let messages = if let Some(params) = payload.get("params") {
         if let Some(messages_array) = params.get("messages") {
             serde_json::from_value(messages_array.clone()).unwrap_or_else(|_| {
@@ -312,7 +307,6 @@ async fn a2a_handler(
         }]
     };
 
-    // Add system prompt if agent is configured
     let mut final_messages = Vec::new();
     if let Some(ref agent) = state.server.agent {
         if let Some(ref system_prompt) = agent.system_prompt {
@@ -325,10 +319,11 @@ async fn a2a_handler(
     }
     final_messages.extend(messages);
 
-    // Create gateway client and use SDK to generate response
     let gateway_client = InferenceGatewayClient::new(&state.server.gateway_url);
-    let provider = Provider::Groq; // Default provider
-    let model = "deepseek-r1-distill-llama-70b"; // Default model
+
+    // TODO - remove default
+    let provider = Provider::Groq;
+    let model = "deepseek-r1-distill-llama-70b";
 
     match gateway_client
         .generate_content(provider, model, final_messages)

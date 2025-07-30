@@ -143,7 +143,6 @@ impl Config {
     pub fn from_env() -> Result<Self, Box<dyn std::error::Error>> {
         let mut config = Config::default();
 
-        // Server configuration
         if let Ok(port) = std::env::var("PORT") {
             config.port = port.parse().unwrap_or(8080);
             config.server_config.port = config.port;
@@ -157,7 +156,6 @@ impl Config {
             config.agent_url = agent_url;
         }
 
-        // Agent client configuration
         if let Ok(provider) = std::env::var("AGENT_CLIENT_PROVIDER") {
             config.agent_config.provider = provider;
         }
@@ -208,7 +206,6 @@ impl Config {
             }
         }
 
-        // Capabilities configuration
         if let Ok(streaming) = std::env::var("CAPABILITIES_STREAMING") {
             config.capabilities_config.streaming = streaming.to_lowercase() == "true";
         }
@@ -223,7 +220,6 @@ impl Config {
                 state_history.to_lowercase() == "true";
         }
 
-        // TLS configuration
         if let Ok(tls_enable) = std::env::var("SERVER_TLS_ENABLE") {
             if tls_enable.to_lowercase() == "true" {
                 config.tls_config = Some(TlsConfig {
@@ -239,7 +235,6 @@ impl Config {
             }
         }
 
-        // Auth configuration
         if let Ok(auth_enable) = std::env::var("AUTH_ENABLE") {
             if auth_enable.to_lowercase() == "true" {
                 config.auth_config = Some(AuthConfig {
