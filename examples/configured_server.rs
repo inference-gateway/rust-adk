@@ -5,13 +5,10 @@ use tracing::{error, info};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize tracing
     tracing_subscriber::fmt().init();
 
-    // Load configuration from environment
     let config = Config::from_env()?;
 
-    // Get gateway URL from environment or use default
     let gateway_url = env::var("INFERENCE_GATEWAY_URL")
         .unwrap_or_else(|_| "http://localhost:8080/v1".to_string());
 
@@ -21,7 +18,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("Agent model: {}", config.agent_config.model);
     info!("Has API key: {}", config.agent_config.api_key.is_some());
 
-    // Create agent with system prompt
     let agent = AgentBuilder::new()
         .with_config(&config.agent_config)
         .with_system_prompt("You are a helpful A2A assistant built with Rust and powered by the Inference Gateway SDK.")
@@ -37,7 +33,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build()
         .await?;
 
-    // Start A2A server on different port to avoid conflict with gateway
     let addr = "0.0.0.0:8081".parse()?;
     info!("Configured A2A server with SDK integration running on port 8081");
 

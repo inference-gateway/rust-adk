@@ -4,16 +4,13 @@ use tracing::{error, info};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize tracing
     tracing_subscriber::fmt().init();
 
-    // Create the simplest A2A server with SDK integration
     let server = A2AServerBuilder::new()
-        .with_gateway_url("http://localhost:8080/v1") // Inference Gateway endpoint
+        .with_gateway_url("http://localhost:8080/v1")
         .build()
         .await?;
 
-    // Start A2A server on different port to avoid conflict with gateway
     let addr = "0.0.0.0:8081".parse()?;
     info!("Minimal A2A server with Inference Gateway SDK running on port 8081");
     info!("Using Inference Gateway at: http://localhost:8080/v1");
