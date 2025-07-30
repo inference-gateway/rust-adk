@@ -474,8 +474,8 @@ use inference_gateway_adk::server::AgentBuilder;
 
 // Basic agent with custom LLM
 let agent = AgentBuilder::new()
-    .with_llm_client(custom_llm_client)
-    .with_toolbox(toolbox)
+    .with_config(&config)
+    .with_toolbox(tools)
     .build()
     .await?;
 
@@ -674,30 +674,62 @@ let agent = AgentBuilder::new()
 #### Fully Configured Agent
 
 ```rust
-use inference_gateway_adk::tools::ToolBox;
+use inference_gateway_adk::server::AgentBuilder;
+use inference_gateway_sdk::{Tool, ToolType, FunctionObject};
 use serde_json::json;
 
-// Create toolbox with custom tools
-let mut toolbox = ToolBox::new();
-
-// Add custom tools (see Custom Tools section below)
-toolbox.add_tool(
-    "get_weather",
-    "Get weather information",
-    json!({
-        "type": "object",
-        "properties": {
-            "location": {
-                "type": "string",
-                "description": "City name"
-            }
+// Create tools for the agent's toolbox
+let tools = vec![
+    Tool {
+        r#type: ToolType::Function,
+        function: FunctionObject {
+            name: "get_weather".to_string(),
+            description: "Get current weather for a location".to_string(),
+            parameters: json!({
+                "type": "object",
+                "properties": {
+                    "location": {
+                        "type": "string",
+                        "description": "The city and state, e.g. San Francisco, CA"
+                    },
+                    "unit": {
+                        "type": "string",
+                        "enum": ["celsius", "fahrenheit"],
+                        "description": "Temperature unit"
+                    }
+                },
+                "required": ["location"]
+            }),
         },
-        "required": ["location"]
-    }),
-    |args| async move {
-        let location = args["location"].as_str().unwrap_or("Unknown");
-        Ok(format!(r#"{{"location": "{}", "temperature": "22°C"}}"#, location))
     },
+    Tool {
+        r#type: ToolType::Function,
+        function: FunctionObject {
+            name: "calculate".to_string(),
+            description: "Perform basic mathematical calculations".to_string(),
+            parameters: json!({
+                "type": "object",
+                "properties": {
+                    "expression": {
+                        "type": "string",
+                        "description": "Mathematical expression to evaluate"
+                    }
+                },
+                "required": ["expression"]
+            }),
+        },
+    },
+];
+
+// Build a fully configured agent with toolbox
+let agent = AgentBuilder::new()
+    .with_config(&config)
+    .with_system_prompt("You are a helpful assistant with weather and calculation capabilities.")
+    .with_max_chat_completion(15)
+    .with_max_conversation_history(30)
+    .with_toolbox(tools)
+    .build()
+    .await?;
 );
 
 // Build a fully configured agent
@@ -721,46 +753,74 @@ let server = A2AServerBuilder::new()
 
 ### Custom Tools
 
-Create custom tools to extend your agent's capabilities:
+Create custom tools to extend your agent's capabilities using the Inference Gateway SDK's tool system:
 
 ```rust
-use inference_gateway_adk::tools::ToolBox;
+use inference_gateway_adk::server::AgentBuilder;
+use inference_gateway_sdk::{Tool, ToolType, FunctionObject};
 use serde_json::json;
 
-// Create a toolbox
-let mut toolbox = ToolBox::new();
-
-// Create a custom tool
-toolbox.add_tool(
-    "get_weather",
-    "Get current weather for a location",
-    json!({
-        "type": "object",
-        "properties": {
-            "location": {
-                "type": "string",
-                "description": "The city and state, e.g. San Francisco, CA"
-            }
+// Define tools for your agent's toolbox
+let tools = vec![
+    Tool {
+        r#type: ToolType::Function,
+        function: FunctionObject {
+            name: "get_weather".to_string(),
+            description: "Get current weather for a location".to_string(),
+            parameters: json!({
+                "type": "object",
+                "properties": {
+                    "location": {
+                        "type": "string",
+                        "description": "The city and state, e.g. San Francisco, CA"
+                    },
+                    "unit": {
+                        "type": "string",
+                        "enum": ["celsius", "fahrenheit"],
+                        "description": "Temperature unit (default: celsius)"
+                    }
+                },
+                "required": ["location"]
+            }),
         },
-        "required": ["location"]
-    }),
-    |args| async move {
-        let location = args["location"].as_str().unwrap_or("Unknown");
-
-        // Your weather API logic here
-        let result = get_weather(location).await?;
-
-        let response = serde_json::to_string(&result)?;
-        Ok(response)
     },
-);
+    Tool {
+        r#type: ToolType::Function,
+        function: FunctionObject {
+            name: "search_web".to_string(),
+            description: "Search the web for information".to_string(),
+            parameters: json!({
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Search query"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Maximum number of results (default: 5)",
+                        "default": 5
+                    }
+                },
+                "required": ["query"]
+            }),
+        },
+    },
+];
 
-// Set the toolbox on your agent
+// Create an agent with the toolbox
 let agent = AgentBuilder::new()
-    .with_toolbox(toolbox)
+    .with_config(&config)
+    .with_system_prompt(
+        "You are a helpful assistant with access to weather information and web search. \
+        Use the provided tools when users ask for weather or need web search results."
+    )
+    .with_toolbox(tools)
     .build()
     .await?;
 ```
+
+The toolbox integrates with the Inference Gateway SDK's function calling system. When the LLM decides to use a tool, the tool call information is automatically sent through the gateway to the configured LLM provider, which will return tool call requests that can be processed by your application logic.
 
 ### Custom Task Processing
 
