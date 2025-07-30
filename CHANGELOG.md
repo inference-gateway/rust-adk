@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.0](https://github.com/inference-gateway/rust-adk/compare/0.1.3...0.2.0) (2025-07-30)
+
+### ✨ Features
+
+* **server:** Add AgentCardOverrides for customizable agent card fields ([6382964](https://github.com/inference-gateway/rust-adk/commit/6382964e721ba240db48fd8b04f54b9fa059e4cb))
+
+### 🐛 Bug Fixes
+
+* **server:** Update agent card loading to accept optional parameters ([4fb5354](https://github.com/inference-gateway/rust-adk/commit/4fb53549e2ded1cc92beabb990d0f7de6e98d7e3))
+
+### ✅ Miscellaneous
+
+* **a2a_server:** Add  validation suite for A2A server functionality ([d9aafbb](https://github.com/inference-gateway/rust-adk/commit/d9aafbb64d723f16e55c8dfd624f08656676ecd9))
+
 ## [0.1.3](https://github.com/inference-gateway/rust-adk/compare/0.1.2...0.1.3) (2025-07-30)
 
 ### ♻️ Improvements
