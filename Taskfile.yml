@@ -63,6 +63,11 @@ tasks:
     cmds:
       - cargo run --example configured_server
 
+  examples:server-with-toolbox:
+    desc: Run the A2A server example with tools (requires Inference Gateway at localhost:8080)
+    cmds:
+      - cargo run --example server_with_toolbox
+
   examples:client:
     desc: Run the A2A client example (requires A2A server running at localhost:8081)
     cmds:
