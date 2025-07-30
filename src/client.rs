@@ -27,7 +27,6 @@ impl A2AClient {
         let base_url = base_url.into();
         let config = ClientConfig::new(base_url.clone());
 
-        // Create inference gateway client
         let gateway_client = InferenceGatewayClient::new(&base_url);
 
         Ok(Self {
@@ -74,7 +73,6 @@ impl A2AClient {
     pub async fn get_agent_card(&self) -> Result<AgentCard> {
         debug!("Agent card request - returning default A2A agent card");
 
-        // Since the SDK doesn't have agent card functionality, return a default
         let agent_card = serde_json::from_str::<AgentCard>(
             r#"{
             "name": "A2A Agent",
@@ -100,7 +98,6 @@ impl A2AClient {
     pub async fn send_task(&self, params: serde_json::Value) -> Result<serde_json::Value> {
         debug!("Making task request via SDK");
 
-        // Extract messages from params or create default
         let messages = if let Some(messages_val) = params.get("messages") {
             serde_json::from_value(messages_val.clone()).unwrap_or_else(|_| {
                 vec![Message {
@@ -117,7 +114,6 @@ impl A2AClient {
             }]
         };
 
-        // Use default provider and model for now
         let provider = Provider::Groq;
         let model = "deepseek-r1-distill-llama-70b";
 
@@ -127,7 +123,6 @@ impl A2AClient {
             .await
             .map_err(|e| anyhow!("Task request failed: {}", e))?;
 
-        // Convert response to A2A format
         let result = serde_json::json!({
             "jsonrpc": "2.0",
             "id": params.get("id"),
