@@ -111,7 +111,7 @@ Add the ADK to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-inference_gateway_adk = "0.1.0"
+inference-gateway-adk = "0.1.0"
 ```
 
 ### Basic Usage (Minimal Server)
