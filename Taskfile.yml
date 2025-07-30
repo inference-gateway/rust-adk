@@ -52,3 +52,18 @@ tasks:
     desc: Run tests
     cmds:
       - cargo test --all-targets --all-features
+
+  examples:minimal-server:
+    desc: Run the minimal A2A server example (requires Inference Gateway at localhost:8080)
+    cmds:
+      - cargo run --example minimal_server
+
+  examples:configured-server:
+    desc: Run the configured A2A server example (requires environment config and Inference Gateway)
+    cmds:
+      - cargo run --example configured_server
+
+  examples:client:
+    desc: Run the A2A client example (requires A2A server running at localhost:8081)
+    cmds:
+      - cargo run --example client
