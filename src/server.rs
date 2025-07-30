@@ -471,6 +471,14 @@ mod tests {
                 name: "with_system_prompt",
                 description: "Should create agent with custom system prompt",
             },
+            TestCase {
+                name: "empty_model_error",
+                description: "Should fail when model is empty",
+            },
+            TestCase {
+                name: "invalid_provider_error",
+                description: "Should fail when provider is invalid",
+            },
         ];
 
         for test_case in test_cases {
@@ -492,6 +500,33 @@ mod tests {
                     assert_eq!(
                         agent.system_prompt,
                         Some("You are a helpful assistant".to_string())
+                    );
+                }
+                "empty_model_error" => {
+                    let mut config = AgentConfig::default();
+                    config.model = "".to_string();
+                    let agent = AgentBuilder::new().with_config(&config).build().await;
+                    assert!(agent.is_err(), "Agent builder should fail with empty model");
+                    assert!(
+                        agent
+                            .unwrap_err()
+                            .to_string()
+                            .contains("Model cannot be empty")
+                    );
+                }
+                "invalid_provider_error" => {
+                    let mut config = AgentConfig::default();
+                    config.provider = "invalid_provider".to_string();
+                    let agent = AgentBuilder::new().with_config(&config).build().await;
+                    assert!(
+                        agent.is_err(),
+                        "Agent builder should fail with invalid provider"
+                    );
+                    assert!(
+                        agent
+                            .unwrap_err()
+                            .to_string()
+                            .contains("Unsupported provider")
                     );
                 }
                 _ => {}
