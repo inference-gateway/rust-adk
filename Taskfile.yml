@@ -1,0 +1,17 @@
+version: "3"
+
+tasks:
+  lint:
+    desc: Run linter
+    cmds:
+      - cargo fmt --all -- --check
+
+  analyse:
+    desc: Run static analysis
+    cmds:
+      - cargo clippy --all-targets --all-features -- -D warnings
+
+  test:
+    desc: Run tests
+    cmds:
+      - cargo test --all-targets --all-features

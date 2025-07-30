@@ -1,0 +1,74 @@
+{
+  "name": "Debian with Rust",
+  "dockerFile": "Dockerfile",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:latest": {}
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "task.vscode-task",
+        "rust-lang.rust-analyzer",
+        "fill-labs.dependi",
+        "vadimcn.vscode-lldb",
+        "tamasfe.even-better-toml",
+        "mutantdino.resourcemonitor",
+        "streetsidesoftware.code-spell-checker",
+        "coenraads.bracket-pair-colorizer-2",
+        "esbenp.prettier-vscode",
+        "42Crunch.vscode-openapi",
+        "ms-azuretools.vscode-docker",
+        "github.vscode-github-actions",
+        "github.vscode-pull-request-github",
+        "yzhang.markdown-all-in-one"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "zsh",
+        "editor.renderWhitespace": "all",
+        "cSpell.enabled": true,
+        "cSpell.files": ["**/*.md"],
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "[rust]": {
+          "editor.defaultFormatter": "rust-lang.rust-analyzer"
+        },
+        "git.enableCommitSigning": true,
+        "dev.containers.copyGitConfig": true,
+        "githubPullRequests.experimental.chat": true,
+        "githubPullRequests.experimental.notificationsView": true,
+        "files.insertFinalNewline": true,
+        "github.copilot.enable": {
+          "*": true
+        },
+        "github.copilot.advanced": {
+          "authProvider": "github"
+        },
+        "github.copilot.chat.codeGeneration.useInstructionFiles": true,
+        "github.copilot.chat.commitMessageGeneration.instructions": [
+          {
+            "text": "Always use conventional commit message format. For example fix(scope): Fix a bug"
+          }
+        ],
+        "mcp": {
+          "servers": {
+            "context7": {
+              "command": "docker",
+              "args": [
+                "run",
+                "-i",
+                "--rm",
+                "node:lts",
+                "npx",
+                "-y",
+                "@upstash/context7-mcp@latest"
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "remoteEnv": {
+    "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}"
+  }
+}
