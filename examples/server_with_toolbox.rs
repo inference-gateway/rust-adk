@@ -1,6 +1,6 @@
 use inference_gateway_adk::{A2AServerBuilder, AgentBuilder, Config};
 use inference_gateway_sdk::{FunctionObject, Tool, ToolType};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::env;
 use tracing::{error, info};
 
@@ -96,9 +96,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_function_tool("get_current_weather".to_string(), |args: Value| {
             let location = args["location"].as_str().unwrap_or("Unknown");
             let unit = args["unit"].as_str().unwrap_or("celsius");
-            
+
             let temperature = if unit == "fahrenheit" { "72°F" } else { "22°C" };
-            
+
             Ok(json!({
                 "location": location,
                 "temperature": temperature,
@@ -109,7 +109,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         })
         .with_function_tool("calculate_math".to_string(), |args: Value| {
             let expression = args["expression"].as_str().unwrap_or("");
-            
+
             let result = match expression {
                 expr if expr.contains(" + ") => {
                     let parts: Vec<&str> = expr.split(" + ").collect();
@@ -157,7 +157,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 },
                 _ => "Unsupported operation".to_string()
             };
-            
+
             Ok(json!({
                 "expression": expression,
                 "result": result
@@ -168,7 +168,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let limit = args["limit"].as_i64().unwrap_or(5);
 
             tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-            
+
             let results = [
                 json!({
                     "title": format!("Search result 1 for '{query}'"),
@@ -181,7 +181,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     "snippet": "Another mock search result..."
                 })
             ];
-            
+
             Ok(json!({
                 "query": query,
                 "results": results[..std::cmp::min(limit as usize, results.len())].to_vec(),
