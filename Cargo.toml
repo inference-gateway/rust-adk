@@ -2,6 +2,14 @@
 name = "inference-gateway-adk"
 version = "0.1.1"
 edition = "2024"
+description = "Agent Development Kit (ADK) for building powerful, interoperable AI agents with the Agent-to-Agent (A2A) protocol"
+license = "MIT"
+documentation = "https://docs.rs/inference-gateway-adk"
+authors = ["Inference Gateway Team"]
+repository = "https://github.com/inference-gateway/rust-adk"
+homepage = "https://github.com/inference-gateway/rust-adk"
+keywords = ["agent", "ai", "inference", "gateway", "a2a", "adk"]
+categories = ["api-bindings", "development-tools"]
 
 [dependencies]
 inference-gateway-sdk = "0.11.0"
