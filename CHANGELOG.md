@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.2](https://github.com/inference-gateway/rust-adk/compare/0.2.1...0.2.2) (2025-07-30)
+
+### 👷 CI
+
+* **workflow:** Update actions/checkout version to v4.2.2 ([16c4a78](https://github.com/inference-gateway/rust-adk/commit/16c4a7888714b5ca7490df56d932a22fb7a372c2))
+
+### 📚 Documentation
+
+* Add contributing guidelines for Rust ADK ([6ca000f](https://github.com/inference-gateway/rust-adk/commit/6ca000fcfca192d15e627ba5f6523597096b3ff9))
+
 ## [0.2.1](https://github.com/inference-gateway/rust-adk/compare/0.2.0...0.2.1) (2025-07-30)
 
 ### 👷 CI
