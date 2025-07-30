@@ -23,6 +23,13 @@ tasks:
     desc: Generate the Rust ADK types from the A2A schema
     cmds:
       - cargo typify schema.json -o src/a2a_types.rs
+      - |
+        sed -i '1i\#![allow(clippy::uninlined_format_args)]' src/a2a_types.rs
+        sed -i '1i\#![allow(clippy::derivable_impls)]' src/a2a_types.rs
+        sed -i '1i\#![allow(clippy::enum_variant_names)]' src/a2a_types.rs
+        sed -i '1i\#![allow(clippy::large_enum_variant)]' src/a2a_types.rs
+        sed -i '1i\#![allow(clippy::unit_arg)]' src/a2a_types.rs
+        sed -i '1i\#![allow(irrefutable_let_patterns)]' src/a2a_types.rs
       - echo "A2A types generated successfully in src/a2a_types.rs"
       - cargo fmt --all
 
