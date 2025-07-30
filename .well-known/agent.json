@@ -13,13 +13,20 @@
   },
   "provider": {
     "name": "Inference Gateway",
+    "organization": "Inference Gateway",
     "url": "https://github.com/inference-gateway/rust-adk"
   },
   "skills": [
     {
+      "id": "general_assistance",
       "name": "general_assistance",
-      "description": "General purpose AI assistance and conversation"
+      "description": "General purpose AI assistance and conversation",
+      "tags": ["assistance", "conversation", "general"]
     }
   ],
-  "extensions": []
+  "extensions": [],
+  "defaultInputModes": ["text"],
+  "defaultOutputModes": ["text"],
+  "protocolVersion": "1.0",
+  "url": "https://localhost:8081"
 }
