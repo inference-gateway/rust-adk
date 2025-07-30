@@ -1,5 +1,4 @@
 use inference_gateway_adk::A2AServerBuilder;
-use tokio;
 use tracing::{error, info};
 
 #[tokio::main]

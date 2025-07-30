@@ -21,6 +21,7 @@ use tracing::{debug, error, info};
 
 #[derive(Debug)]
 pub struct A2AServer {
+    #[allow(dead_code)]
     config: Config,
     agent_card: Option<AgentCard>,
     agent: Option<Agent>,
@@ -29,9 +30,12 @@ pub struct A2AServer {
 
 #[derive(Debug, Clone)]
 pub struct Agent {
+    #[allow(dead_code)]
     config: AgentConfig,
     system_prompt: Option<String>,
+    #[allow(dead_code)]
     max_chat_completion: u32,
+    #[allow(dead_code)]
     max_conversation_history: u32,
 }
 
@@ -332,7 +336,7 @@ async fn a2a_handler(
         Ok(response) => {
             let content = response
                 .choices
-                .get(0)
+                .first()
                 .map(|c| c.message.content.clone())
                 .unwrap_or_else(|| "No response generated".to_string());
 
@@ -358,7 +362,6 @@ async fn a2a_handler(
         Err(e) => {
             error!("Failed to generate content via SDK: {}", e);
 
-            // Return error response
             let error_response = serde_json::json!({
                 "jsonrpc": "2.0",
                 "id": payload.get("id"),
@@ -381,6 +384,7 @@ mod tests {
     #[derive(Debug)]
     struct TestCase {
         name: &'static str,
+        #[allow(dead_code)]
         description: &'static str,
     }
 

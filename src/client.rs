@@ -18,7 +18,9 @@ pub struct HealthStatus {
 #[derive(Debug)]
 pub struct A2AClient {
     gateway_client: InferenceGatewayClient,
+    #[allow(dead_code)]
     base_url: String,
+    #[allow(dead_code)]
     config: ClientConfig,
 }
 
@@ -132,7 +134,7 @@ impl A2AClient {
                     "role": "assistant",
                     "parts": [{
                         "kind": "text",
-                        "content": response.choices.get(0)
+                        "content": response.choices.first()
                             .map(|c| c.message.content.clone())
                             .unwrap_or_else(|| "No response generated".to_string())
                     }]

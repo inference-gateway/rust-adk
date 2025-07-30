@@ -9,8 +9,6 @@ pub use server::{A2AServer, A2AServerBuilder, Agent, AgentBuilder};
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn test_a2a_types_module_exists() {
         use crate::a2a_types::JsonrpcMessage;

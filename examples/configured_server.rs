@@ -1,6 +1,5 @@
 use inference_gateway_adk::{A2AServerBuilder, AgentBuilder, Config};
 use std::env;
-use tokio;
 use tracing::{error, info};
 
 #[tokio::main]
