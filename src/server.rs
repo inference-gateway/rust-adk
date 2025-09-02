@@ -1,4 +1,4 @@
-use crate::a2a_types::{AgentCard, Message as A2AMessage, SendMessageRequest, SendMessageSuccessResponse, SendMessageRequestId, SendMessageSuccessResponseId, SendMessageSuccessResponseResult, TaskState, MessageSendParams};
+use crate::a2a_types::{AgentCard, SendMessageRequest, SendMessageSuccessResponse, SendMessageRequestId, SendMessageSuccessResponseId, SendMessageSuccessResponseResult, TaskState};
 use crate::client::HealthStatus;
 use crate::config::{AgentConfig, Config};
 use crate::task_handler::{
@@ -150,6 +150,7 @@ pub struct A2AServer {
     background_task_queue: Option<Arc<BackgroundTaskQueue>>,
 }
 
+#[derive(Clone)]
 pub struct Agent {
     #[allow(dead_code)]
     config: AgentConfig,
@@ -162,7 +163,7 @@ pub struct Agent {
     max_conversation_history: u32,
     #[allow(dead_code)]
     toolbox: Option<Vec<Tool>>,
-    tool_handlers: HashMap<String, Box<dyn ToolHandler>>,
+    tool_handlers: HashMap<String, Arc<dyn ToolHandler>>,
 }
 
 impl std::fmt::Debug for Agent {
@@ -352,7 +353,7 @@ impl A2AServerBuilder {
                 .unwrap_or_else(|| BackgroundTaskHandlerConfig::from(&config));
             let default_handler = Arc::new(DefaultBackgroundTaskHandler::new(
                 handler_config.clone(),
-                self.agent.as_ref().map(|a| Arc::new(a.clone())),
+                self.agent.clone().map(|a| Arc::new(a)),
                 gateway_url.clone(),
             ));
             Some(Arc::new(BackgroundTaskQueue::new(handler_config, default_handler)))
@@ -471,6 +472,22 @@ impl Default for AgentBuilder {
 impl Agent {
     pub fn toolbox(&self) -> Option<&Vec<Tool>> {
         self.toolbox.as_ref()
+    }
+    
+    pub fn get_system_prompt(&self) -> Option<String> {
+        self.system_prompt.clone()
+    }
+    
+    pub fn get_provider(&self) -> Provider {
+        self.provider
+    }
+    
+    pub fn get_model(&self) -> &str {
+        &self.model
+    }
+    
+    pub fn get_tool_handlers(&self) -> &HashMap<String, Arc<dyn ToolHandler>> {
+        &self.tool_handlers
     }
 }
 
@@ -841,7 +858,8 @@ async fn submit_task_handler(
     }];
 
     let context_id = a2a_message.context_id.clone();
-    let metadata = payload.params.metadata;
+    let metadata: std::collections::HashMap<String, serde_json::Value> = 
+        payload.params.metadata.into_iter().collect();
 
     match queue.submit_task(messages, context_id, metadata).await {
         Ok(task_id) => {
@@ -858,10 +876,11 @@ async fn submit_task_handler(
                     status: crate::a2a_types::TaskStatus {
                         state: TaskState::Submitted,
                         message: None,
-                        timestamp: chrono::Utc::now(),
+                        timestamp: Some(chrono::Utc::now().to_rfc3339()),
                     },
                     history: vec![],
                     artifacts: vec![],
+                    metadata: serde_json::Map::new(),
                 }),
             };
             debug!("Task {} submitted successfully", task_id);

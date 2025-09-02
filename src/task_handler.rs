@@ -1,5 +1,5 @@
 use crate::a2a_types::{Message, Task, TaskState, TaskStatus, MessageRole, Part, TextPart};
-use crate::config::{Config, QueueConfig};
+use crate::config::Config;
 use crate::server::Agent;
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
@@ -20,15 +20,11 @@ fn convert_sdk_message_to_a2a(sdk_msg: &SdkMessage) -> Message {
         SdkMessageRole::Tool => MessageRole::Agent, // Map tool to agent
     };
 
-    let parts = if let Some(ref content) = sdk_msg.content {
-        vec![Part::TextPart(TextPart {
-            kind: "text".to_string(),
-            metadata: Default::default(),
-            text: content.clone(),
-        })]
-    } else {
-        Vec::new()
-    };
+    let parts = vec![Part::TextPart(TextPart {
+        kind: "text".to_string(),
+        metadata: Default::default(),
+        text: sdk_msg.content.clone(),
+    })];
 
     Message {
         context_id: None,
@@ -58,7 +54,7 @@ fn convert_a2a_message_to_sdk(a2a_msg: &Message) -> SdkMessage {
 
     SdkMessage {
         role,
-        content,
+        content: content.unwrap_or_default(),
         ..Default::default()
     }
 }
@@ -130,7 +126,7 @@ impl From<&Config> for BackgroundTaskHandlerConfig {
 }
 
 /// Represents a queued task with metadata
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct QueuedTask {
     pub id: String,
     pub context_id: String,
@@ -179,7 +175,7 @@ impl ManagedTask {
         let status = TaskStatus {
             state: TaskState::Submitted,
             message: None,
-            timestamp: chrono::Utc::now(),
+            timestamp: Some(chrono::Utc::now().to_rfc3339()),
         };
 
         let task = Task {
@@ -189,6 +185,7 @@ impl ManagedTask {
             status: status.clone(),
             history: queued_task.messages.iter().map(|m| convert_sdk_message_to_a2a(m)).collect(),
             artifacts: Vec::new(),
+            metadata: serde_json::Map::new(),
         };
 
         Self {
@@ -203,7 +200,7 @@ impl ManagedTask {
     pub fn update_status(&mut self, new_state: TaskState, message: Option<Message>) {
         self.status.state = new_state;
         self.status.message = message;
-        self.status.timestamp = chrono::Utc::now();
+        self.status.timestamp = Some(chrono::Utc::now().to_rfc3339());
         self.task.status = self.status.clone();
         self.updated_at = Instant::now();
     }
@@ -284,10 +281,10 @@ impl TaskHandler for DefaultBackgroundTaskHandler {
 
         // Prepare messages with system prompt
         let mut final_messages = Vec::new();
-        if let Some(ref system_prompt) = agent.system_prompt {
+        if let Some(system_prompt) = agent.get_system_prompt() {
             final_messages.push(SdkMessage {
                 role: SdkMessageRole::System,
-                content: Some(system_prompt.clone()),
+                content: system_prompt,
                 ..Default::default()
             });
         }
@@ -309,7 +306,7 @@ impl TaskHandler for DefaultBackgroundTaskHandler {
             debug!("Task {} iteration {}/{}", task.task.id, iteration, max_iterations);
 
             match client_with_tools
-                .generate_content(agent.provider, &agent.model, final_messages.clone())
+                .generate_content(agent.get_provider(), agent.get_model(), final_messages.clone())
                 .await
             {
                 Ok(response) => {
@@ -343,7 +340,7 @@ impl TaskHandler for DefaultBackgroundTaskHandler {
                         for tool_call in tool_calls {
                             debug!("Processing tool call: {}", tool_call.function.name);
 
-                            if let Some(handler) = agent.tool_handlers.get(&tool_call.function.name) {
+                            if let Some(handler) = agent.get_tool_handlers().get(&tool_call.function.name) {
                                 match tool_call.function.parse_arguments() {
                                     Ok(args) => match handler.handle(args).await {
                                         Ok(result) => {
@@ -568,6 +565,8 @@ impl BackgroundTaskQueue {
                             if managed_task.should_retry(&config) {
                                 managed_task.queued_task.increment_retry();
                                 
+                                let retries = managed_task.queued_task.retries;
+                                
                                 // Move back to pending for retry
                                 {
                                     let mut active = active_tasks.write().await;
@@ -578,7 +577,7 @@ impl BackgroundTaskQueue {
                                     pending.push(managed_task.queued_task);
                                 }
                                 
-                                debug!("Task {} queued for retry {}/{}", task_id, managed_task.queued_task.retries, config.max_retries);
+                                debug!("Task {} queued for retry {}/{}", task_id, retries, config.max_retries);
                             } else {
                                 // Move to dead letter queue
                                 let failure_message = create_a2a_message(
@@ -710,6 +709,15 @@ impl BackgroundTaskQueue {
             dead_letter: dead_letter_count,
             total: pending_count + active_count + completed_count + dead_letter_count,
         }
+    }
+}
+
+impl std::fmt::Debug for BackgroundTaskQueue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BackgroundTaskQueue")
+            .field("config", &self.config)
+            .field("task_handler", &self.task_handler.name())
+            .finish()
     }
 }
 
