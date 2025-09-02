@@ -138,32 +138,26 @@ impl A2AValidationSuite {
         match self.client.as_ref().unwrap().get_health().await {
             Ok(health) => {
                 info!("✅ Health check passed: {}", health.status);
-                self.test_results.insert(
-                    test_name,
-                    TestResult {
-                        name: "Health Endpoint".to_string(),
-                        passed: true,
-                        error: None,
-                        response: Some(json!({
-                            "status": health.status,
-                            "timestamp": health.timestamp
-                        })),
-                        duration: start.elapsed(),
-                    },
-                );
+                self.test_results.insert(test_name, TestResult {
+                    name: "Health Endpoint".to_string(),
+                    passed: true,
+                    error: None,
+                    response: Some(json!({
+                        "status": health.status,
+                        "timestamp": health.timestamp
+                    })),
+                    duration: start.elapsed(),
+                });
             }
             Err(e) => {
                 error!("❌ Health check failed: {}", e);
-                self.test_results.insert(
-                    test_name,
-                    TestResult {
-                        name: "Health Endpoint".to_string(),
-                        passed: false,
-                        error: Some(e.to_string()),
-                        response: None,
-                        duration: start.elapsed(),
-                    },
-                );
+                self.test_results.insert(test_name, TestResult {
+                    name: "Health Endpoint".to_string(),
+                    passed: false,
+                    error: Some(e.to_string()),
+                    response: None,
+                    duration: start.elapsed(),
+                });
             }
         }
     }
@@ -178,33 +172,27 @@ impl A2AValidationSuite {
                     "✅ Agent card retrieved: {} - {}",
                     card.name, card.description
                 );
-                self.test_results.insert(
-                    test_name,
-                    TestResult {
-                        name: "Agent Card Endpoint".to_string(),
-                        passed: true,
-                        error: None,
-                        response: Some(json!({
-                            "name": card.name,
-                            "description": card.description,
-                            "protocol_version": card.protocol_version
-                        })),
-                        duration: start.elapsed(),
-                    },
-                );
+                self.test_results.insert(test_name, TestResult {
+                    name: "Agent Card Endpoint".to_string(),
+                    passed: true,
+                    error: None,
+                    response: Some(json!({
+                        "name": card.name,
+                        "description": card.description,
+                        "protocol_version": card.protocol_version
+                    })),
+                    duration: start.elapsed(),
+                });
             }
             Err(e) => {
                 error!("❌ Agent card failed: {}", e);
-                self.test_results.insert(
-                    test_name,
-                    TestResult {
-                        name: "Agent Card Endpoint".to_string(),
-                        passed: false,
-                        error: Some(e.to_string()),
-                        response: None,
-                        duration: start.elapsed(),
-                    },
-                );
+                self.test_results.insert(test_name, TestResult {
+                    name: "Agent Card Endpoint".to_string(),
+                    passed: false,
+                    error: Some(e.to_string()),
+                    response: None,
+                    duration: start.elapsed(),
+                });
             }
         }
     }
@@ -234,48 +222,39 @@ impl A2AValidationSuite {
             Ok(response) => {
                 if response.get("result").is_some() {
                     info!("✅ message/send test passed");
-                    self.test_results.insert(
-                        test_name,
-                        TestResult {
-                            name: "message/send".to_string(),
-                            passed: true,
-                            error: None,
-                            response: Some(response),
-                            duration: start.elapsed(),
-                        },
-                    );
+                    self.test_results.insert(test_name, TestResult {
+                        name: "message/send".to_string(),
+                        passed: true,
+                        error: None,
+                        response: Some(response),
+                        duration: start.elapsed(),
+                    });
                 } else {
                     warn!(
                         "⚠️ message/send returned error: {:?}",
                         response.get("error")
                     );
-                    self.test_results.insert(
-                        test_name,
-                        TestResult {
-                            name: "message/send".to_string(),
-                            passed: false,
-                            error: Some(format!(
-                                "Server returned error: {:?}",
-                                response.get("error")
-                            )),
-                            response: Some(response),
-                            duration: start.elapsed(),
-                        },
-                    );
+                    self.test_results.insert(test_name, TestResult {
+                        name: "message/send".to_string(),
+                        passed: false,
+                        error: Some(format!(
+                            "Server returned error: {:?}",
+                            response.get("error")
+                        )),
+                        response: Some(response),
+                        duration: start.elapsed(),
+                    });
                 }
             }
             Err(e) => {
                 error!("❌ message/send test failed: {}", e);
-                self.test_results.insert(
-                    test_name,
-                    TestResult {
-                        name: "message/send".to_string(),
-                        passed: false,
-                        error: Some(e.to_string()),
-                        response: None,
-                        duration: start.elapsed(),
-                    },
-                );
+                self.test_results.insert(test_name, TestResult {
+                    name: "message/send".to_string(),
+                    passed: false,
+                    error: Some(e.to_string()),
+                    response: None,
+                    duration: start.elapsed(),
+                });
             }
         }
     }
@@ -305,48 +284,39 @@ impl A2AValidationSuite {
             Ok(response) => {
                 if response.get("result").is_some() {
                     info!("✅ message/stream test passed");
-                    self.test_results.insert(
-                        test_name,
-                        TestResult {
-                            name: "message/stream".to_string(),
-                            passed: true,
-                            error: None,
-                            response: Some(response),
-                            duration: start.elapsed(),
-                        },
-                    );
+                    self.test_results.insert(test_name, TestResult {
+                        name: "message/stream".to_string(),
+                        passed: true,
+                        error: None,
+                        response: Some(response),
+                        duration: start.elapsed(),
+                    });
                 } else {
                     warn!(
                         "⚠️ message/stream returned error: {:?}",
                         response.get("error")
                     );
-                    self.test_results.insert(
-                        test_name,
-                        TestResult {
-                            name: "message/stream".to_string(),
-                            passed: false,
-                            error: Some(format!(
-                                "Server returned error: {:?}",
-                                response.get("error")
-                            )),
-                            response: Some(response),
-                            duration: start.elapsed(),
-                        },
-                    );
+                    self.test_results.insert(test_name, TestResult {
+                        name: "message/stream".to_string(),
+                        passed: false,
+                        error: Some(format!(
+                            "Server returned error: {:?}",
+                            response.get("error")
+                        )),
+                        response: Some(response),
+                        duration: start.elapsed(),
+                    });
                 }
             }
             Err(e) => {
                 error!("❌ message/stream test failed: {}", e);
-                self.test_results.insert(
-                    test_name,
-                    TestResult {
-                        name: "message/stream".to_string(),
-                        passed: false,
-                        error: Some(e.to_string()),
-                        response: None,
-                        duration: start.elapsed(),
-                    },
-                );
+                self.test_results.insert(test_name, TestResult {
+                    name: "message/stream".to_string(),
+                    passed: false,
+                    error: Some(e.to_string()),
+                    response: None,
+                    duration: start.elapsed(),
+                });
             }
         }
     }
@@ -371,45 +341,36 @@ impl A2AValidationSuite {
                         && response["error"]["code"].as_i64() == Some(-32001))
                 {
                     info!("✅ tasks/get test passed (task not found is expected)");
-                    self.test_results.insert(
-                        test_name,
-                        TestResult {
-                            name: "tasks/get".to_string(),
-                            passed: true,
-                            error: None,
-                            response: Some(response),
-                            duration: start.elapsed(),
-                        },
-                    );
+                    self.test_results.insert(test_name, TestResult {
+                        name: "tasks/get".to_string(),
+                        passed: true,
+                        error: None,
+                        response: Some(response),
+                        duration: start.elapsed(),
+                    });
                 } else {
                     warn!(
                         "⚠️ tasks/get returned unexpected error: {:?}",
                         response.get("error")
                     );
-                    self.test_results.insert(
-                        test_name,
-                        TestResult {
-                            name: "tasks/get".to_string(),
-                            passed: false,
-                            error: Some(format!("Unexpected error: {:?}", response.get("error"))),
-                            response: Some(response),
-                            duration: start.elapsed(),
-                        },
-                    );
+                    self.test_results.insert(test_name, TestResult {
+                        name: "tasks/get".to_string(),
+                        passed: false,
+                        error: Some(format!("Unexpected error: {:?}", response.get("error"))),
+                        response: Some(response),
+                        duration: start.elapsed(),
+                    });
                 }
             }
             Err(e) => {
                 error!("❌ tasks/get test failed: {}", e);
-                self.test_results.insert(
-                    test_name,
-                    TestResult {
-                        name: "tasks/get".to_string(),
-                        passed: false,
-                        error: Some(e.to_string()),
-                        response: None,
-                        duration: start.elapsed(),
-                    },
-                );
+                self.test_results.insert(test_name, TestResult {
+                    name: "tasks/get".to_string(),
+                    passed: false,
+                    error: Some(e.to_string()),
+                    response: None,
+                    duration: start.elapsed(),
+                });
             }
         }
     }
@@ -435,45 +396,36 @@ impl A2AValidationSuite {
                             || response["error"]["code"].as_i64() == Some(-32002)))
                 {
                     info!("✅ tasks/cancel test passed (expected error for non-existent task)");
-                    self.test_results.insert(
-                        test_name,
-                        TestResult {
-                            name: "tasks/cancel".to_string(),
-                            passed: true,
-                            error: None,
-                            response: Some(response),
-                            duration: start.elapsed(),
-                        },
-                    );
+                    self.test_results.insert(test_name, TestResult {
+                        name: "tasks/cancel".to_string(),
+                        passed: true,
+                        error: None,
+                        response: Some(response),
+                        duration: start.elapsed(),
+                    });
                 } else {
                     warn!(
                         "⚠️ tasks/cancel returned unexpected error: {:?}",
                         response.get("error")
                     );
-                    self.test_results.insert(
-                        test_name,
-                        TestResult {
-                            name: "tasks/cancel".to_string(),
-                            passed: false,
-                            error: Some(format!("Unexpected error: {:?}", response.get("error"))),
-                            response: Some(response),
-                            duration: start.elapsed(),
-                        },
-                    );
+                    self.test_results.insert(test_name, TestResult {
+                        name: "tasks/cancel".to_string(),
+                        passed: false,
+                        error: Some(format!("Unexpected error: {:?}", response.get("error"))),
+                        response: Some(response),
+                        duration: start.elapsed(),
+                    });
                 }
             }
             Err(e) => {
                 error!("❌ tasks/cancel test failed: {}", e);
-                self.test_results.insert(
-                    test_name,
-                    TestResult {
-                        name: "tasks/cancel".to_string(),
-                        passed: false,
-                        error: Some(e.to_string()),
-                        response: None,
-                        duration: start.elapsed(),
-                    },
-                );
+                self.test_results.insert(test_name, TestResult {
+                    name: "tasks/cancel".to_string(),
+                    passed: false,
+                    error: Some(e.to_string()),
+                    response: None,
+                    duration: start.elapsed(),
+                });
             }
         }
     }
@@ -502,45 +454,36 @@ impl A2AValidationSuite {
                         && response["error"]["code"].as_i64() == Some(-32003))
                 {
                     info!("✅ tasks/pushNotificationConfig/set test passed");
-                    self.test_results.insert(
-                        test_name,
-                        TestResult {
-                            name: "tasks/pushNotificationConfig/set".to_string(),
-                            passed: true,
-                            error: None,
-                            response: Some(response),
-                            duration: start.elapsed(),
-                        },
-                    );
+                    self.test_results.insert(test_name, TestResult {
+                        name: "tasks/pushNotificationConfig/set".to_string(),
+                        passed: true,
+                        error: None,
+                        response: Some(response),
+                        duration: start.elapsed(),
+                    });
                 } else {
                     warn!(
                         "⚠️ push notification config set returned unexpected error: {:?}",
                         response.get("error")
                     );
-                    self.test_results.insert(
-                        test_name,
-                        TestResult {
-                            name: "tasks/pushNotificationConfig/set".to_string(),
-                            passed: false,
-                            error: Some(format!("Unexpected error: {:?}", response.get("error"))),
-                            response: Some(response),
-                            duration: start.elapsed(),
-                        },
-                    );
+                    self.test_results.insert(test_name, TestResult {
+                        name: "tasks/pushNotificationConfig/set".to_string(),
+                        passed: false,
+                        error: Some(format!("Unexpected error: {:?}", response.get("error"))),
+                        response: Some(response),
+                        duration: start.elapsed(),
+                    });
                 }
             }
             Err(e) => {
                 error!("❌ push notification config set test failed: {}", e);
-                self.test_results.insert(
-                    test_name,
-                    TestResult {
-                        name: "tasks/pushNotificationConfig/set".to_string(),
-                        passed: false,
-                        error: Some(e.to_string()),
-                        response: None,
-                        duration: start.elapsed(),
-                    },
-                );
+                self.test_results.insert(test_name, TestResult {
+                    name: "tasks/pushNotificationConfig/set".to_string(),
+                    passed: false,
+                    error: Some(e.to_string()),
+                    response: None,
+                    duration: start.elapsed(),
+                });
             }
         }
     }
@@ -560,30 +503,24 @@ impl A2AValidationSuite {
 
         match self.send_jsonrpc_request(request).await {
             Ok(response) => {
-                self.test_results.insert(
-                    test_name,
-                    TestResult {
-                        name: "tasks/pushNotificationConfig/get".to_string(),
-                        passed: true,
-                        error: None,
-                        response: Some(response),
-                        duration: start.elapsed(),
-                    },
-                );
+                self.test_results.insert(test_name, TestResult {
+                    name: "tasks/pushNotificationConfig/get".to_string(),
+                    passed: true,
+                    error: None,
+                    response: Some(response),
+                    duration: start.elapsed(),
+                });
                 info!("✅ tasks/pushNotificationConfig/get test passed");
             }
             Err(e) => {
                 error!("❌ push notification config get test failed: {}", e);
-                self.test_results.insert(
-                    test_name,
-                    TestResult {
-                        name: "tasks/pushNotificationConfig/get".to_string(),
-                        passed: false,
-                        error: Some(e.to_string()),
-                        response: None,
-                        duration: start.elapsed(),
-                    },
-                );
+                self.test_results.insert(test_name, TestResult {
+                    name: "tasks/pushNotificationConfig/get".to_string(),
+                    passed: false,
+                    error: Some(e.to_string()),
+                    response: None,
+                    duration: start.elapsed(),
+                });
             }
         }
     }
@@ -603,30 +540,24 @@ impl A2AValidationSuite {
 
         match self.send_jsonrpc_request(request).await {
             Ok(response) => {
-                self.test_results.insert(
-                    test_name,
-                    TestResult {
-                        name: "tasks/pushNotificationConfig/list".to_string(),
-                        passed: true,
-                        error: None,
-                        response: Some(response),
-                        duration: start.elapsed(),
-                    },
-                );
+                self.test_results.insert(test_name, TestResult {
+                    name: "tasks/pushNotificationConfig/list".to_string(),
+                    passed: true,
+                    error: None,
+                    response: Some(response),
+                    duration: start.elapsed(),
+                });
                 info!("✅ tasks/pushNotificationConfig/list test passed");
             }
             Err(e) => {
                 error!("❌ push notification config list test failed: {}", e);
-                self.test_results.insert(
-                    test_name,
-                    TestResult {
-                        name: "tasks/pushNotificationConfig/list".to_string(),
-                        passed: false,
-                        error: Some(e.to_string()),
-                        response: None,
-                        duration: start.elapsed(),
-                    },
-                );
+                self.test_results.insert(test_name, TestResult {
+                    name: "tasks/pushNotificationConfig/list".to_string(),
+                    passed: false,
+                    error: Some(e.to_string()),
+                    response: None,
+                    duration: start.elapsed(),
+                });
             }
         }
     }
@@ -647,30 +578,24 @@ impl A2AValidationSuite {
 
         match self.send_jsonrpc_request(request).await {
             Ok(response) => {
-                self.test_results.insert(
-                    test_name,
-                    TestResult {
-                        name: "tasks/pushNotificationConfig/delete".to_string(),
-                        passed: true,
-                        error: None,
-                        response: Some(response),
-                        duration: start.elapsed(),
-                    },
-                );
+                self.test_results.insert(test_name, TestResult {
+                    name: "tasks/pushNotificationConfig/delete".to_string(),
+                    passed: true,
+                    error: None,
+                    response: Some(response),
+                    duration: start.elapsed(),
+                });
                 info!("✅ tasks/pushNotificationConfig/delete test passed");
             }
             Err(e) => {
                 error!("❌ push notification config delete test failed: {}", e);
-                self.test_results.insert(
-                    test_name,
-                    TestResult {
-                        name: "tasks/pushNotificationConfig/delete".to_string(),
-                        passed: false,
-                        error: Some(e.to_string()),
-                        response: None,
-                        duration: start.elapsed(),
-                    },
-                );
+                self.test_results.insert(test_name, TestResult {
+                    name: "tasks/pushNotificationConfig/delete".to_string(),
+                    passed: false,
+                    error: Some(e.to_string()),
+                    response: None,
+                    duration: start.elapsed(),
+                });
             }
         }
     }
@@ -690,30 +615,24 @@ impl A2AValidationSuite {
 
         match self.send_jsonrpc_request(request).await {
             Ok(response) => {
-                self.test_results.insert(
-                    test_name,
-                    TestResult {
-                        name: "tasks/resubscribe".to_string(),
-                        passed: true,
-                        error: None,
-                        response: Some(response),
-                        duration: start.elapsed(),
-                    },
-                );
+                self.test_results.insert(test_name, TestResult {
+                    name: "tasks/resubscribe".to_string(),
+                    passed: true,
+                    error: None,
+                    response: Some(response),
+                    duration: start.elapsed(),
+                });
                 info!("✅ tasks/resubscribe test passed");
             }
             Err(e) => {
                 error!("❌ tasks/resubscribe test failed: {}", e);
-                self.test_results.insert(
-                    test_name,
-                    TestResult {
-                        name: "tasks/resubscribe".to_string(),
-                        passed: false,
-                        error: Some(e.to_string()),
-                        response: None,
-                        duration: start.elapsed(),
-                    },
-                );
+                self.test_results.insert(test_name, TestResult {
+                    name: "tasks/resubscribe".to_string(),
+                    passed: false,
+                    error: Some(e.to_string()),
+                    response: None,
+                    duration: start.elapsed(),
+                });
             }
         }
     }
@@ -732,42 +651,33 @@ impl A2AValidationSuite {
                     && response["error"]["code"].as_i64() == Some(-32600)
                 {
                     info!("✅ Invalid JSON-RPC test passed - correctly returned error -32600");
-                    self.test_results.insert(
-                        test_name,
-                        TestResult {
-                            name: "Invalid JSON-RPC Request".to_string(),
-                            passed: true,
-                            error: None,
-                            response: Some(response),
-                            duration: start.elapsed(),
-                        },
-                    );
+                    self.test_results.insert(test_name, TestResult {
+                        name: "Invalid JSON-RPC Request".to_string(),
+                        passed: true,
+                        error: None,
+                        response: Some(response),
+                        duration: start.elapsed(),
+                    });
                 } else {
                     warn!("⚠️ Invalid JSON-RPC didn't return expected error");
-                    self.test_results.insert(
-                        test_name,
-                        TestResult {
-                            name: "Invalid JSON-RPC Request".to_string(),
-                            passed: false,
-                            error: Some("Expected error -32600 for invalid request".to_string()),
-                            response: Some(response),
-                            duration: start.elapsed(),
-                        },
-                    );
+                    self.test_results.insert(test_name, TestResult {
+                        name: "Invalid JSON-RPC Request".to_string(),
+                        passed: false,
+                        error: Some("Expected error -32600 for invalid request".to_string()),
+                        response: Some(response),
+                        duration: start.elapsed(),
+                    });
                 }
             }
             Err(e) => {
                 info!("✅ Invalid JSON-RPC test passed - HTTP error: {}", e);
-                self.test_results.insert(
-                    test_name,
-                    TestResult {
-                        name: "Invalid JSON-RPC Request".to_string(),
-                        passed: true,
-                        error: None,
-                        response: None,
-                        duration: start.elapsed(),
-                    },
-                );
+                self.test_results.insert(test_name, TestResult {
+                    name: "Invalid JSON-RPC Request".to_string(),
+                    passed: true,
+                    error: None,
+                    response: None,
+                    duration: start.elapsed(),
+                });
             }
         }
     }
@@ -789,42 +699,33 @@ impl A2AValidationSuite {
                     && response["error"]["code"].as_i64() == Some(-32601)
                 {
                     info!("✅ Method not found test passed - correctly returned error -32601");
-                    self.test_results.insert(
-                        test_name,
-                        TestResult {
-                            name: "Method Not Found".to_string(),
-                            passed: true,
-                            error: None,
-                            response: Some(response),
-                            duration: start.elapsed(),
-                        },
-                    );
+                    self.test_results.insert(test_name, TestResult {
+                        name: "Method Not Found".to_string(),
+                        passed: true,
+                        error: None,
+                        response: Some(response),
+                        duration: start.elapsed(),
+                    });
                 } else {
                     warn!("⚠️ Method not found didn't return expected error");
-                    self.test_results.insert(
-                        test_name,
-                        TestResult {
-                            name: "Method Not Found".to_string(),
-                            passed: false,
-                            error: Some("Expected error -32601 for unknown method".to_string()),
-                            response: Some(response),
-                            duration: start.elapsed(),
-                        },
-                    );
+                    self.test_results.insert(test_name, TestResult {
+                        name: "Method Not Found".to_string(),
+                        passed: false,
+                        error: Some("Expected error -32601 for unknown method".to_string()),
+                        response: Some(response),
+                        duration: start.elapsed(),
+                    });
                 }
             }
             Err(e) => {
                 error!("❌ Method not found test failed: {}", e);
-                self.test_results.insert(
-                    test_name,
-                    TestResult {
-                        name: "Method Not Found".to_string(),
-                        passed: false,
-                        error: Some(e.to_string()),
-                        response: None,
-                        duration: start.elapsed(),
-                    },
-                );
+                self.test_results.insert(test_name, TestResult {
+                    name: "Method Not Found".to_string(),
+                    passed: false,
+                    error: Some(e.to_string()),
+                    response: None,
+                    duration: start.elapsed(),
+                });
             }
         }
     }
@@ -848,42 +749,33 @@ impl A2AValidationSuite {
                     && response["error"]["code"].as_i64() == Some(-32602)
                 {
                     info!("✅ Invalid parameters test passed - correctly returned error -32602");
-                    self.test_results.insert(
-                        test_name,
-                        TestResult {
-                            name: "Invalid Parameters".to_string(),
-                            passed: true,
-                            error: None,
-                            response: Some(response),
-                            duration: start.elapsed(),
-                        },
-                    );
+                    self.test_results.insert(test_name, TestResult {
+                        name: "Invalid Parameters".to_string(),
+                        passed: true,
+                        error: None,
+                        response: Some(response),
+                        duration: start.elapsed(),
+                    });
                 } else {
                     warn!("⚠️ Invalid parameters didn't return expected error");
-                    self.test_results.insert(
-                        test_name,
-                        TestResult {
-                            name: "Invalid Parameters".to_string(),
-                            passed: false,
-                            error: Some("Expected error -32602 for invalid parameters".to_string()),
-                            response: Some(response),
-                            duration: start.elapsed(),
-                        },
-                    );
+                    self.test_results.insert(test_name, TestResult {
+                        name: "Invalid Parameters".to_string(),
+                        passed: false,
+                        error: Some("Expected error -32602 for invalid parameters".to_string()),
+                        response: Some(response),
+                        duration: start.elapsed(),
+                    });
                 }
             }
             Err(e) => {
                 error!("❌ Invalid parameters test failed: {}", e);
-                self.test_results.insert(
-                    test_name,
-                    TestResult {
-                        name: "Invalid Parameters".to_string(),
-                        passed: false,
-                        error: Some(e.to_string()),
-                        response: None,
-                        duration: start.elapsed(),
-                    },
-                );
+                self.test_results.insert(test_name, TestResult {
+                    name: "Invalid Parameters".to_string(),
+                    passed: false,
+                    error: Some(e.to_string()),
+                    response: None,
+                    duration: start.elapsed(),
+                });
             }
         }
     }
