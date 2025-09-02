@@ -172,24 +172,28 @@ impl Config {
             config.agent_config.api_key = Some(api_key);
         }
 
+        #[allow(clippy::collapsible_if)]
         if let Ok(timeout) = std::env::var("AGENT_CLIENT_TIMEOUT") {
             if let Ok(timeout_secs) = timeout.parse::<u64>() {
                 config.agent_config.timeout = Duration::from_secs(timeout_secs);
             }
         }
 
+        #[allow(clippy::collapsible_if)]
         if let Ok(max_retries) = std::env::var("AGENT_CLIENT_MAX_RETRIES") {
             if let Ok(retries) = max_retries.parse::<u32>() {
                 config.agent_config.max_retries = retries;
             }
         }
 
+        #[allow(clippy::collapsible_if)]
         if let Ok(max_tokens) = std::env::var("AGENT_CLIENT_MAX_TOKENS") {
             if let Ok(tokens) = max_tokens.parse::<u32>() {
                 config.agent_config.max_tokens = tokens;
             }
         }
 
+        #[allow(clippy::collapsible_if)]
         if let Ok(temperature) = std::env::var("AGENT_CLIENT_TEMPERATURE") {
             if let Ok(temp) = temperature.parse::<f32>() {
                 config.agent_config.temperature = temp;
@@ -200,6 +204,7 @@ impl Config {
             config.agent_config.system_prompt = Some(system_prompt);
         }
 
+        #[allow(clippy::collapsible_if)]
         if let Ok(max_iterations) = std::env::var("AGENT_CLIENT_MAX_CHAT_COMPLETION_ITERATIONS") {
             if let Ok(iterations) = max_iterations.parse::<u32>() {
                 config.agent_config.max_chat_completion_iterations = iterations;
@@ -220,6 +225,7 @@ impl Config {
                 state_history.to_lowercase() == "true";
         }
 
+        #[allow(clippy::collapsible_if)]
         if let Ok(tls_enable) = std::env::var("SERVER_TLS_ENABLE") {
             if tls_enable.to_lowercase() == "true" {
                 config.tls_config = Some(TlsConfig {
@@ -235,6 +241,7 @@ impl Config {
             }
         }
 
+        #[allow(clippy::collapsible_if)]
         if let Ok(auth_enable) = std::env::var("AUTH_ENABLE") {
             if auth_enable.to_lowercase() == "true" {
                 config.auth_config = Some(AuthConfig {

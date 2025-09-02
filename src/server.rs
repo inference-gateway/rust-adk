@@ -272,6 +272,7 @@ impl A2AServerBuilder {
             ));
         }
 
+        #[allow(clippy::collapsible_if)]
         if let Some(ref mut card) = agent_card {
             if let Some(overrides) = self.agent_card_overrides {
                 if let Some(name) = overrides.name {
@@ -518,6 +519,7 @@ async fn a2a_handler(
     };
 
     let mut final_messages = Vec::new();
+    #[allow(clippy::collapsible_if)]
     if let Some(ref agent) = state.server.agent {
         if let Some(ref system_prompt) = agent.system_prompt {
             final_messages.push(Message {
