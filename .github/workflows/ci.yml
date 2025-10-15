@@ -23,7 +23,7 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: Static Analysis
-        run: cargo clippy -- -D warnings
+        run: cargo clippy --all-targets --all-features -- -D warnings
 
       - name: Build
         run: cargo build --verbose
