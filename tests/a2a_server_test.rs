@@ -931,10 +931,10 @@ impl A2AValidationSuite {
 
             println!("{} {} ({} ms)", status, result.name, duration_ms);
 
-            if !result.passed {
-                if let Some(error) = &result.error {
-                    println!("   Error: {error}");
-                }
+            if !result.passed
+                && let Some(error) = &result.error
+            {
+                println!("   Error: {error}");
             }
 
             if result.passed {

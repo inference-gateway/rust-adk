@@ -111,13 +111,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     health.timestamp.format("%H:%M:%S")
                 );
 
-                if let Some(details) = &health.details {
-                    if let Some(gateway_healthy) = details.get("gateway_healthy") {
-                        info!(
-                            "[Check {}] Inference Gateway healthy: {}",
-                            i, gateway_healthy
-                        );
-                    }
+                if let Some(details) = &health.details
+                    && let Some(gateway_healthy) = details.get("gateway_healthy")
+                {
+                    info!(
+                        "[Check {}] Inference Gateway healthy: {}",
+                        i, gateway_healthy
+                    );
                 }
             }
             Err(e) => {
