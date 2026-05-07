@@ -612,6 +612,7 @@ async fn a2a_handler(State(state): State<Arc<AppState>>, Json(payload): Json<Val
 }
 
 /// Try to typed-parse params; on failure, return a JSON-RPC -32602 error response.
+#[allow(clippy::result_large_err)]
 fn parse_params<T: serde::de::DeserializeOwned>(
     id: &Value,
     params: Value,
