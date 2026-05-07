@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.3](https://github.com/inference-gateway/rust-adk/compare/0.2.2...0.2.3) (2026-05-07)
+
+### ♻️ Improvements
+
+* Improve clippy linting by adding collapsible_if allows in config and server files ([a577f43](https://github.com/inference-gateway/rust-adk/commit/a577f439c4b57cd1c7808e40886577a25183d92d))
+
+### 🐛 Bug Fixes
+
+* **ci:** Fix linting errors in test files ([#11](https://github.com/inference-gateway/rust-adk/issues/11)) ([1098987](https://github.com/inference-gateway/rust-adk/commit/109898716feae3607cdc686a0948600436fd2e7f))
+
+### 👷 CI
+
+* Remove claude-code review ([7cecb94](https://github.com/inference-gateway/rust-adk/commit/7cecb941e29d27bf49ea3c5c5584392e2db518ad))
+* Update system prompt and allowed tools in Claude workflow ([5cdc50f](https://github.com/inference-gateway/rust-adk/commit/5cdc50f2d288aae012538b33579f0b8a04e5f0c8))
+
+### 🔧 Miscellaneous
+
+* Add issue templates for bug reports, feature requests, and refactor requests ([fb229dd](https://github.com/inference-gateway/rust-adk/commit/fb229dd89423657586386989fb24ce114107b21f))
+* Run formatting ([9ce0fb0](https://github.com/inference-gateway/rust-adk/commit/9ce0fb09a28f3eb064a1ef1874c6727a14a96f88))
+
 ## [0.2.2](https://github.com/inference-gateway/rust-adk/compare/0.2.1...0.2.2) (2025-07-30)
 
 ### 👷 CI
