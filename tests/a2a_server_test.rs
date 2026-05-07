@@ -108,7 +108,10 @@ fn extract_task_id(envelope: &Value) -> String {
 async fn health_endpoint_responds() {
     let (client, _addr) = spawn_server().await;
     let health = client.get_health().await.expect("health");
-    assert!(!health.status.is_empty(), "expected non-empty health status");
+    assert!(
+        !health.status.is_empty(),
+        "expected non-empty health status"
+    );
 }
 
 #[tokio::test]
@@ -129,7 +132,10 @@ async fn message_send_creates_and_returns_task() {
     };
     let envelope = client.send_message(params).await.expect("send_message");
     assert_eq!(envelope["jsonrpc"], "2.0");
-    assert!(envelope.get("error").is_none(), "unexpected error: {envelope}");
+    assert!(
+        envelope.get("error").is_none(),
+        "unexpected error: {envelope}"
+    );
     let result = envelope.get("result").expect("result");
     assert_eq!(result["kind"], "task");
     assert!(result["id"].is_string());
@@ -265,10 +271,7 @@ async fn push_notification_config_round_trip() {
         })
         .await
         .expect("delete");
-    assert!(
-        del_env.get("error").is_none(),
-        "delete error: {del_env}"
-    );
+    assert!(del_env.get("error").is_none(), "delete error: {del_env}");
 
     // Verify it's gone via LIST.
     let list_env = client

@@ -553,10 +553,7 @@ fn jsonrpc_result(id: Value, result: Value) -> Value {
 
 /// Top-level dispatcher for the `/a2a` endpoint. Reads the JSON-RPC envelope and
 /// routes to the appropriate per-method handler based on the `method` field.
-async fn a2a_handler(
-    State(state): State<Arc<AppState>>,
-    Json(payload): Json<Value>,
-) -> Response {
+async fn a2a_handler(State(state): State<Arc<AppState>>, Json(payload): Json<Value>) -> Response {
     debug!("A2A request received: {:?}", payload);
 
     // Extract the `id` so error responses always echo it back, even when validation fails.
@@ -637,10 +634,7 @@ fn parse_params<T: serde::de::DeserializeOwned>(
 
 /// Convert a typed `MessageSendParams` payload to inference-gateway SDK messages,
 /// using the configured agent's system prompt as a prefix if present.
-fn build_messages_for_send(
-    agent: Option<&Agent>,
-    params: &MessageSendParams,
-) -> Vec<Message> {
+fn build_messages_for_send(agent: Option<&Agent>, params: &MessageSendParams) -> Vec<Message> {
     let mut messages = Vec::new();
     if let Some(agent) = agent
         && let Some(sp) = &agent.system_prompt
@@ -907,14 +901,11 @@ async fn handle_tasks_cancel(state: Arc<AppState>, id: Value, params: Value) -> 
 /// `tasks/pushNotificationConfig/set` — stores a push notification config under
 /// a synthesised id (or the caller-provided id, if any), keyed by task id.
 async fn handle_push_set(state: Arc<AppState>, id: Value, params: Value) -> Response {
-    let mut config: TaskPushNotificationConfig = match parse_params(
-        &id,
-        params,
-        "tasks/pushNotificationConfig/set",
-    ) {
-        Ok(p) => p,
-        Err(resp) => return resp,
-    };
+    let mut config: TaskPushNotificationConfig =
+        match parse_params(&id, params, "tasks/pushNotificationConfig/set") {
+            Ok(p) => p,
+            Err(resp) => return resp,
+        };
 
     // The spec lets the caller omit `id` on the inner PushNotificationConfig;
     // we synthesise one so future get/list/delete calls have a stable handle.
@@ -925,10 +916,12 @@ async fn handle_push_set(state: Arc<AppState>, id: Value, params: Value) -> Resp
         .unwrap_or_else(|| Uuid::new_v4().to_string());
     config.push_notification_config.id = Some(config_id.clone());
 
-    state.store.write().await.push_configs.insert(
-        (config.task_id.clone(), config_id.clone()),
-        config.clone(),
-    );
+    state
+        .store
+        .write()
+        .await
+        .push_configs
+        .insert((config.task_id.clone(), config_id.clone()), config.clone());
 
     let result = serde_json::to_value(&config).unwrap_or(Value::Null);
     Json(jsonrpc_result(id, result)).into_response()
@@ -949,7 +942,9 @@ async fn handle_push_get(state: Arc<AppState>, id: Value, params: Value) -> Resp
                 id,
                 JSONRPC_ERR_INVALID_PARAMS,
                 "Invalid params",
-                Some(json!("expected TaskIdParams or GetTaskPushNotificationConfigParams")),
+                Some(json!(
+                    "expected TaskIdParams or GetTaskPushNotificationConfigParams"
+                )),
             ))
             .into_response();
         }
@@ -983,14 +978,11 @@ async fn handle_push_get(state: Arc<AppState>, id: Value, params: Value) -> Resp
 
 /// `tasks/pushNotificationConfig/list` — returns all configs for a task id.
 async fn handle_push_list(state: Arc<AppState>, id: Value, params: Value) -> Response {
-    let list_params: ListTaskPushNotificationConfigParams = match parse_params(
-        &id,
-        params,
-        "tasks/pushNotificationConfig/list",
-    ) {
-        Ok(p) => p,
-        Err(resp) => return resp,
-    };
+    let list_params: ListTaskPushNotificationConfigParams =
+        match parse_params(&id, params, "tasks/pushNotificationConfig/list") {
+            Ok(p) => p,
+            Err(resp) => return resp,
+        };
 
     let store = state.store.read().await;
     let configs: Vec<TaskPushNotificationConfig> = store
@@ -1012,19 +1004,17 @@ async fn handle_push_list(state: Arc<AppState>, id: Value, params: Value) -> Res
 /// `tasks/pushNotificationConfig/delete` — removes a single config by
 /// (task_id, push_notification_config_id) if present.
 async fn handle_push_delete(state: Arc<AppState>, id: Value, params: Value) -> Response {
-    let del_params: DeleteTaskPushNotificationConfigParams = match parse_params(
-        &id,
-        params,
-        "tasks/pushNotificationConfig/delete",
-    ) {
-        Ok(p) => p,
-        Err(resp) => return resp,
-    };
+    let del_params: DeleteTaskPushNotificationConfigParams =
+        match parse_params(&id, params, "tasks/pushNotificationConfig/delete") {
+            Ok(p) => p,
+            Err(resp) => return resp,
+        };
 
     let mut store = state.store.write().await;
-    store
-        .push_configs
-        .remove(&(del_params.id.clone(), del_params.push_notification_config_id.clone()));
+    store.push_configs.remove(&(
+        del_params.id.clone(),
+        del_params.push_notification_config_id.clone(),
+    ));
 
     Json(jsonrpc_result(id, Value::Null)).into_response()
 }

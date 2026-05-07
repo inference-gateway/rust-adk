@@ -200,11 +200,7 @@ impl A2AClient {
 
     /// `tasks/resubscribe` — opens an SSE connection on an existing task
     /// and yields each event to `event_handler`.
-    pub async fn resubscribe_task<F>(
-        &self,
-        params: TaskIdParams,
-        event_handler: F,
-    ) -> Result<()>
+    pub async fn resubscribe_task<F>(&self, params: TaskIdParams, event_handler: F) -> Result<()>
     where
         F: FnMut(Value) -> Result<()> + Send,
     {
@@ -226,11 +222,7 @@ impl A2AClient {
     /// Backwards-compatible alias for [`A2AClient::send_streaming_message`] that
     /// accepts a raw `serde_json::Value` payload. Newer code should prefer the
     /// typed entry points.
-    pub async fn send_task_streaming<F>(
-        &self,
-        params: Value,
-        event_handler: F,
-    ) -> Result<()>
+    pub async fn send_task_streaming<F>(&self, params: Value, event_handler: F) -> Result<()>
     where
         F: FnMut(Value) -> Result<()> + Send,
     {
