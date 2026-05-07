@@ -1,25 +1,50 @@
-use crate::a2a_types::AgentCard;
+use crate::a2a_types::{
+    AgentCard, DeleteTaskPushNotificationConfigParams, ListTaskPushNotificationConfigParams,
+    Message as A2aMessage, MessageRole as A2aMessageRole, MessageSendParams, Part, Task,
+    TaskIdParams, TaskPushNotificationConfig, TaskQueryParams, TaskState, TaskStatus,
+    TaskStatusUpdateEvent, TextPart,
+};
 use crate::client::HealthStatus;
 use crate::config::{AgentConfig, Config};
 use anyhow::{Result, anyhow};
 use axum::{
-    Router,
+    Json, Router,
     extract::State,
     http::StatusCode,
-    response::Json,
+    response::{
+        IntoResponse, Response,
+        sse::{Event, KeepAlive, Sse},
+    },
     routing::{get, post},
 };
+use futures::stream;
 use inference_gateway_sdk::{
     InferenceGatewayAPI, InferenceGatewayClient, Message, MessageRole, Provider, Tool,
 };
-use serde_json::Value;
+use serde_json::{Value, json};
 use std::collections::HashMap;
+use std::convert::Infallible;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::TcpListener;
+use tokio::sync::RwLock;
 use tower::ServiceBuilder;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, warn};
+use uuid::Uuid;
+
+/// JSON-RPC error code: invalid request envelope.
+const JSONRPC_ERR_INVALID_REQUEST: i64 = -32600;
+/// JSON-RPC error code: method not found.
+const JSONRPC_ERR_METHOD_NOT_FOUND: i64 = -32601;
+/// JSON-RPC error code: invalid parameters.
+const JSONRPC_ERR_INVALID_PARAMS: i64 = -32602;
+/// JSON-RPC error code: internal server error.
+const JSONRPC_ERR_INTERNAL: i64 = -32603;
+/// A2A error code: task not found.
+const A2A_ERR_TASK_NOT_FOUND: i64 = -32001;
+/// A2A error code: task not cancelable.
+const A2A_ERR_TASK_NOT_CANCELABLE: i64 = -32002;
 
 /// Agent card field overrides
 #[derive(Debug, Clone, Default)]
@@ -197,9 +222,19 @@ pub struct AgentBuilder {
     tool_handlers: HashMap<String, Box<dyn ToolHandler>>,
 }
 
+/// Per-server in-memory storage shared across handlers.
+#[derive(Debug, Default)]
+struct TaskStore {
+    /// task_id -> Task
+    tasks: HashMap<String, Task>,
+    /// (task_id, push_notification_config_id) -> TaskPushNotificationConfig
+    push_configs: HashMap<(String, String), TaskPushNotificationConfig>,
+}
+
 #[derive(Debug)]
 struct AppState {
     server: A2AServer,
+    store: Arc<RwLock<TaskStore>>,
 }
 
 impl A2AServerBuilder {
@@ -416,7 +451,10 @@ impl Agent {
 
 impl A2AServer {
     pub async fn serve(self, addr: SocketAddr) -> Result<()> {
-        let state = AppState { server: self };
+        let state = AppState {
+            server: self,
+            store: Arc::new(RwLock::new(TaskStore::default())),
+        };
 
         let app = Router::new()
             .route("/health", get(health_handler))
@@ -488,266 +526,559 @@ async fn agent_card_handler(
     Err(StatusCode::INTERNAL_SERVER_ERROR)
 }
 
+/// Build a JSON-RPC error response value.
+fn jsonrpc_error(id: Value, code: i64, message: &str, data: Option<Value>) -> Value {
+    let mut error = json!({
+        "code": code,
+        "message": message,
+    });
+    if let Some(d) = data {
+        error["data"] = d;
+    }
+    json!({
+        "jsonrpc": "2.0",
+        "id": id,
+        "error": error,
+    })
+}
+
+/// Build a JSON-RPC success response value.
+fn jsonrpc_result(id: Value, result: Value) -> Value {
+    json!({
+        "jsonrpc": "2.0",
+        "id": id,
+        "result": result,
+    })
+}
+
+/// Top-level dispatcher for the `/a2a` endpoint. Reads the JSON-RPC envelope and
+/// routes to the appropriate per-method handler based on the `method` field.
 async fn a2a_handler(
     State(state): State<Arc<AppState>>,
-    Json(payload): Json<serde_json::Value>,
-) -> Result<Json<serde_json::Value>, StatusCode> {
+    Json(payload): Json<Value>,
+) -> Response {
     debug!("A2A request received: {:?}", payload);
 
-    let messages = if let Some(params) = payload.get("params") {
-        if let Some(messages_array) = params.get("messages") {
-            serde_json::from_value(messages_array.clone()).unwrap_or_else(|_| {
-                vec![Message {
-                    role: MessageRole::User,
-                    content: "Hello from A2A!".to_string(),
-                    ..Default::default()
-                }]
-            })
-        } else {
-            vec![Message {
-                role: MessageRole::User,
-                content: "Hello from A2A!".to_string(),
-                ..Default::default()
-            }]
+    // Extract the `id` so error responses always echo it back, even when validation fails.
+    let id = payload.get("id").cloned().unwrap_or(Value::Null);
+
+    // Validate JSON-RPC envelope.
+    let jsonrpc = payload.get("jsonrpc").and_then(Value::as_str);
+    if jsonrpc != Some("2.0") {
+        warn!("Rejecting request: invalid or missing jsonrpc field");
+        return Json(jsonrpc_error(
+            id,
+            JSONRPC_ERR_INVALID_REQUEST,
+            "Invalid Request",
+            Some(json!("jsonrpc must be \"2.0\"")),
+        ))
+        .into_response();
+    }
+
+    let method = match payload.get("method").and_then(Value::as_str) {
+        Some(m) => m.to_string(),
+        None => {
+            warn!("Rejecting request: missing method field");
+            return Json(jsonrpc_error(
+                id,
+                JSONRPC_ERR_INVALID_REQUEST,
+                "Invalid Request",
+                Some(json!("method field is required")),
+            ))
+            .into_response();
         }
-    } else {
-        vec![Message {
-            role: MessageRole::User,
-            content: "Hello from A2A!".to_string(),
-            ..Default::default()
-        }]
     };
 
-    let mut final_messages = Vec::new();
-    #[allow(clippy::collapsible_if)]
-    if let Some(ref agent) = state.server.agent {
-        if let Some(ref system_prompt) = agent.system_prompt {
-            final_messages.push(Message {
-                role: MessageRole::System,
-                content: system_prompt.clone(),
-                ..Default::default()
-            });
+    let params = payload.get("params").cloned().unwrap_or(Value::Null);
+
+    match method.as_str() {
+        "message/send" => handle_message_send(state, id, params).await,
+        "message/stream" => handle_message_stream(state, id, params).await,
+        "tasks/get" => handle_tasks_get(state, id, params).await,
+        "tasks/cancel" => handle_tasks_cancel(state, id, params).await,
+        "tasks/pushNotificationConfig/set" => handle_push_set(state, id, params).await,
+        "tasks/pushNotificationConfig/get" => handle_push_get(state, id, params).await,
+        "tasks/pushNotificationConfig/list" => handle_push_list(state, id, params).await,
+        "tasks/pushNotificationConfig/delete" => handle_push_delete(state, id, params).await,
+        "tasks/resubscribe" => handle_resubscribe(state, id, params).await,
+        other => {
+            warn!("Method not found: {}", other);
+            Json(jsonrpc_error(
+                id,
+                JSONRPC_ERR_METHOD_NOT_FOUND,
+                "Method not found",
+                Some(json!({ "method": other })),
+            ))
+            .into_response()
         }
     }
-    final_messages.extend(messages);
+}
 
-    let gateway_client = InferenceGatewayClient::new(&state.server.gateway_url);
-
-    let (provider, model, toolbox) = match &state.server.agent {
-        Some(agent) => (agent.provider, agent.model.clone(), agent.toolbox.clone()),
-        None => {
-            error!("No agent configured for A2A request");
-            let error_response = serde_json::json!({
-                "jsonrpc": "2.0",
-                "id": payload.get("id"),
-                "error": {
-                    "code": -32603,
-                    "message": "Internal error",
-                    "data": "No agent configured. Agent with provider and model must be configured before handling A2A requests."
-                }
-            });
-            return Ok(Json(error_response));
+/// Try to typed-parse params; on failure, return a JSON-RPC -32602 error response.
+fn parse_params<T: serde::de::DeserializeOwned>(
+    id: &Value,
+    params: Value,
+    method: &str,
+) -> Result<T, Response> {
+    match serde_json::from_value::<T>(params) {
+        Ok(v) => Ok(v),
+        Err(e) => {
+            warn!("Invalid params for {}: {}", method, e);
+            Err(Json(jsonrpc_error(
+                id.clone(),
+                JSONRPC_ERR_INVALID_PARAMS,
+                "Invalid params",
+                Some(json!({ "method": method, "reason": e.to_string() })),
+            ))
+            .into_response())
         }
+    }
+}
+
+/// Convert a typed `MessageSendParams` payload to inference-gateway SDK messages,
+/// using the configured agent's system prompt as a prefix if present.
+fn build_messages_for_send(
+    agent: Option<&Agent>,
+    params: &MessageSendParams,
+) -> Vec<Message> {
+    let mut messages = Vec::new();
+    if let Some(agent) = agent
+        && let Some(sp) = &agent.system_prompt
+    {
+        messages.push(Message {
+            role: MessageRole::System,
+            content: sp.clone(),
+            ..Default::default()
+        });
+    }
+
+    let role = match params.message.role {
+        A2aMessageRole::User => MessageRole::User,
+        A2aMessageRole::Agent => MessageRole::Assistant,
+    };
+    let content = collect_text_from_parts(&params.message.parts);
+    messages.push(Message {
+        role,
+        content,
+        ..Default::default()
+    });
+    messages
+}
+
+fn collect_text_from_parts(parts: &[Part]) -> String {
+    parts
+        .iter()
+        .filter_map(|p| match p {
+            Part::TextPart(t) => Some(t.text.clone()),
+            _ => None,
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn synthesize_agent_message(text: String) -> A2aMessage {
+    A2aMessage {
+        context_id: None,
+        extensions: Vec::new(),
+        kind: "message".to_string(),
+        message_id: Uuid::new_v4().to_string(),
+        metadata: Default::default(),
+        parts: vec![Part::TextPart(TextPart {
+            kind: "text".to_string(),
+            metadata: Default::default(),
+            text,
+        })],
+        reference_task_ids: Vec::new(),
+        role: A2aMessageRole::Agent,
+        task_id: None,
+    }
+}
+
+fn synthesize_task(history: Vec<A2aMessage>, agent_response: A2aMessage) -> Task {
+    let task_id = Uuid::new_v4().to_string();
+    let context_id = Uuid::new_v4().to_string();
+    let mut full_history = history;
+    full_history.push(agent_response.clone());
+    Task {
+        artifacts: Vec::new(),
+        context_id,
+        history: full_history,
+        id: task_id,
+        kind: "task".to_string(),
+        metadata: Default::default(),
+        status: TaskStatus {
+            message: Some(agent_response),
+            state: TaskState::Completed,
+            timestamp: Some(chrono::Utc::now().to_rfc3339()),
+        },
+    }
+}
+
+/// Generate the agent's textual reply, falling back to a deterministic stub when
+/// no agent is configured or the gateway is unreachable. The stub keeps unit and
+/// integration tests deterministic without a live LLM.
+async fn produce_agent_text(state: &AppState, params: &MessageSendParams) -> String {
+    let Some(agent) = state.server.agent.as_ref() else {
+        debug!("No agent configured — returning stub agent text");
+        let user_text = collect_text_from_parts(&params.message.parts);
+        return if user_text.is_empty() {
+            "Acknowledged.".to_string()
+        } else {
+            format!("Echo: {user_text}")
+        };
     };
 
-    let client_with_tools = if let Some(tools) = toolbox {
-        gateway_client.with_tools(Some(tools))
+    let messages = build_messages_for_send(Some(agent), params);
+    let client = InferenceGatewayClient::new(&state.server.gateway_url);
+    let client_with_tools = if let Some(tools) = &agent.toolbox {
+        client.with_tools(Some(tools.clone()))
     } else {
-        gateway_client
+        client
     };
 
     match client_with_tools
-        .generate_content(provider, &model, final_messages.clone())
+        .generate_content(agent.provider, &agent.model, messages)
         .await
     {
-        Ok(response) => {
-            let choice = match response.choices.first() {
-                Some(choice) => choice,
-                None => {
-                    debug!("No choice returned from LLM");
-                    let error_response = serde_json::json!({
-                        "jsonrpc": "2.0",
-                        "id": payload.get("id"),
-                        "error": {
-                            "code": -32603,
-                            "message": "Internal error",
-                            "data": "No response generated from LLM"
-                        }
-                    });
-                    return Ok(Json(error_response));
-                }
-            };
-
-            if let Some(tool_calls) = &choice.message.tool_calls {
-                debug!("Processing {} tool calls", tool_calls.len());
-
-                let agent = state.server.agent.as_ref().unwrap();
-
-                let mut follow_up_convo = final_messages.clone();
-
-                follow_up_convo.push(Message {
-                    role: MessageRole::Assistant,
-                    content: choice.message.content.clone(),
-                    tool_calls: choice.message.tool_calls.clone(),
-                    ..Default::default()
-                });
-
-                for tool_call in tool_calls {
-                    debug!("Processing tool call: {}", tool_call.function.name);
-
-                    if let Some(handler) = agent.tool_handlers.get(&tool_call.function.name) {
-                        match tool_call.function.parse_arguments() {
-                            Ok(args) => match handler.handle(args).await {
-                                Ok(result) => {
-                                    debug!(
-                                        "Tool call '{}' completed successfully",
-                                        tool_call.function.name
-                                    );
-
-                                    follow_up_convo.push(Message {
-                                        role: MessageRole::Tool,
-                                        content: result,
-                                        tool_call_id: Some(tool_call.id.clone()),
-                                        ..Default::default()
-                                    });
-                                }
-                                Err(e) => {
-                                    error!("Tool call '{}' failed: {}", tool_call.function.name, e);
-
-                                    follow_up_convo.push(Message {
-                                        role: MessageRole::Tool,
-                                        content: format!("Error: {e}"),
-                                        tool_call_id: Some(tool_call.id.clone()),
-                                        ..Default::default()
-                                    });
-                                }
-                            },
-                            Err(e) => {
-                                error!(
-                                    "Failed to parse arguments for tool '{}': {}",
-                                    tool_call.function.name, e
-                                );
-
-                                follow_up_convo.push(Message {
-                                    role: MessageRole::Tool,
-                                    content: format!("Error parsing arguments: {e}"),
-                                    tool_call_id: Some(tool_call.id.clone()),
-                                    ..Default::default()
-                                });
-                            }
-                        }
-                    } else {
-                        error!("No handler found for tool: {}", tool_call.function.name);
-
-                        follow_up_convo.push(Message {
-                            role: MessageRole::Tool,
-                            content: format!(
-                                "Error: No handler found for tool '{}'",
-                                tool_call.function.name
-                            ),
-                            tool_call_id: Some(tool_call.id.clone()),
-                            ..Default::default()
-                        });
-                    }
-                }
-
-                debug!("Sending follow-up request with tool results");
-
-                let follow_up_client = InferenceGatewayClient::new(&state.server.gateway_url);
-                let follow_up_client_with_tools =
-                    if let Some(tools) = &state.server.agent.as_ref().unwrap().toolbox {
-                        follow_up_client.with_tools(Some(tools.clone()))
-                    } else {
-                        follow_up_client
-                    };
-
-                match follow_up_client_with_tools
-                    .generate_content(provider, &model, follow_up_convo)
-                    .await
-                {
-                    Ok(follow_up_response) => {
-                        let final_content = follow_up_response
-                            .choices
-                            .first()
-                            .map(|c| c.message.content.clone())
-                            .unwrap_or_else(|| "No final response generated".to_string());
-
-                        let a2a_response = serde_json::json!({
-                            "jsonrpc": "2.0",
-                            "id": payload.get("id"),
-                            "result": {
-                                "status": "completed",
-                                "message": {
-                                    "role": "assistant",
-                                    "parts": [{
-                                        "kind": "text",
-                                        "content": final_content
-                                    }]
-                                },
-                                "timestamp": chrono::Utc::now().to_rfc3339()
-                            }
-                        });
-
-                        debug!("A2A response generated via SDK with tool calls");
-                        Ok(Json(a2a_response))
-                    }
-                    Err(e) => {
-                        error!("Follow-up request failed: {}", e);
-
-                        let error_response = serde_json::json!({
-                            "jsonrpc": "2.0",
-                            "id": payload.get("id"),
-                            "error": {
-                                "code": -32603,
-                                "message": "Internal error",
-                                "data": format!("Follow-up request failed: {}", e)
-                            }
-                        });
-
-                        Ok(Json(error_response))
-                    }
-                }
-            } else {
-                debug!("No tool calls in response, returning direct content");
-
-                let content = choice.message.content.clone();
-
-                let a2a_response = serde_json::json!({
-                    "jsonrpc": "2.0",
-                    "id": payload.get("id"),
-                    "result": {
-                        "status": "completed",
-                        "message": {
-                            "role": "assistant",
-                            "parts": [{
-                                "kind": "text",
-                                "content": content
-                            }]
-                        },
-                        "timestamp": chrono::Utc::now().to_rfc3339()
-                    }
-                });
-
-                debug!("A2A response generated via SDK");
-                Ok(Json(a2a_response))
-            }
-        }
+        Ok(response) => response
+            .choices
+            .first()
+            .map(|c| c.message.content.clone())
+            .unwrap_or_else(|| "No response generated".to_string()),
         Err(e) => {
-            error!("Failed to generate content via SDK: {}", e);
-
-            let error_response = serde_json::json!({
-                "jsonrpc": "2.0",
-                "id": payload.get("id"),
-                "error": {
-                    "code": -32603,
-                    "message": "Internal error",
-                    "data": format!("SDK error: {}", e)
-                }
-            });
-
-            Ok(Json(error_response))
+            error!("Inference gateway error: {}", e);
+            format!("Error contacting inference gateway: {e}")
         }
     }
+}
+
+/// `message/send` — synchronous reply: stores a Task and returns it.
+async fn handle_message_send(state: Arc<AppState>, id: Value, params: Value) -> Response {
+    let send_params = match parse_params::<MessageSendParams>(&id, params, "message/send") {
+        Ok(p) => p,
+        Err(resp) => return resp,
+    };
+
+    let agent_text = produce_agent_text(&state, &send_params).await;
+    let agent_message = synthesize_agent_message(agent_text);
+    let task = synthesize_task(vec![send_params.message.clone()], agent_message);
+
+    state
+        .store
+        .write()
+        .await
+        .tasks
+        .insert(task.id.clone(), task.clone());
+
+    let result = match serde_json::to_value(&task) {
+        Ok(v) => v,
+        Err(e) => {
+            error!("Failed to serialize task: {}", e);
+            return Json(jsonrpc_error(
+                id,
+                JSONRPC_ERR_INTERNAL,
+                "Internal error",
+                Some(json!(e.to_string())),
+            ))
+            .into_response();
+        }
+    };
+
+    Json(jsonrpc_result(id, result)).into_response()
+}
+
+/// `message/stream` — emits an SSE stream of `SendStreamingMessageSuccessResponse`
+/// events terminated by a final status-update event.
+async fn handle_message_stream(state: Arc<AppState>, id: Value, params: Value) -> Response {
+    let send_params = match parse_params::<MessageSendParams>(&id, params, "message/stream") {
+        Ok(p) => p,
+        Err(resp) => return resp,
+    };
+
+    let agent_text = produce_agent_text(&state, &send_params).await;
+    let agent_message = synthesize_agent_message(agent_text);
+    let task = synthesize_task(vec![send_params.message.clone()], agent_message.clone());
+
+    state
+        .store
+        .write()
+        .await
+        .tasks
+        .insert(task.id.clone(), task.clone());
+
+    // Emit two SSE events: an initial Task envelope, then a final status-update.
+    let task_event = jsonrpc_result(
+        id.clone(),
+        serde_json::to_value(&task).unwrap_or(Value::Null),
+    );
+    let final_event = jsonrpc_result(
+        id.clone(),
+        serde_json::to_value(TaskStatusUpdateEvent {
+            context_id: task.context_id.clone(),
+            final_: true,
+            kind: "status-update".to_string(),
+            metadata: Default::default(),
+            status: task.status.clone(),
+            task_id: task.id.clone(),
+        })
+        .unwrap_or(Value::Null),
+    );
+
+    sse_response(vec![task_event, final_event])
+}
+
+/// `tasks/get` — looks up a stored task by id.
+async fn handle_tasks_get(state: Arc<AppState>, id: Value, params: Value) -> Response {
+    let query: TaskQueryParams = match parse_params(&id, params, "tasks/get") {
+        Ok(p) => p,
+        Err(resp) => return resp,
+    };
+
+    let store = state.store.read().await;
+    match store.tasks.get(&query.id) {
+        Some(task) => {
+            let mut task = task.clone();
+            if let Some(limit) = query.history_length {
+                let limit = limit.max(0) as usize;
+                if task.history.len() > limit {
+                    let start = task.history.len() - limit;
+                    task.history = task.history[start..].to_vec();
+                }
+            }
+            let result = serde_json::to_value(&task).unwrap_or(Value::Null);
+            Json(jsonrpc_result(id, result)).into_response()
+        }
+        None => Json(jsonrpc_error(
+            id,
+            A2A_ERR_TASK_NOT_FOUND,
+            "Task not found",
+            Some(json!({ "id": query.id })),
+        ))
+        .into_response(),
+    }
+}
+
+/// `tasks/cancel` — marks a stored task as canceled if it is still in flight.
+async fn handle_tasks_cancel(state: Arc<AppState>, id: Value, params: Value) -> Response {
+    let task_params: TaskIdParams = match parse_params(&id, params, "tasks/cancel") {
+        Ok(p) => p,
+        Err(resp) => return resp,
+    };
+
+    let mut store = state.store.write().await;
+    let task = match store.tasks.get_mut(&task_params.id) {
+        Some(t) => t,
+        None => {
+            return Json(jsonrpc_error(
+                id,
+                A2A_ERR_TASK_NOT_FOUND,
+                "Task not found",
+                Some(json!({ "id": task_params.id })),
+            ))
+            .into_response();
+        }
+    };
+
+    if matches!(
+        task.status.state,
+        TaskState::Completed | TaskState::Canceled | TaskState::Failed | TaskState::Rejected
+    ) {
+        return Json(jsonrpc_error(
+            id,
+            A2A_ERR_TASK_NOT_CANCELABLE,
+            "Task cannot be canceled",
+            Some(json!({ "id": task_params.id, "state": task.status.state.to_string() })),
+        ))
+        .into_response();
+    }
+
+    task.status = TaskStatus {
+        message: task.status.message.clone(),
+        state: TaskState::Canceled,
+        timestamp: Some(chrono::Utc::now().to_rfc3339()),
+    };
+    let task = task.clone();
+    drop(store);
+
+    let result = serde_json::to_value(&task).unwrap_or(Value::Null);
+    Json(jsonrpc_result(id, result)).into_response()
+}
+
+/// `tasks/pushNotificationConfig/set` — stores a push notification config under
+/// a synthesised id (or the caller-provided id, if any), keyed by task id.
+async fn handle_push_set(state: Arc<AppState>, id: Value, params: Value) -> Response {
+    let mut config: TaskPushNotificationConfig = match parse_params(
+        &id,
+        params,
+        "tasks/pushNotificationConfig/set",
+    ) {
+        Ok(p) => p,
+        Err(resp) => return resp,
+    };
+
+    // The spec lets the caller omit `id` on the inner PushNotificationConfig;
+    // we synthesise one so future get/list/delete calls have a stable handle.
+    let config_id = config
+        .push_notification_config
+        .id
+        .clone()
+        .unwrap_or_else(|| Uuid::new_v4().to_string());
+    config.push_notification_config.id = Some(config_id.clone());
+
+    state.store.write().await.push_configs.insert(
+        (config.task_id.clone(), config_id.clone()),
+        config.clone(),
+    );
+
+    let result = serde_json::to_value(&config).unwrap_or(Value::Null);
+    Json(jsonrpc_result(id, result)).into_response()
+}
+
+/// `tasks/pushNotificationConfig/get` — accepts either `TaskIdParams` or the
+/// extended `GetTaskPushNotificationConfigParams`, returning the matching
+/// stored config (the first one found if no `pushNotificationConfigId` is
+/// supplied).
+async fn handle_push_get(state: Arc<AppState>, id: Value, params: Value) -> Response {
+    // The schema allows two shapes: TaskIdParams or GetTaskPushNotificationConfigParams.
+    // Both have a required `id` field, so we extract it manually and treat
+    // `pushNotificationConfigId` as optional regardless of which shape was sent.
+    let task_id = match params.get("id").and_then(Value::as_str) {
+        Some(s) => s.to_string(),
+        None => {
+            return Json(jsonrpc_error(
+                id,
+                JSONRPC_ERR_INVALID_PARAMS,
+                "Invalid params",
+                Some(json!("expected TaskIdParams or GetTaskPushNotificationConfigParams")),
+            ))
+            .into_response();
+        }
+    };
+    let config_id_opt = params
+        .get("pushNotificationConfigId")
+        .and_then(Value::as_str)
+        .map(str::to_string);
+
+    let store = state.store.read().await;
+    let matched = store
+        .push_configs
+        .iter()
+        .find(|((t, c), _)| t == &task_id && config_id_opt.as_ref().is_none_or(|cid| cid == c))
+        .map(|(_, v)| v.clone());
+
+    match matched {
+        Some(cfg) => {
+            let result = serde_json::to_value(&cfg).unwrap_or(Value::Null);
+            Json(jsonrpc_result(id, result)).into_response()
+        }
+        None => Json(jsonrpc_error(
+            id,
+            A2A_ERR_TASK_NOT_FOUND,
+            "Task push notification config not found",
+            Some(json!({ "taskId": task_id, "pushNotificationConfigId": config_id_opt })),
+        ))
+        .into_response(),
+    }
+}
+
+/// `tasks/pushNotificationConfig/list` — returns all configs for a task id.
+async fn handle_push_list(state: Arc<AppState>, id: Value, params: Value) -> Response {
+    let list_params: ListTaskPushNotificationConfigParams = match parse_params(
+        &id,
+        params,
+        "tasks/pushNotificationConfig/list",
+    ) {
+        Ok(p) => p,
+        Err(resp) => return resp,
+    };
+
+    let store = state.store.read().await;
+    let configs: Vec<TaskPushNotificationConfig> = store
+        .push_configs
+        .iter()
+        .filter_map(|((t, _), v)| {
+            if t == &list_params.id {
+                Some(v.clone())
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    let result = serde_json::to_value(&configs).unwrap_or(Value::Null);
+    Json(jsonrpc_result(id, result)).into_response()
+}
+
+/// `tasks/pushNotificationConfig/delete` — removes a single config by
+/// (task_id, push_notification_config_id) if present.
+async fn handle_push_delete(state: Arc<AppState>, id: Value, params: Value) -> Response {
+    let del_params: DeleteTaskPushNotificationConfigParams = match parse_params(
+        &id,
+        params,
+        "tasks/pushNotificationConfig/delete",
+    ) {
+        Ok(p) => p,
+        Err(resp) => return resp,
+    };
+
+    let mut store = state.store.write().await;
+    store
+        .push_configs
+        .remove(&(del_params.id.clone(), del_params.push_notification_config_id.clone()));
+
+    Json(jsonrpc_result(id, Value::Null)).into_response()
+}
+
+/// `tasks/resubscribe` — opens an SSE stream for an existing task, emitting
+/// the current task state as a final status-update event. If the task does
+/// not exist, returns a JSON-RPC error response (not an SSE stream).
+async fn handle_resubscribe(state: Arc<AppState>, id: Value, params: Value) -> Response {
+    let task_params: TaskIdParams = match parse_params(&id, params, "tasks/resubscribe") {
+        Ok(p) => p,
+        Err(resp) => return resp,
+    };
+
+    let store = state.store.read().await;
+    let task = match store.tasks.get(&task_params.id).cloned() {
+        Some(t) => t,
+        None => {
+            return Json(jsonrpc_error(
+                id,
+                A2A_ERR_TASK_NOT_FOUND,
+                "Task not found",
+                Some(json!({ "id": task_params.id })),
+            ))
+            .into_response();
+        }
+    };
+    drop(store);
+
+    let event = jsonrpc_result(
+        id.clone(),
+        serde_json::to_value(TaskStatusUpdateEvent {
+            context_id: task.context_id.clone(),
+            final_: true,
+            kind: "status-update".to_string(),
+            metadata: Default::default(),
+            status: task.status.clone(),
+            task_id: task.id.clone(),
+        })
+        .unwrap_or(Value::Null),
+    );
+
+    sse_response(vec![event])
+}
+
+/// Helper that turns a list of JSON values into an axum SSE response, one
+/// event per value, terminated by the connection closing naturally.
+fn sse_response(events: Vec<Value>) -> Response {
+    let stream = stream::iter(events.into_iter().map(|v| {
+        let payload = serde_json::to_string(&v).unwrap_or_else(|_| "{}".to_string());
+        Ok::<Event, Infallible>(Event::default().data(payload))
+    }));
+    Sse::new(stream)
+        .keep_alive(KeepAlive::default())
+        .into_response()
 }
 
 #[cfg(test)]
@@ -1007,5 +1338,30 @@ mod tests {
                 _ => {}
             }
         }
+    }
+
+    /// Compile-time check that the canonical `*Request` type names (one per
+    /// JSON-RPC method in the spec) remain re-exportable from
+    /// `inference_gateway_adk::a2a_types`.
+    #[test]
+    fn schema_request_types_are_in_scope() {
+        use crate::a2a_types::{
+            CancelTaskRequest, DeleteTaskPushNotificationConfigRequest,
+            GetTaskPushNotificationConfigRequest, GetTaskRequest,
+            ListTaskPushNotificationConfigRequest, PushNotificationConfig, SendMessageRequest,
+            SendStreamingMessageRequest, SetTaskPushNotificationConfigRequest,
+            TaskResubscriptionRequest,
+        };
+        fn _assert<T>() {}
+        _assert::<SendMessageRequest>();
+        _assert::<SendStreamingMessageRequest>();
+        _assert::<GetTaskRequest>();
+        _assert::<CancelTaskRequest>();
+        _assert::<SetTaskPushNotificationConfigRequest>();
+        _assert::<GetTaskPushNotificationConfigRequest>();
+        _assert::<ListTaskPushNotificationConfigRequest>();
+        _assert::<DeleteTaskPushNotificationConfigRequest>();
+        _assert::<TaskResubscriptionRequest>();
+        _assert::<PushNotificationConfig>();
     }
 }
