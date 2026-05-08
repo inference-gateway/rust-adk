@@ -29,3 +29,4 @@ futures = "0.3.32"
 futures-util = "0.3.32"
 async-trait = "0.1.89"
 reqwest = { version = "0.13.3", features = ["json"] }
+regress = "0.11.1"

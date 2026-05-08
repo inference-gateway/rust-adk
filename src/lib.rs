@@ -11,24 +11,29 @@ pub use server::{A2AServer, A2AServerBuilder, Agent, AgentBuilder, AgentCardOver
 mod tests {
     #[test]
     fn test_a2a_types_module_exists() {
-        use crate::a2a_types::JsonrpcMessage;
-        let _type_exists = std::mem::size_of::<JsonrpcMessage>();
+        use crate::a2a_types::Message;
+        let _type_exists = std::mem::size_of::<Message>();
     }
 
     #[test]
     fn test_a2a_types_serialization() {
         use crate::a2a_types::*;
 
-        let message = JsonrpcMessage {
-            jsonrpc: "2.0".to_string(),
-            id: Some(JsonrpcMessageId::String("test-id".to_string())),
+        let message = Message {
+            context_id: None,
+            extensions: Vec::new(),
+            message_id: "test-id".to_string(),
+            metadata: None,
+            parts: Vec::new(),
+            reference_task_ids: Vec::new(),
+            role: Role::RoleUser,
+            task_id: None,
         };
 
         let serialized = serde_json::to_string(&message).expect("Should serialize");
-        assert!(serialized.contains("\"jsonrpc\":\"2.0\""));
-        assert!(serialized.contains("\"id\":\"test-id\""));
+        assert!(serialized.contains("\"messageId\":\"test-id\""));
+        assert!(serialized.contains("\"role\":\"ROLE_USER\""));
 
-        let _deserialized: JsonrpcMessage =
-            serde_json::from_str(&serialized).expect("Should deserialize");
+        let _deserialized: Message = serde_json::from_str(&serialized).expect("Should deserialize");
     }
 }
