@@ -32,7 +32,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             info!("Agent card retrieved successfully");
             info!("Agent: {} - {}", agent_card.name, agent_card.description);
             info!(
-                "Protocol version: {}, Transport: {}",
+                "Protocol version: {}, Transport: {:?}",
                 agent_card.protocol_version, agent_card.preferred_transport
             );
         }

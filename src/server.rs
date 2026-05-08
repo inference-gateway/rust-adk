@@ -299,8 +299,8 @@ impl A2AServerBuilder {
                     card.version = version;
                 }
                 if let Some(url) = overrides.url {
-                    info!("Overriding agent card URL: {} -> {}", card.url, url);
-                    card.url = url;
+                    info!("Overriding agent card URL: {:?} -> {}", card.url, url);
+                    card.url = Some(url);
                 }
             }
         }
