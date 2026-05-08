@@ -12,20 +12,20 @@ keywords = ["agent", "ai", "inference", "gateway", "a2a"]
 categories = ["api-bindings", "development-tools"]
 
 [dependencies]
-inference-gateway-sdk = "0.11.0"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-tokio = { version = "1.0", features = ["full"] }
-axum = { version = "0.8.4", features = ["json", "http2"] }
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-chrono = { version = "0.4", features = ["serde"] }
-uuid = { version = "1.0", features = ["v4", "serde"] }
-anyhow = "1.0"
-thiserror = "2.0.12"
-tower = "0.5.2"
-tower-http = { version = "0.6.6", features = ["cors", "trace"] }
-futures = "0.3"
-futures-util = "0.3"
-async-trait = "0.1"
-reqwest = { version = "0.12", features = ["json"] }
+inference-gateway-sdk = "0.13.3"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"
+tokio = { version = "1.52.3", features = ["full"] }
+axum = { version = "0.8.9", features = ["json", "http2"] }
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+chrono = { version = "0.4.44", features = ["serde"] }
+uuid = { version = "1.23.1", features = ["v4", "serde"] }
+anyhow = "1.0.102"
+thiserror = "2.0.18"
+tower = "0.5.3"
+tower-http = { version = "0.6.10", features = ["cors", "trace"] }
+futures = "0.3.32"
+futures-util = "0.3.32"
+async-trait = "0.1.89"
+reqwest = { version = "0.13.3", features = ["json"] }

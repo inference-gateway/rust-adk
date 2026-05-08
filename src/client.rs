@@ -3,7 +3,7 @@ use crate::config::ClientConfig;
 use anyhow::{Result, anyhow};
 use inference_gateway_sdk::{
     CreateChatCompletionResponse, InferenceGatewayAPI, InferenceGatewayClient, Message,
-    MessageRole, Provider,
+    MessageContent, MessageRole, Provider,
 };
 use serde::{Deserialize, Serialize};
 use tracing::debug;
@@ -107,20 +107,19 @@ impl A2AClient {
     pub async fn send_task(&self, params: serde_json::Value) -> Result<serde_json::Value> {
         debug!("Making task request via SDK");
 
+        let fallback_message = || Message {
+            role: MessageRole::User,
+            content: MessageContent::String(params.to_string()),
+            reasoning: None,
+            reasoning_content: None,
+            tool_call_id: None,
+            tool_calls: Vec::new(),
+        };
         let messages = if let Some(messages_val) = params.get("messages") {
-            serde_json::from_value(messages_val.clone()).unwrap_or_else(|_| {
-                vec![Message {
-                    role: MessageRole::User,
-                    content: params.to_string(),
-                    ..Default::default()
-                }]
-            })
+            serde_json::from_value(messages_val.clone())
+                .unwrap_or_else(|_| vec![fallback_message()])
         } else {
-            vec![Message {
-                role: MessageRole::User,
-                content: params.to_string(),
-                ..Default::default()
-            }]
+            vec![fallback_message()]
         };
 
         let provider = Provider::Groq;
@@ -142,7 +141,10 @@ impl A2AClient {
                     "parts": [{
                         "kind": "text",
                         "content": response.choices.first()
-                            .map(|c| c.message.content.clone())
+                            .map(|c| match &c.message.content {
+                                MessageContent::String(s) => s.clone(),
+                                MessageContent::Array(parts) => serde_json::to_string(parts).unwrap_or_default(),
+                            })
                             .unwrap_or_else(|| "No response generated".to_string())
                     }]
                 },

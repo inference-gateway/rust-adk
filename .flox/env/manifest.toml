@@ -1,0 +1,17 @@
+schema-version = "1.11.0"
+
+[install]
+claude-code.pkg-path = "claude-code"
+claude-code.version = "^2.1.123"
+rustc.pkg-path = "rustc"
+rustc.version = "^1.94.1"
+cargo.pkg-path = "cargo"
+cargo.version = "^1.94.1"
+rustfmt.pkg-path = "rustfmt"
+rustfmt.version = "^1.94.1"
+clippy.pkg-path = "clippy"
+clippy.version = "^1.94.1"
+markdownlint-cli.pkg-path = "markdownlint-cli"
+markdownlint-cli.version = "0.48.0"
+go-task.pkg-path = "go-task"
+go-task.version = "3.48.0"

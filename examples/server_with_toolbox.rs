@@ -1,5 +1,7 @@
 use inference_gateway_adk::{A2AServerBuilder, AgentBuilder, Config};
-use inference_gateway_sdk::{FunctionObject, Tool, ToolType};
+use inference_gateway_sdk::{
+    ChatCompletionTool, ChatCompletionToolType, FunctionObject, FunctionParameters,
+};
 use serde_json::{Value, json};
 use std::env;
 use tracing::{error, info};
@@ -19,14 +21,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("Agent model: {}", config.agent_config.model);
     info!("Has API key: {}", config.agent_config.api_key.is_some());
 
+    let function_params = |value: Value| {
+        FunctionParameters(
+            value
+                .as_object()
+                .expect("schema must be a JSON object")
+                .clone(),
+        )
+    };
+
     let tools = vec![
-        Tool {
-            r#type: ToolType::Function,
+        ChatCompletionTool {
+            type_: ChatCompletionToolType::Function,
             function: FunctionObject {
                 name: "get_current_weather".to_string(),
-                description: "Get the current weather information for a specific location"
-                    .to_string(),
-                parameters: json!({
+                description: Some(
+                    "Get the current weather information for a specific location".to_string(),
+                ),
+                parameters: Some(function_params(json!({
                     "type": "object",
                     "properties": {
                         "location": {
@@ -40,15 +52,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         }
                     },
                     "required": ["location"]
-                }),
+                }))),
+                strict: false,
             },
         },
-        Tool {
-            r#type: ToolType::Function,
+        ChatCompletionTool {
+            type_: ChatCompletionToolType::Function,
             function: FunctionObject {
                 name: "calculate_math".to_string(),
-                description: "Perform basic mathematical calculations".to_string(),
-                parameters: json!({
+                description: Some("Perform basic mathematical calculations".to_string()),
+                parameters: Some(function_params(json!({
                     "type": "object",
                     "properties": {
                         "expression": {
@@ -57,15 +70,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         }
                     },
                     "required": ["expression"]
-                }),
+                }))),
+                strict: false,
             },
         },
-        Tool {
-            r#type: ToolType::Function,
+        ChatCompletionTool {
+            type_: ChatCompletionToolType::Function,
             function: FunctionObject {
                 name: "search_web".to_string(),
-                description: "Search the web for information".to_string(),
-                parameters: json!({
+                description: Some("Search the web for information".to_string()),
+                parameters: Some(function_params(json!({
                     "type": "object",
                     "properties": {
                         "query": {
@@ -79,7 +93,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         }
                     },
                     "required": ["query"]
-                }),
+                }))),
+                strict: false,
             },
         },
     ];

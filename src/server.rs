@@ -10,7 +10,8 @@ use axum::{
     routing::{get, post},
 };
 use inference_gateway_sdk::{
-    InferenceGatewayAPI, InferenceGatewayClient, Message, MessageRole, Provider, Tool,
+    ChatCompletionTool, InferenceGatewayAPI, InferenceGatewayClient, Message, MessageContent,
+    MessageRole, Provider,
 };
 use serde_json::Value;
 use std::collections::HashMap;
@@ -120,11 +121,18 @@ where
     }
 }
 
+fn message_content_to_string(content: &MessageContent) -> String {
+    match content {
+        MessageContent::String(s) => s.clone(),
+        MessageContent::Array(parts) => serde_json::to_string(parts).unwrap_or_default(),
+    }
+}
+
 fn parse_provider(provider_str: &str) -> Result<Provider> {
     match provider_str.to_lowercase().as_str() {
         "groq" => Ok(Provider::Groq),
         "google" => Ok(Provider::Google),
-        "openai" => Ok(Provider::OpenAI),
+        "openai" => Ok(Provider::Openai),
         "anthropic" => Ok(Provider::Anthropic),
         "cohere" => Ok(Provider::Cohere),
         "cloudflare" => Ok(Provider::Cloudflare),
@@ -157,7 +165,7 @@ pub struct Agent {
     #[allow(dead_code)]
     max_conversation_history: u32,
     #[allow(dead_code)]
-    toolbox: Option<Vec<Tool>>,
+    toolbox: Option<Vec<ChatCompletionTool>>,
     tool_handlers: HashMap<String, Box<dyn ToolHandler>>,
 }
 
@@ -193,7 +201,7 @@ pub struct AgentBuilder {
     system_prompt: Option<String>,
     max_chat_completion: u32,
     max_conversation_history: u32,
-    toolbox: Option<Vec<Tool>>,
+    toolbox: Option<Vec<ChatCompletionTool>>,
     tool_handlers: HashMap<String, Box<dyn ToolHandler>>,
 }
 
@@ -348,7 +356,7 @@ impl AgentBuilder {
         self
     }
 
-    pub fn with_toolbox(mut self, tools: Vec<Tool>) -> Self {
+    pub fn with_toolbox(mut self, tools: Vec<ChatCompletionTool>) -> Self {
         self.toolbox = Some(tools);
         self
     }
@@ -409,7 +417,7 @@ impl Default for AgentBuilder {
 }
 
 impl Agent {
-    pub fn toolbox(&self) -> Option<&Vec<Tool>> {
+    pub fn toolbox(&self) -> Option<&Vec<ChatCompletionTool>> {
         self.toolbox.as_ref()
     }
 }
@@ -466,7 +474,7 @@ async fn health_handler(
             "has_agent": state.server.agent.is_some(),
             "gateway_healthy": gateway_healthy,
             "version": env!("CARGO_PKG_VERSION"),
-            "sdk_version": "0.11.0"
+            "sdk_version": "0.13.3"
         })),
     };
 
@@ -494,28 +502,23 @@ async fn a2a_handler(
 ) -> Result<Json<serde_json::Value>, StatusCode> {
     debug!("A2A request received: {:?}", payload);
 
+    let default_greeting = || Message {
+        role: MessageRole::User,
+        content: MessageContent::String("Hello from A2A!".to_string()),
+        reasoning: None,
+        reasoning_content: None,
+        tool_call_id: None,
+        tool_calls: Vec::new(),
+    };
     let messages = if let Some(params) = payload.get("params") {
         if let Some(messages_array) = params.get("messages") {
-            serde_json::from_value(messages_array.clone()).unwrap_or_else(|_| {
-                vec![Message {
-                    role: MessageRole::User,
-                    content: "Hello from A2A!".to_string(),
-                    ..Default::default()
-                }]
-            })
+            serde_json::from_value(messages_array.clone())
+                .unwrap_or_else(|_| vec![default_greeting()])
         } else {
-            vec![Message {
-                role: MessageRole::User,
-                content: "Hello from A2A!".to_string(),
-                ..Default::default()
-            }]
+            vec![default_greeting()]
         }
     } else {
-        vec![Message {
-            role: MessageRole::User,
-            content: "Hello from A2A!".to_string(),
-            ..Default::default()
-        }]
+        vec![default_greeting()]
     };
 
     let mut final_messages = Vec::new();
@@ -524,8 +527,11 @@ async fn a2a_handler(
         if let Some(ref system_prompt) = agent.system_prompt {
             final_messages.push(Message {
                 role: MessageRole::System,
-                content: system_prompt.clone(),
-                ..Default::default()
+                content: MessageContent::String(system_prompt.clone()),
+                reasoning: None,
+                reasoning_content: None,
+                tool_call_id: None,
+                tool_calls: Vec::new(),
             });
         }
     }
@@ -578,7 +584,8 @@ async fn a2a_handler(
                 }
             };
 
-            if let Some(tool_calls) = &choice.message.tool_calls {
+            if !choice.message.tool_calls.is_empty() {
+                let tool_calls = &choice.message.tool_calls;
                 debug!("Processing {} tool calls", tool_calls.len());
 
                 let agent = state.server.agent.as_ref().unwrap();
@@ -588,12 +595,23 @@ async fn a2a_handler(
                 follow_up_convo.push(Message {
                     role: MessageRole::Assistant,
                     content: choice.message.content.clone(),
+                    reasoning: None,
+                    reasoning_content: None,
+                    tool_call_id: None,
                     tool_calls: choice.message.tool_calls.clone(),
-                    ..Default::default()
                 });
 
                 for tool_call in tool_calls {
                     debug!("Processing tool call: {}", tool_call.function.name);
+
+                    let tool_message = |content: String| Message {
+                        role: MessageRole::Tool,
+                        content: MessageContent::String(content),
+                        reasoning: None,
+                        reasoning_content: None,
+                        tool_call_id: Some(tool_call.id.clone()),
+                        tool_calls: Vec::new(),
+                    };
 
                     if let Some(handler) = agent.tool_handlers.get(&tool_call.function.name) {
                         match tool_call.function.parse_arguments() {
@@ -604,22 +622,12 @@ async fn a2a_handler(
                                         tool_call.function.name
                                     );
 
-                                    follow_up_convo.push(Message {
-                                        role: MessageRole::Tool,
-                                        content: result,
-                                        tool_call_id: Some(tool_call.id.clone()),
-                                        ..Default::default()
-                                    });
+                                    follow_up_convo.push(tool_message(result));
                                 }
                                 Err(e) => {
                                     error!("Tool call '{}' failed: {}", tool_call.function.name, e);
 
-                                    follow_up_convo.push(Message {
-                                        role: MessageRole::Tool,
-                                        content: format!("Error: {e}"),
-                                        tool_call_id: Some(tool_call.id.clone()),
-                                        ..Default::default()
-                                    });
+                                    follow_up_convo.push(tool_message(format!("Error: {e}")));
                                 }
                             },
                             Err(e) => {
@@ -628,26 +636,17 @@ async fn a2a_handler(
                                     tool_call.function.name, e
                                 );
 
-                                follow_up_convo.push(Message {
-                                    role: MessageRole::Tool,
-                                    content: format!("Error parsing arguments: {e}"),
-                                    tool_call_id: Some(tool_call.id.clone()),
-                                    ..Default::default()
-                                });
+                                follow_up_convo
+                                    .push(tool_message(format!("Error parsing arguments: {e}")));
                             }
                         }
                     } else {
                         error!("No handler found for tool: {}", tool_call.function.name);
 
-                        follow_up_convo.push(Message {
-                            role: MessageRole::Tool,
-                            content: format!(
-                                "Error: No handler found for tool '{}'",
-                                tool_call.function.name
-                            ),
-                            tool_call_id: Some(tool_call.id.clone()),
-                            ..Default::default()
-                        });
+                        follow_up_convo.push(tool_message(format!(
+                            "Error: No handler found for tool '{}'",
+                            tool_call.function.name
+                        )));
                     }
                 }
 
@@ -669,7 +668,7 @@ async fn a2a_handler(
                         let final_content = follow_up_response
                             .choices
                             .first()
-                            .map(|c| c.message.content.clone())
+                            .map(|c| message_content_to_string(&c.message.content))
                             .unwrap_or_else(|| "No final response generated".to_string());
 
                         let a2a_response = serde_json::json!({
@@ -710,7 +709,7 @@ async fn a2a_handler(
             } else {
                 debug!("No tool calls in response, returning direct content");
 
-                let content = choice.message.content.clone();
+                let content = message_content_to_string(&choice.message.content);
 
                 let a2a_response = serde_json::json!({
                     "jsonrpc": "2.0",
@@ -753,7 +752,7 @@ async fn a2a_handler(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use inference_gateway_sdk::{FunctionObject, ToolType};
+    use inference_gateway_sdk::{ChatCompletionToolType, FunctionObject, FunctionParameters};
 
     #[derive(Debug)]
     struct TestCase {
@@ -899,21 +898,27 @@ mod tests {
                     );
                 }
                 "with_toolbox" => {
-                    let tool = Tool {
-                        r#type: ToolType::Function,
+                    let tool = ChatCompletionTool {
+                        type_: ChatCompletionToolType::Function,
                         function: FunctionObject {
                             name: "test_tool".to_string(),
-                            description: "A test tool".to_string(),
-                            parameters: serde_json::json!({
-                                "type": "object",
-                                "properties": {
-                                    "input": {
-                                        "type": "string",
-                                        "description": "Test input"
-                                    }
-                                },
-                                "required": ["input"]
-                            }),
+                            description: Some("A test tool".to_string()),
+                            parameters: Some(FunctionParameters(
+                                serde_json::json!({
+                                    "type": "object",
+                                    "properties": {
+                                        "input": {
+                                            "type": "string",
+                                            "description": "Test input"
+                                        }
+                                    },
+                                    "required": ["input"]
+                                })
+                                .as_object()
+                                .unwrap()
+                                .clone(),
+                            )),
+                            strict: false,
                         },
                     };
                     let tools = vec![tool];
@@ -931,21 +936,27 @@ mod tests {
                     );
                 }
                 "with_tool_handlers" => {
-                    let tool = Tool {
-                        r#type: ToolType::Function,
+                    let tool = ChatCompletionTool {
+                        type_: ChatCompletionToolType::Function,
                         function: FunctionObject {
                             name: "test_handler".to_string(),
-                            description: "A test tool with handler".to_string(),
-                            parameters: serde_json::json!({
-                                "type": "object",
-                                "properties": {
-                                    "input": {
-                                        "type": "string",
-                                        "description": "Test input"
-                                    }
-                                },
-                                "required": ["input"]
-                            }),
+                            description: Some("A test tool with handler".to_string()),
+                            parameters: Some(FunctionParameters(
+                                serde_json::json!({
+                                    "type": "object",
+                                    "properties": {
+                                        "input": {
+                                            "type": "string",
+                                            "description": "Test input"
+                                        }
+                                    },
+                                    "required": ["input"]
+                                })
+                                .as_object()
+                                .unwrap()
+                                .clone(),
+                            )),
+                            strict: false,
                         },
                     };
                     let tools = vec![tool];
