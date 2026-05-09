@@ -45,14 +45,15 @@ containers from the shared `examples/Dockerfile.server` /
 
 ```bash
 cd examples/<scenario>
-cp .env.example .env   # skip for minimal — it has no .env.example
+cp .env.example .env
 # edit .env — set DEEPSEEK_API_KEY (or another provider's key) where applicable
 docker compose up --build
 ```
 
 - `minimal/` runs server + client only — no Inference Gateway, since it has no
   agent and `POST /a2a` is expected to return a JSON-RPC "no agent configured"
-  error.
+  error. The colocated `.env.example` exists for layout consistency; the
+  minimal stack doesn't actually consume any provider keys.
 - `static-agent-card/` and `server-with-toolbox/` start an
   `inference-gateway:latest` container alongside the server and client.
   Defaults target DeepSeek (`AGENT_CLIENT_PROVIDER=deepseek`,

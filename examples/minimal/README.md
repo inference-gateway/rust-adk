@@ -7,6 +7,7 @@ The simplest A2A server and client setup using the Rust ADK.
 ```
 minimal/
 ├── docker-compose.yaml  # Server + client (no Inference Gateway needed)
+├── .env.example         # Layout consistency only — minimal doesn't consume any provider keys
 ├── server/main.rs       # Basic A2A server with no agent configured
 ├── client/main.rs       # Client that performs health check, agent card lookup, and one task
 └── README.md
