@@ -637,8 +637,8 @@ use inference_gateway_adk::config::AgentConfig;
 use std::time::Duration;
 
 let config = AgentConfig {
-    provider: "openai".to_string(),
-    model: "gpt-4".to_string(),
+    provider: "deepseek".to_string(),
+    model: "deepseek-v4-flash".to_string(),
     api_key: Some("your-api-key".to_string()),
     max_tokens: 4096,
     temperature: 0.7,
@@ -975,10 +975,10 @@ AGENT_VERSION="1.0.0"                      # Build-time only
 AGENT_CARD_FILE_PATH="./.well-known/agent.json"    # Path to JSON AgentCard file (optional)
 
 # LLM client configuration
-AGENT_CLIENT_PROVIDER="openai"              # openai, anthropic, deepseek, ollama
-AGENT_CLIENT_MODEL="gpt-4"                  # Model name
+AGENT_CLIENT_PROVIDER="deepseek"            # groq, google, openai, anthropic, cohere, cloudflare, deepseek, ollama
+AGENT_CLIENT_MODEL="deepseek-v4-flash"      # Model name
 AGENT_CLIENT_API_KEY="your-api-key"         # Required for AI features
-AGENT_CLIENT_BASE_URL="https://api.openai.com/v1"  # Custom endpoint
+AGENT_CLIENT_BASE_URL="http://inference-gateway:8080/v1"  # Custom endpoint
 AGENT_CLIENT_MAX_TOKENS="4096"              # Max tokens for completion
 AGENT_CLIENT_TEMPERATURE="0.7"              # Temperature for completion
 AGENT_CLIENT_SYSTEM_PROMPT="You are a helpful assistant"
