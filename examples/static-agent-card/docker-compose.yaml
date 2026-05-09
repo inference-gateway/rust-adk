@@ -8,18 +8,6 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       GROQ_API_KEY: ${GROQ_API_KEY:-}
-      LOG_LEVEL: info
-    healthcheck:
-      test:
-        - CMD
-        - wget
-        - --quiet
-        - --spider
-        - http://localhost:8080/health
-      interval: 5s
-      timeout: 3s
-      retries: 10
-      start_period: 5s
     networks:
       - a2a-network
 
