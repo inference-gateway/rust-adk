@@ -1,5 +1,6 @@
 use inference_gateway_adk::A2AClient;
 use serde_json::json;
+use std::env;
 use tokio::time::{Duration, sleep};
 use tracing::{error, info};
 
@@ -7,9 +8,11 @@ use tracing::{error, info};
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt().init();
 
-    let client = A2AClient::new("http://localhost:8082")?;
+    let server_url =
+        env::var("SERVER_URL").unwrap_or_else(|_| "http://localhost:8082".to_string());
+    let client = A2AClient::new(&server_url)?;
 
-    info!("Toolbox A2A client connecting to http://localhost:8082");
+    info!("Toolbox A2A client connecting to {}", server_url);
 
     match client.get_health().await {
         Ok(health) => {

@@ -1,0 +1,71 @@
+---
+services:
+  inference-gateway:
+    image: ghcr.io/inference-gateway/inference-gateway:latest
+    pull_policy: always
+    environment:
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      LOG_LEVEL: info
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - --quiet
+        - --spider
+        - http://localhost:8080/health
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    networks:
+      - a2a-network
+
+  server:
+    build:
+      context: ../..
+      dockerfile: examples/Dockerfile.server
+      args:
+        BIN_NAME: static-agent-card-server
+        EXAMPLE_PATH: examples/static-agent-card
+    depends_on:
+      inference-gateway:
+        condition: service_started
+    environment:
+      INFERENCE_GATEWAY_URL: http://inference-gateway:8080/v1
+      AGENT_CLIENT_BASE_URL: http://inference-gateway:8080/v1
+      AGENT_CLIENT_PROVIDER: ${AGENT_CLIENT_PROVIDER:-deepseek}
+      AGENT_CLIENT_MODEL: ${AGENT_CLIENT_MODEL:-deepseek-v4-flash}
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - --fail
+        - --silent
+        - http://localhost:8081/health
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    networks:
+      - a2a-network
+
+  client:
+    build:
+      context: ../..
+      dockerfile: examples/Dockerfile.client
+      args:
+        BIN_NAME: static-agent-card-client
+    depends_on:
+      server:
+        condition: service_healthy
+    environment:
+      SERVER_URL: http://server:8081
+    networks:
+      - a2a-network
+
+networks:
+  a2a-network:
+    driver: bridge

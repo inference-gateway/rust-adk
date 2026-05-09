@@ -6,33 +6,50 @@ Demonstrates `with_agent_card_from_file()` — loading the agent card from a col
 
 ```
 static-agent-card/
-├── agent-card.json   # Agent metadata loaded at startup
-├── server/main.rs    # Server using with_agent_card_from_file + AgentCardOverrides
-├── client/main.rs    # Client demonstrating health, agent card, and a task
+├── docker-compose.yaml  # Server + client + inference-gateway:latest
+├── .env.example         # DEEPSEEK_API_KEY + provider/model overrides
+├── agent-card.json      # Agent metadata loaded at startup
+├── server/main.rs       # Server using with_agent_card_from_file + AgentCardOverrides
+├── client/main.rs       # Client demonstrating health, agent card, and a task
 └── README.md
 ```
-
-## Prerequisites
-
-- An Inference Gateway reachable at `http://localhost:8080/v1` (or set `INFERENCE_GATEWAY_URL`).
-- LLM provider/model configuration via `Config::from_env()` (see the top-level [README](../../README.md) for the full env var list).
-
-## Running
-
-```bash
-# Server (uses the colocated agent-card.json)
-cargo run --example static-agent-card-server
-# or: task examples:static-agent-card-server
-
-# Client (in another terminal)
-cargo run --example static-agent-card-client
-# or: task examples:static-agent-card-client
-```
-
-> Note: `with_agent_card_from_file("agent-card.json", ...)` resolves relative to the current working directory. Run the server from this example's directory, or pass an absolute path.
 
 ## What This Shows
 
 - **JSON-based agent metadata**: name, description, capabilities, skills, provider — all in `agent-card.json`
 - **Runtime overrides**: `AgentCardOverrides::new().with_name(...).with_version(...).with_description(...)` change selected fields without editing the file
-- **Env-driven LLM config**: `Config::from_env()` for provider, model, and API key
+- **Env-driven LLM config**: `Config::from_env()` reads provider, model, and API key
+
+## Running with Docker Compose
+
+```bash
+cd examples/static-agent-card
+cp .env.example .env
+# Set DEEPSEEK_API_KEY (or another provider's key + matching AGENT_CLIENT_PROVIDER)
+docker compose up --build
+```
+
+The stack starts three services on a private Docker network:
+
+- `inference-gateway` (image `ghcr.io/inference-gateway/inference-gateway:latest`)
+- `server` — built from `examples/Dockerfile.server`, runs the example server
+- `client` — built from `examples/Dockerfile.client`, runs after the server is healthy
+
+Defaults: `AGENT_CLIENT_PROVIDER=deepseek`, `AGENT_CLIENT_MODEL=deepseek-v4-flash`.
+Override via `.env` to switch to any other provider supported by the gateway
+(`groq`, `google`, `openai`, `anthropic`, `cohere`, `cloudflare`, `ollama`).
+
+## Running locally
+
+```bash
+# Start an Inference Gateway separately, then:
+cargo run --example static-agent-card-server
+# or: task examples:static-agent-card-server
+
+cargo run --example static-agent-card-client
+# or: task examples:static-agent-card-client
+```
+
+> `with_agent_card_from_file("agent-card.json", ...)` resolves relative to the current working directory. Run the server from this example's directory, or pass an absolute path. (The Docker image sets `WORKDIR /app` and copies `agent-card.json` next to the binary, so this is automatic in the compose flow.)
+
+The client honours `SERVER_URL` (default `http://localhost:8081`).

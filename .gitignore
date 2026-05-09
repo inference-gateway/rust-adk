@@ -1,1 +1,6 @@
 /target
+.env
+.env.local
+**/.env
+!**/.env.example
+.claude/

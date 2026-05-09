@@ -18,7 +18,10 @@ examples/
 ## Running
 
 Each scenario exposes two Cargo examples (`<name>-server` and `<name>-client`).
-You can run them via Cargo or via the corresponding Taskfile entries:
+You can run them via Cargo, via the corresponding Taskfile entries, or via the
+colocated `docker-compose.yaml`.
+
+### Cargo / Taskfile
 
 ```bash
 # Cargo
@@ -33,6 +36,28 @@ task examples:minimal-client
 > Examples that load `agent-card.json` resolve it relative to the current
 > working directory. Run those servers from inside their example directory, or
 > pass an absolute path via `with_agent_card_from_file(...)`.
+
+### Docker Compose
+
+Each scenario ships a `docker-compose.yaml` that builds the server and client
+containers from the shared `examples/Dockerfile.server` /
+`examples/Dockerfile.client` and wires them together on a private network.
+
+```bash
+cd examples/<scenario>
+cp .env.example .env   # skip for minimal — it has no .env.example
+# edit .env — set DEEPSEEK_API_KEY (or another provider's key) where applicable
+docker compose up --build
+```
+
+- `minimal/` runs server + client only — no Inference Gateway, since it has no
+  agent and `POST /a2a` is expected to return a JSON-RPC "no agent configured"
+  error.
+- `static-agent-card/` and `server-with-toolbox/` start an
+  `inference-gateway:latest` container alongside the server and client.
+  Defaults target DeepSeek (`AGENT_CLIENT_PROVIDER=deepseek`,
+  `AGENT_CLIENT_MODEL=deepseek-v4-flash`); override via `.env` to use any
+  other provider supported by the gateway.
 
 ## Available Examples
 

@@ -1,32 +1,39 @@
 {
-  "name": "Rust A2A Server",
-  "description": "A2A compatible server built with the Rust ADK",
+  "name": "Rust A2A Toolbox Server",
+  "description": "A2A server with custom function tools, built with the Rust ADK",
   "version": "0.1.0",
+  "protocolVersion": "0.2.6",
+  "url": "http://localhost:8082",
+  "preferredTransport": "JSONRPC",
   "capabilities": {
     "streaming": true,
-    "push_notifications": false,
-    "state_transition_history": false
-  },
-  "interface": {
-    "protocol": "a2a",
-    "version": "1.0"
+    "pushNotifications": false,
+    "stateTransitionHistory": false
   },
   "provider": {
-    "name": "Inference Gateway",
     "organization": "Inference Gateway",
     "url": "https://github.com/inference-gateway/rust-adk"
   },
   "skills": [
     {
-      "id": "general_assistance",
-      "name": "general_assistance",
-      "description": "General purpose AI assistance and conversation",
-      "tags": ["assistance", "conversation", "general"]
+      "id": "get_current_weather",
+      "name": "get_current_weather",
+      "description": "Look up the current weather for a location",
+      "tags": ["weather", "tool"]
+    },
+    {
+      "id": "calculate_math",
+      "name": "calculate_math",
+      "description": "Evaluate a basic math expression",
+      "tags": ["math", "tool"]
+    },
+    {
+      "id": "search_web",
+      "name": "search_web",
+      "description": "Mock web search returning sample results",
+      "tags": ["search", "tool"]
     }
   ],
-  "extensions": [],
-  "defaultInputModes": ["text"],
-  "defaultOutputModes": ["text"],
-  "protocolVersion": "1.0",
-  "url": "https://localhost:8082"
+  "defaultInputModes": ["text/plain"],
+  "defaultOutputModes": ["text/plain"]
 }
