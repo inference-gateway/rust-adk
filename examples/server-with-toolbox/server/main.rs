@@ -192,7 +192,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }),
                 json!({
                     "title": format!("Search result 2 for '{query}'"),
-                    "url": "https://example.com/2", 
+                    "url": "https://example.com/2",
                     "snippet": "Another mock search result..."
                 })
             ];
@@ -211,7 +211,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let server = A2AServerBuilder::new()
         .with_config(config)
         .with_agent(agent)
-        .with_agent_card_from_file(".well-known/agent.json", None)
+        .with_agent_card_from_file("agent-card.json", None)
         .with_gateway_url(gateway_url)
         .build()
         .await?;

@@ -1,10 +1,6 @@
 use crate::a2a_types::AgentCard;
 use crate::config::ClientConfig;
 use anyhow::{Result, anyhow};
-use inference_gateway_sdk::{
-    CreateChatCompletionResponse, InferenceGatewayAPI, InferenceGatewayClient, Message,
-    MessageContent, MessageRole, Provider,
-};
 use serde::{Deserialize, Serialize};
 use tracing::debug;
 
@@ -17,9 +13,7 @@ pub struct HealthStatus {
 
 #[derive(Debug)]
 pub struct A2AClient {
-    gateway_client: InferenceGatewayClient,
     http_client: reqwest::Client,
-    #[allow(dead_code)]
     base_url: String,
     #[allow(dead_code)]
     config: ClientConfig,
@@ -30,11 +24,9 @@ impl A2AClient {
         let base_url = base_url.into();
         let config = ClientConfig::new(base_url.clone());
 
-        let gateway_client = InferenceGatewayClient::new(&base_url);
         let http_client = reqwest::Client::new();
 
         Ok(Self {
-            gateway_client,
             http_client,
             base_url,
             config,
@@ -42,11 +34,9 @@ impl A2AClient {
     }
 
     pub fn with_config(config: ClientConfig) -> Result<Self> {
-        let gateway_client = InferenceGatewayClient::new(&config.base_url);
         let http_client = reqwest::Client::new();
 
         Ok(Self {
-            gateway_client,
             http_client,
             base_url: config.base_url.clone(),
             config,
@@ -105,55 +95,28 @@ impl A2AClient {
     }
 
     pub async fn send_task(&self, params: serde_json::Value) -> Result<serde_json::Value> {
-        debug!("Making task request via SDK");
+        debug!("Posting JSON-RPC task to A2A server");
 
-        let fallback_message = || Message {
-            role: MessageRole::User,
-            content: MessageContent::String(params.to_string()),
-            reasoning: None,
-            reasoning_content: None,
-            tool_call_id: None,
-            tool_calls: Vec::new(),
-        };
-        let messages = if let Some(messages_val) = params.get("messages") {
-            serde_json::from_value(messages_val.clone())
-                .unwrap_or_else(|_| vec![fallback_message()])
-        } else {
-            vec![fallback_message()]
-        };
-
-        let provider = Provider::Groq;
-        let model = "deepseek-r1-distill-llama-70b";
-
-        let response: CreateChatCompletionResponse = self
-            .gateway_client
-            .generate_content(provider, model, messages)
+        let url = format!("{}/a2a", self.base_url);
+        let response = self
+            .http_client
+            .post(&url)
+            .json(&params)
+            .send()
             .await
             .map_err(|e| anyhow!("Task request failed: {}", e))?;
 
-        let result = serde_json::json!({
-            "jsonrpc": "2.0",
-            "id": params.get("id"),
-            "result": {
-                "status": "completed",
-                "message": {
-                    "role": "assistant",
-                    "parts": [{
-                        "kind": "text",
-                        "content": response.choices.first()
-                            .map(|c| match &c.message.content {
-                                MessageContent::String(s) => s.clone(),
-                                MessageContent::Array(parts) => serde_json::to_string(parts).unwrap_or_default(),
-                            })
-                            .unwrap_or_else(|| "No response generated".to_string())
-                    }]
-                },
-                "timestamp": chrono::Utc::now().to_rfc3339()
-            }
-        });
+        if !response.status().is_success() {
+            return Err(anyhow!("Task request failed: HTTP {}", response.status()));
+        }
 
-        debug!("Task response received via SDK");
-        Ok(result)
+        let body = response
+            .json::<serde_json::Value>()
+            .await
+            .map_err(|e| anyhow!("Failed to parse task response: {}", e))?;
+
+        debug!("Task response received");
+        Ok(body)
     }
 
     pub async fn send_task_streaming<F>(

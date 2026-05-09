@@ -58,20 +58,36 @@ tasks:
 
   examples:minimal-server:
     desc: Run the minimal A2A server example (requires Inference Gateway at localhost:8080)
+    dir: examples/minimal
     cmds:
-      - cargo run --example minimal_server
+      - cargo run --example minimal-server
 
-  examples:configured-server:
-    desc: Run the configured A2A server example (requires environment config and Inference Gateway)
+  examples:minimal-client:
+    desc: Run the minimal A2A client example (requires the minimal server at localhost:8081)
+    dir: examples/minimal
     cmds:
-      - cargo run --example configured_server
+      - cargo run --example minimal-client
 
-  examples:server-with-toolbox:
+  examples:static-agent-card-server:
+    desc: Run the static-agent-card A2A server example (requires environment config and Inference Gateway)
+    dir: examples/static-agent-card
+    cmds:
+      - cargo run --example static-agent-card-server
+
+  examples:static-agent-card-client:
+    desc: Run the static-agent-card A2A client example (requires the server at localhost:8081)
+    dir: examples/static-agent-card
+    cmds:
+      - cargo run --example static-agent-card-client
+
+  examples:server-with-toolbox-server:
     desc: Run the A2A server example with tools (requires Inference Gateway at localhost:8080)
+    dir: examples/server-with-toolbox
     cmds:
-      - cargo run --example server_with_toolbox
+      - cargo run --example server-with-toolbox-server
 
-  examples:client:
-    desc: Run the A2A client example (requires A2A server running at localhost:8081)
+  examples:server-with-toolbox-client:
+    desc: Run the toolbox A2A client example (requires the toolbox server at localhost:8082)
+    dir: examples/server-with-toolbox
     cmds:
-      - cargo run --example client
+      - cargo run --example server-with-toolbox-client

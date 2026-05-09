@@ -30,3 +30,27 @@ futures-util = "0.3.32"
 async-trait = "0.1.89"
 reqwest = { version = "0.13.3", features = ["json"] }
 regress = "0.11.1"
+
+[[example]]
+name = "minimal-server"
+path = "examples/minimal/server/main.rs"
+
+[[example]]
+name = "minimal-client"
+path = "examples/minimal/client/main.rs"
+
+[[example]]
+name = "static-agent-card-server"
+path = "examples/static-agent-card/server/main.rs"
+
+[[example]]
+name = "static-agent-card-client"
+path = "examples/static-agent-card/client/main.rs"
+
+[[example]]
+name = "server-with-toolbox-server"
+path = "examples/server-with-toolbox/server/main.rs"
+
+[[example]]
+name = "server-with-toolbox-client"
+path = "examples/server-with-toolbox/client/main.rs"

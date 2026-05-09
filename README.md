@@ -275,10 +275,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 For complete working examples, see the [examples](./examples/) directory:
 
-- **[Minimal Server](./examples/minimal-server/)** - Basic A2A server without AI capabilities
-- **[AI-Powered Server](./examples/ai-powered-server/)** - Full A2A server with LLM integration
-- **[JSON AgentCard Server](./examples/json-agentcard-server/)** - A2A server with agent metadata loaded from JSON file
-- **[Client Example](./examples/client/)** - A2A client implementation
+- **[Minimal](./examples/minimal/)** - Bare-bones A2A server and client without an agent or agent card
+- **[Static Agent Card](./examples/static-agent-card/)** - Loading agent metadata from a JSON file with `AgentCardOverrides`
+- **[Server With Toolbox](./examples/server-with-toolbox/)** - LLM agent registering custom sync and async function tools
 - **[Health Check Example](#health-check-example)** - Monitor agent health status
 
 ## ✨ Key Features

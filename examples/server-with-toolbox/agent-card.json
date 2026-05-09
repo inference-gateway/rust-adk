@@ -1,0 +1,32 @@
+{
+  "name": "Rust A2A Server",
+  "description": "A2A compatible server built with the Rust ADK",
+  "version": "0.1.0",
+  "capabilities": {
+    "streaming": true,
+    "push_notifications": false,
+    "state_transition_history": false
+  },
+  "interface": {
+    "protocol": "a2a",
+    "version": "1.0"
+  },
+  "provider": {
+    "name": "Inference Gateway",
+    "organization": "Inference Gateway",
+    "url": "https://github.com/inference-gateway/rust-adk"
+  },
+  "skills": [
+    {
+      "id": "general_assistance",
+      "name": "general_assistance",
+      "description": "General purpose AI assistance and conversation",
+      "tags": ["assistance", "conversation", "general"]
+    }
+  ],
+  "extensions": [],
+  "defaultInputModes": ["text"],
+  "defaultOutputModes": ["text"],
+  "protocolVersion": "1.0",
+  "url": "https://localhost:8082"
+}
