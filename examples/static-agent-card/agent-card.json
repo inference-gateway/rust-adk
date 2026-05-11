@@ -2,17 +2,15 @@
   "name": "Rust A2A Server",
   "description": "A2A compatible server built with the Rust ADK",
   "version": "0.1.0",
+  "protocolVersion": "0.2.6",
+  "url": "http://localhost:8081",
+  "preferredTransport": "JSONRPC",
   "capabilities": {
     "streaming": true,
-    "push_notifications": false,
-    "state_transition_history": false
-  },
-  "interface": {
-    "protocol": "a2a",
-    "version": "1.0"
+    "pushNotifications": false,
+    "stateTransitionHistory": false
   },
   "provider": {
-    "name": "Inference Gateway",
     "organization": "Inference Gateway",
     "url": "https://github.com/inference-gateway/rust-adk"
   },
@@ -24,9 +22,6 @@
       "tags": ["assistance", "conversation", "general"]
     }
   ],
-  "extensions": [],
-  "defaultInputModes": ["text"],
-  "defaultOutputModes": ["text"],
-  "protocolVersion": "1.0",
-  "url": "https://localhost:8081"
+  "defaultInputModes": ["text/plain"],
+  "defaultOutputModes": ["text/plain"]
 }

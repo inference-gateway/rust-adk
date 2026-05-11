@@ -595,8 +595,8 @@ async fn a2a_handler(
                 follow_up_convo.push(Message {
                     role: MessageRole::Assistant,
                     content: choice.message.content.clone(),
-                    reasoning: None,
-                    reasoning_content: None,
+                    reasoning: choice.message.reasoning.clone(),
+                    reasoning_content: choice.message.reasoning_content.clone(),
                     tool_call_id: None,
                     tool_calls: choice.message.tool_calls.clone(),
                 });

@@ -1,5 +1,6 @@
 use inference_gateway_adk::A2AClient;
 use serde_json::json;
+use std::env;
 use tokio::time::{Duration, sleep};
 use tracing::{error, info};
 
@@ -7,11 +8,10 @@ use tracing::{error, info};
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt().init();
 
-    let client = A2AClient::new("http://localhost:8081")?;
+    let server_url = env::var("SERVER_URL").unwrap_or_else(|_| "http://localhost:8082".to_string());
+    let client = A2AClient::new(&server_url)?;
 
-    info!("A2A Client starting with SDK integration...");
-    info!("Connecting to A2A server at: http://localhost:8081");
-    info!("A2A server uses Inference Gateway SDK at: http://localhost:8080/v1");
+    info!("Toolbox A2A client connecting to {}", server_url);
 
     match client.get_health().await {
         Ok(health) => {
@@ -43,13 +43,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let task_params = json!({
         "jsonrpc": "2.0",
-        "id": "test-001",
+        "id": "toolbox-001",
         "method": "generate_content",
         "params": {
             "messages": [
                 {
                     "role": "user",
-                    "content": "Hello! I'm testing the A2A server with Inference Gateway SDK integration. Can you respond?"
+                    "content": "What's the weather in San Francisco, and what is 12 * 7?"
                 }
             ]
         }
@@ -67,13 +67,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let streaming_params = json!({
         "jsonrpc": "2.0",
-        "id": "stream-001",
+        "id": "toolbox-stream-001",
         "method": "generate_content",
         "params": {
             "messages": [
                 {
                     "role": "user",
-                    "content": "Tell me about the benefits of using the Inference Gateway SDK for A2A communication."
+                    "content": "Search the web for 'Rust async programming' and summarise the top results."
                 }
             ]
         }
@@ -126,6 +126,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    info!("A2A Client with SDK integration demo completed");
+    info!("Toolbox client demo completed");
     Ok(())
 }

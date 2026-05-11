@@ -1,0 +1,38 @@
+# syntax=docker/dockerfile:1.7
+ARG RUST_VERSION=1
+FROM rust:${RUST_VERSION}-slim-bookworm AS builder
+
+ARG BIN_NAME
+ARG EXAMPLE_PATH
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends pkg-config libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+COPY Cargo.toml Cargo.lock ./
+COPY src ./src
+COPY examples ./examples
+
+RUN cargo build --release --example "${BIN_NAME}"
+
+# Stage runtime data files (agent-card.json when present) into a known location
+# so the next stage can COPY a single directory without colliding with source dirs.
+RUN mkdir -p /staged \
+    && if [ -f "${EXAMPLE_PATH}/agent-card.json" ]; then \
+         cp "${EXAMPLE_PATH}/agent-card.json" /staged/agent-card.json; \
+       fi
+
+FROM debian:bookworm-slim
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates curl \
+    && rm -rf /var/lib/apt/lists/*
+
+ARG BIN_NAME
+
+WORKDIR /app
+COPY --from=builder /build/target/release/examples/${BIN_NAME} /usr/local/bin/server
+COPY --from=builder /staged/ /app/
+
+ENTRYPOINT ["/usr/local/bin/server"]

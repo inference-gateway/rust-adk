@@ -1,0 +1,15 @@
+target
+.git
+.github
+.flox
+node_modules
+*.md
+!README.md
+!examples/**/README.md
+.env
+.env.*
+!.env.example
+!**/.env.example
+.vscode
+.idea
+.DS_Store

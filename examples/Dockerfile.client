@@ -1,0 +1,29 @@
+# syntax=docker/dockerfile:1.7
+ARG RUST_VERSION=1
+FROM rust:${RUST_VERSION}-slim-bookworm AS builder
+
+ARG BIN_NAME
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends pkg-config libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+COPY Cargo.toml Cargo.lock ./
+COPY src ./src
+COPY examples ./examples
+
+RUN cargo build --release --example "${BIN_NAME}"
+
+FROM debian:bookworm-slim
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+ARG BIN_NAME
+
+WORKDIR /app
+COPY --from=builder /build/target/release/examples/${BIN_NAME} /usr/local/bin/client
+
+ENTRYPOINT ["/usr/local/bin/client"]
