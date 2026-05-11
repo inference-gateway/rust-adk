@@ -332,7 +332,9 @@ impl A2AServerBuilder {
             agent_card,
             agent: self.agent,
             gateway_url,
-            storage: self.storage.unwrap_or_else(|| Arc::new(InMemoryStorage::new())),
+            storage: self
+                .storage
+                .unwrap_or_else(|| Arc::new(InMemoryStorage::new())),
         })
     }
 }

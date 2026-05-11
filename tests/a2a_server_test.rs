@@ -20,10 +20,7 @@ struct Suite {
 
 fn allocate_port() -> u16 {
     let listener = StdTcpListener::bind("127.0.0.1:0").expect("bind ephemeral port");
-    listener
-        .local_addr()
-        .expect("local_addr available")
-        .port()
+    listener.local_addr().expect("local_addr available").port()
 }
 
 fn ensure_suite() -> &'static Suite {
@@ -235,8 +232,7 @@ async fn tasks_get_returns_stored_task() {
         "expected success but got error: {response}"
     );
     let result = response.get("result").expect("result present");
-    let fetched: a2a_types::Task =
-        serde_json::from_value(result.clone()).expect("Task parses");
+    let fetched: a2a_types::Task = serde_json::from_value(result.clone()).expect("Task parses");
     assert_eq!(fetched.id, task.id);
 }
 
@@ -289,8 +285,7 @@ async fn tasks_cancel_marks_task_cancelled() {
         "tasks/cancel returned error: {response}"
     );
     let result = response.get("result").expect("result present");
-    let cancelled: a2a_types::Task =
-        serde_json::from_value(result.clone()).expect("Task parses");
+    let cancelled: a2a_types::Task = serde_json::from_value(result.clone()).expect("Task parses");
     assert_eq!(
         cancelled.status.state,
         a2a_types::TaskState::TaskStateCancelled
@@ -482,7 +477,10 @@ async fn client_typed_helpers_round_trip_send_and_list() {
         tenant: "test".to_string(),
     };
 
-    let send_response = client.send_message(send_params).await.expect("send_message ok");
+    let send_response = client
+        .send_message(send_params)
+        .await
+        .expect("send_message ok");
     let task = send_response.task.expect("task present");
 
     let fetched = client

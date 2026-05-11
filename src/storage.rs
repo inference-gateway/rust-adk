@@ -98,7 +98,9 @@ pub fn parse_task_name(name: &str) -> Option<&str> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::a2a_types::{PushNotificationConfig, TaskPushNotificationConfig, TaskState, TaskStatus};
+    use crate::a2a_types::{
+        PushNotificationConfig, TaskPushNotificationConfig, TaskState, TaskStatus,
+    };
 
     fn make_task(id: &str) -> Task {
         Task {
@@ -177,7 +179,10 @@ mod tests {
     #[test]
     fn parse_task_name_strips_prefix() {
         assert_eq!(parse_task_name("tasks/abc"), Some("abc"));
-        assert_eq!(parse_task_name("tasks/abc/pushNotificationConfigs/c1"), None);
+        assert_eq!(
+            parse_task_name("tasks/abc/pushNotificationConfigs/c1"),
+            None
+        );
         assert_eq!(parse_task_name("tasks/"), None);
         assert_eq!(parse_task_name("notasks/abc"), None);
     }
