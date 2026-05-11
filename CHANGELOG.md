@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.4](https://github.com/inference-gateway/rust-adk/compare/0.2.3...0.2.4) (2026-05-11)
+
+### ♻️ Improvements
+
+* Regenerate A2A types from canonical schema ([#18](https://github.com/inference-gateway/rust-adk/issues/18)) ([dd9b569](https://github.com/inference-gateway/rust-adk/commit/dd9b5690f9e64c16b2f459e77ae6426213bfd3d1)), closes [#14](https://github.com/inference-gateway/rust-adk/issues/14)
+* Remove outdated copilot-instructions.md file ([89afde5](https://github.com/inference-gateway/rust-adk/commit/89afde521301eed48a66aa92ac73a464d0ce82c0))
+* Restructure examples into self-contained server/client scenarios ([#19](https://github.com/inference-gateway/rust-adk/issues/19)) ([95149e6](https://github.com/inference-gateway/rust-adk/commit/95149e654dd71f51dcf30dff198e7818d2e78883)), closes [#18](https://github.com/inference-gateway/rust-adk/issues/18)
+
+### 👷 CI
+
+* Bump actions to their latest ([5111cd0](https://github.com/inference-gateway/rust-adk/commit/5111cd04b85a463b37dd3e61bed9d7ba30f8873d))
+* Enable display report for Claude Code action ([6b2e22d](https://github.com/inference-gateway/rust-adk/commit/6b2e22d4ae008b55033b23e9203230e52f6d4e5b))
+
+### 🔧 Miscellaneous
+
+* Remove outdated issue templates for bug reports, feature requests, and refactor requests ([f37489f](https://github.com/inference-gateway/rust-adk/commit/f37489f1cb4992a3a1ce5988ac3f03bcced4308e))
+* Upgrade inference-gateway-sdk to 0.13.3 and switch to Flox ([73183e2](https://github.com/inference-gateway/rust-adk/commit/73183e24475df297f565786b3d4808f3a4de6165))
+
 ## [0.2.3](https://github.com/inference-gateway/rust-adk/compare/0.2.2...0.2.3) (2026-05-07)
 
 ### ♻️ Improvements
