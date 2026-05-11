@@ -3,8 +3,7 @@ use crate::a2a_types::{
     GetTaskPushNotificationConfigRequest, GetTaskRequest, ListTaskPushNotificationConfigRequest,
     ListTaskPushNotificationConfigResponse, ListTasksRequest, ListTasksResponse,
     Message as A2AMessage, Part, Role, SendMessageRequest, SendMessageResponse,
-    SetTaskPushNotificationConfigRequest, Task, TaskPushNotificationConfig, TaskState, TaskStatus,
-    Timestamp,
+    SetTaskPushNotificationConfigRequest, Task, TaskState, TaskStatus, Timestamp,
 };
 use crate::client::HealthStatus;
 use crate::config::{AgentConfig, Config};
