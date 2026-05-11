@@ -2,10 +2,12 @@ pub mod a2a_types;
 pub mod client;
 pub mod config;
 pub mod server;
+pub mod storage;
 
 pub use client::{A2AClient, HealthStatus};
 pub use config::{AgentConfig, ClientConfig, Config};
 pub use server::{A2AServer, A2AServerBuilder, Agent, AgentBuilder, AgentCardOverrides};
+pub use storage::InMemoryStorage;
 
 #[cfg(test)]
 mod tests {

@@ -1,1026 +1,512 @@
-use inference_gateway_adk::{A2AClient, A2AServerBuilder};
-use serde_json::{Value, json};
-use std::collections::HashMap;
-use std::net::SocketAddr;
-use std::time::Duration;
-use tokio::time::{sleep, timeout};
-use tracing::{debug, error, info, warn};
+//! Integration tests covering the JSON-RPC dispatch surface required by the
+//! A2A specification. Each test asserts the success path of one (or more)
+//! methods end-to-end against a running `A2AServer`.
 
-/// Test configuration for the A2A server validation
+use inference_gateway_adk::{A2AClient, A2AServerBuilder, a2a_types};
+use serde_json::{Value, json};
+use std::net::{SocketAddr, TcpListener as StdTcpListener};
+use std::sync::OnceLock;
+use std::time::Duration;
+use tokio::time::timeout;
+
+static SUITE: OnceLock<Suite> = OnceLock::new();
+
 #[derive(Debug)]
-struct TestConfig {
+struct Suite {
+    base_url: String,
     server_addr: SocketAddr,
-    gateway_url: String,
     timeout_duration: Duration,
 }
 
-impl Default for TestConfig {
-    fn default() -> Self {
-        Self {
-            server_addr: "127.0.0.1:8082".parse().unwrap(),
-            gateway_url: "http://localhost:8080/v1".to_string(),
+fn allocate_port() -> u16 {
+    let listener = StdTcpListener::bind("127.0.0.1:0").expect("bind ephemeral port");
+    listener
+        .local_addr()
+        .expect("local_addr available")
+        .port()
+}
+
+fn ensure_suite() -> &'static Suite {
+    SUITE.get_or_init(|| {
+        let port = allocate_port();
+        let server_addr: SocketAddr = format!("127.0.0.1:{port}").parse().expect("addr parses");
+
+        // Spawn the server on a dedicated OS thread with its own tokio
+        // runtime so it outlives the per-test runtimes created by
+        // `#[tokio::test]`.
+        let (ready_tx, ready_rx) = std::sync::mpsc::channel();
+        let server_addr_clone = server_addr;
+        std::thread::Builder::new()
+            .name("a2a-test-server".into())
+            .spawn(move || {
+                let rt = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .expect("server runtime builds");
+                rt.block_on(async move {
+                    let agent_card_json = json!({
+                        "name": "Test A2A Agent",
+                        "description": "A test agent for validating A2A server functionality",
+                        "version": "1.0.0",
+                        "protocolVersion": "0.2.6",
+                        "url": format!("http://{server_addr_clone}/a2a"),
+                        "preferredTransport": "JSONRPC",
+                        "capabilities": {
+                            "streaming": true,
+                            "pushNotifications": false,
+                            "stateTransitionHistory": false
+                        },
+                        "defaultInputModes": ["text/plain"],
+                        "defaultOutputModes": ["text/plain"],
+                        "skills": [
+                            {
+                                "id": "general-conversation",
+                                "name": "General Conversation",
+                                "description": "Can engage in general conversation and answer questions",
+                                "tags": ["conversation", "qa"]
+                            }
+                        ],
+                        "provider": {
+                            "organization": "Test Organization",
+                            "url": "https://example.com"
+                        }
+                    });
+
+                    let agent_card: a2a_types::AgentCard =
+                        serde_json::from_value(agent_card_json).expect("agent card parses");
+
+                    let server = A2AServerBuilder::new()
+                        .with_gateway_url("http://127.0.0.1:1/v1") // intentionally unreachable
+                        .with_agent_card(agent_card)
+                        .build()
+                        .await
+                        .expect("server builds");
+
+                    let _ = ready_tx.send(());
+                    if let Err(e) = server.serve(server_addr_clone).await {
+                        eprintln!("test server stopped: {e}");
+                    }
+                });
+            })
+            .expect("spawn server thread");
+
+        ready_rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("server thread became ready");
+
+        // Probe TCP until the axum listener starts accepting connections.
+        for _ in 0..100 {
+            if std::net::TcpStream::connect_timeout(&server_addr, Duration::from_millis(50)).is_ok()
+            {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(50));
+        }
+
+        Suite {
+            base_url: format!("http://{server_addr}"),
+            server_addr,
             timeout_duration: Duration::from_secs(30),
         }
-    }
+    })
 }
 
-/// A test suite for validating A2A JSON-RPC endpoints
-#[derive(Debug)]
-struct A2AValidationSuite {
-    config: TestConfig,
-    client: Option<A2AClient>,
-    test_results: HashMap<String, TestResult>,
+async fn post_jsonrpc(suite: &Suite, request: Value) -> Value {
+    let client = reqwest::Client::new();
+    let url = format!("http://{}/a2a", suite.server_addr);
+    let response = timeout(
+        suite.timeout_duration,
+        client.post(&url).json(&request).send(),
+    )
+    .await
+    .expect("HTTP request did not time out")
+    .expect("HTTP request succeeded");
+    response.json::<Value>().await.expect("JSON response body")
 }
 
-#[derive(Debug, Clone)]
-struct TestResult {
-    name: String,
-    passed: bool,
-    error: Option<String>,
-    response: Option<Value>,
-    duration: Duration,
+fn message_payload(message_id: &str, text: &str) -> Value {
+    json!({
+        "messageId": message_id,
+        "role": "ROLE_USER",
+        "parts": [{ "text": text }],
+    })
 }
 
-impl A2AValidationSuite {
-    fn new() -> Self {
-        Self {
-            config: TestConfig::default(),
-            client: None,
-            test_results: HashMap::new(),
-        }
-    }
+fn send_message_params(message_id: &str, text: &str) -> Value {
+    json!({
+        "tenant": "test",
+        "message": message_payload(message_id, text),
+    })
+}
 
-    async fn setup(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        info!("Setting up A2A validation suite...");
+async fn create_task(suite: &Suite, text: &str) -> a2a_types::Task {
+    let request = json!({
+        "jsonrpc": "2.0",
+        "id": format!("create-task-{}", uuid::Uuid::new_v4()),
+        "method": "message/send",
+        "params": send_message_params(&uuid::Uuid::new_v4().to_string(), text),
+    });
+    let response = post_jsonrpc(suite, request).await;
+    let result = response
+        .get("result")
+        .cloned()
+        .unwrap_or_else(|| panic!("expected result in message/send response: {response}"));
+    let send_response: a2a_types::SendMessageResponse =
+        serde_json::from_value(result).expect("SendMessageResponse parses");
+    send_response.task.expect("server returned a task")
+}
 
-        let agent_card = serde_json::json!({
-            "name": "Test A2A Agent",
-            "description": "A test agent for validating A2A server functionality",
-            "version": "1.0.0",
-            "protocolVersion": "0.2.6",
-            "url": format!("http://{}/a2a", self.config.server_addr),
-            "preferredTransport": "JSONRPC",
-            "capabilities": {
-                "streaming": true,
-                "pushNotifications": false,
-                "stateTransitionHistory": false
-            },
-            "defaultInputModes": ["text/plain"],
-            "defaultOutputModes": ["text/plain"],
-            "skills": [
-                {
-                    "id": "general-conversation",
-                    "name": "General Conversation",
-                    "description": "Can engage in general conversation and answer questions",
-                    "tags": ["conversation", "qa"]
-                }
-            ],
-            "provider": {
-                "organization": "Test Organization",
-                "url": "https://example.com"
-            }
-        });
+#[tokio::test]
+async fn health_endpoint_reports_status() {
+    let suite = ensure_suite();
+    let client = A2AClient::new(&suite.base_url).expect("client builds");
+    let health = client.get_health().await.expect("health request succeeds");
+    assert!(!health.status.is_empty(), "status should not be empty");
+}
 
-        let agent_card: inference_gateway_adk::a2a_types::AgentCard =
-            serde_json::from_value(agent_card)?;
+#[tokio::test]
+async fn agent_card_endpoint_returns_card() {
+    let suite = ensure_suite();
+    let client = A2AClient::new(&suite.base_url).expect("client builds");
+    let card = client.get_agent_card().await.expect("agent card retrieved");
+    assert_eq!(card.name, "Test A2A Agent");
+    assert!(!card.description.is_empty());
+}
 
-        let server = A2AServerBuilder::new()
-            .with_gateway_url(&self.config.gateway_url)
-            .with_agent_card(agent_card)
-            .build()
-            .await?;
+#[tokio::test]
+async fn message_send_returns_task() {
+    let suite = ensure_suite();
+    let request = json!({
+        "jsonrpc": "2.0",
+        "id": "test-message-send-001",
+        "method": "message/send",
+        "params": send_message_params("msg-001", "Hello via message/send"),
+    });
+    let response = post_jsonrpc(suite, request).await;
+    assert!(
+        response.get("error").is_none(),
+        "expected success but got error: {response}"
+    );
+    let result = response
+        .get("result")
+        .unwrap_or_else(|| panic!("expected `result` in response: {response}"));
+    let typed: a2a_types::SendMessageResponse =
+        serde_json::from_value(result.clone()).expect("SendMessageResponse parses");
+    assert!(typed.task.is_some(), "task should be present in result");
+}
 
-        let addr = self.config.server_addr;
-        let _server_handle = tokio::spawn(async move {
-            if let Err(e) = server.serve(addr).await {
-                error!("Test server failed: {}", e);
-            }
-        });
+#[tokio::test]
+async fn message_stream_returns_task() {
+    let suite = ensure_suite();
+    let request = json!({
+        "jsonrpc": "2.0",
+        "id": "test-message-stream-001",
+        "method": "message/stream",
+        "params": send_message_params("msg-stream-001", "Hello via message/stream"),
+    });
+    let response = post_jsonrpc(suite, request).await;
+    assert!(
+        response.get("error").is_none(),
+        "expected success but got error: {response}"
+    );
+    let result = response
+        .get("result")
+        .unwrap_or_else(|| panic!("expected `result` in response: {response}"));
+    let typed: a2a_types::SendMessageResponse =
+        serde_json::from_value(result.clone()).expect("SendMessageResponse parses");
+    assert!(typed.task.is_some(), "task should be present in result");
+}
 
-        sleep(Duration::from_millis(1000)).await;
+#[tokio::test]
+async fn tasks_get_returns_stored_task() {
+    let suite = ensure_suite();
+    let task = create_task(suite, "tasks/get scenario").await;
+    let request = json!({
+        "jsonrpc": "2.0",
+        "id": "test-tasks-get-001",
+        "method": "tasks/get",
+        "params": {
+            "name": format!("tasks/{}", task.id),
+        },
+    });
+    let response = post_jsonrpc(suite, request).await;
+    assert!(
+        response.get("error").is_none(),
+        "expected success but got error: {response}"
+    );
+    let result = response.get("result").expect("result present");
+    let fetched: a2a_types::Task =
+        serde_json::from_value(result.clone()).expect("Task parses");
+    assert_eq!(fetched.id, task.id);
+}
 
-        let client_url = format!("http://{}", self.config.server_addr);
-        self.client = Some(A2AClient::new(&client_url)?);
+#[tokio::test]
+async fn tasks_list_returns_paged_response() {
+    let suite = ensure_suite();
+    let _ = create_task(suite, "tasks/list seed").await;
+    let request = json!({
+        "jsonrpc": "2.0",
+        "id": "test-tasks-list-001",
+        "method": "tasks/list",
+        "params": {
+            "contextId": "",
+            "lastUpdatedAfter": 0,
+            "pageToken": "",
+            "status": "TASK_STATE_UNSPECIFIED",
+            "tenant": "test",
+            "pageSize": 10
+        },
+    });
+    let response = post_jsonrpc(suite, request).await;
+    assert!(
+        response.get("error").is_none(),
+        "expected success but got error: {response}"
+    );
+    let result = response.get("result").expect("result present");
+    let listed: a2a_types::ListTasksResponse =
+        serde_json::from_value(result.clone()).expect("ListTasksResponse parses");
+    assert!(listed.total_size >= 1);
+}
 
-        info!("A2A validation suite setup complete");
-        Ok(())
-    }
+#[tokio::test]
+async fn tasks_cancel_marks_task_cancelled() {
+    let suite = ensure_suite();
+    // `message/send` (non-blocking by default) leaves the new task in the
+    // SUBMITTED state, so cancelling it should succeed.
+    let task = create_task(suite, "tasks/cancel scenario").await;
+    let request = json!({
+        "jsonrpc": "2.0",
+        "id": "test-tasks-cancel-001",
+        "method": "tasks/cancel",
+        "params": {
+            "name": format!("tasks/{}", task.id),
+            "tenant": "test",
+        },
+    });
+    let response = post_jsonrpc(suite, request).await;
+    assert!(
+        response.get("error").is_none(),
+        "tasks/cancel returned error: {response}"
+    );
+    let result = response.get("result").expect("result present");
+    let cancelled: a2a_types::Task =
+        serde_json::from_value(result.clone()).expect("Task parses");
+    assert_eq!(
+        cancelled.status.state,
+        a2a_types::TaskState::TaskStateCancelled
+    );
+}
 
-    async fn run_all_tests(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        info!("Running comprehensive A2A validation tests...");
+#[tokio::test]
+async fn push_notification_config_round_trip() {
+    let suite = ensure_suite();
+    let task = create_task(suite, "push config scenario").await;
+    let parent = format!("tasks/{}", task.id);
+    let config_id = "cfg-001";
+    let config_name = format!("{parent}/pushNotificationConfigs/{config_id}");
 
-        self.test_health_endpoint().await;
-        self.test_agent_card_endpoint().await;
-
-        self.test_message_send().await;
-        self.test_message_stream().await;
-        self.test_tasks_get().await;
-        self.test_tasks_cancel().await;
-        self.test_push_notification_config_set().await;
-        self.test_push_notification_config_get().await;
-        self.test_push_notification_config_list().await;
-        self.test_push_notification_config_delete().await;
-        self.test_tasks_resubscribe().await;
-
-        self.test_invalid_json_rpc().await;
-        self.test_method_not_found().await;
-        self.test_invalid_parameters().await;
-
-        self.print_test_results();
-
-        Ok(())
-    }
-
-    async fn test_health_endpoint(&mut self) {
-        let start = std::time::Instant::now();
-        let test_name = "health_endpoint".to_string();
-
-        match self.client.as_ref().unwrap().get_health().await {
-            Ok(health) => {
-                info!("✅ Health check passed: {}", health.status);
-                self.test_results.insert(
-                    test_name,
-                    TestResult {
-                        name: "Health Endpoint".to_string(),
-                        passed: true,
-                        error: None,
-                        response: Some(json!({
-                            "status": health.status,
-                            "timestamp": health.timestamp
-                        })),
-                        duration: start.elapsed(),
-                    },
-                );
-            }
-            Err(e) => {
-                error!("❌ Health check failed: {}", e);
-                self.test_results.insert(
-                    test_name,
-                    TestResult {
-                        name: "Health Endpoint".to_string(),
-                        passed: false,
-                        error: Some(e.to_string()),
-                        response: None,
-                        duration: start.elapsed(),
-                    },
-                );
-            }
-        }
-    }
-
-    async fn test_agent_card_endpoint(&mut self) {
-        let start = std::time::Instant::now();
-        let test_name = "agent_card_endpoint".to_string();
-
-        match self.client.as_ref().unwrap().get_agent_card().await {
-            Ok(card) => {
-                info!(
-                    "✅ Agent card retrieved: {} - {}",
-                    card.name, card.description
-                );
-                self.test_results.insert(
-                    test_name,
-                    TestResult {
-                        name: "Agent Card Endpoint".to_string(),
-                        passed: true,
-                        error: None,
-                        response: Some(json!({
-                            "name": card.name,
-                            "description": card.description,
-                            "protocol_version": card.protocol_version
-                        })),
-                        duration: start.elapsed(),
-                    },
-                );
-            }
-            Err(e) => {
-                error!("❌ Agent card failed: {}", e);
-                self.test_results.insert(
-                    test_name,
-                    TestResult {
-                        name: "Agent Card Endpoint".to_string(),
-                        passed: false,
-                        error: Some(e.to_string()),
-                        response: None,
-                        duration: start.elapsed(),
-                    },
-                );
-            }
-        }
-    }
-
-    async fn test_message_send(&mut self) {
-        let start = std::time::Instant::now();
-        let test_name = "message_send".to_string();
-
-        let request = json!({
-            "jsonrpc": "2.0",
-            "id": "test-message-send-001",
-            "method": "message/send",
-            "params": {
-                "message": {
-                    "kind": "message",
-                    "messageId": "msg-001",
-                    "role": "user",
-                    "parts": [{
-                        "kind": "text",
-                        "text": "Hello, this is a test message for the A2A message/send endpoint."
-                    }]
-                }
-            }
-        });
-
-        match self.send_jsonrpc_request(request).await {
-            Ok(response) => {
-                if response.get("result").is_some() {
-                    info!("✅ message/send test passed");
-                    self.test_results.insert(
-                        test_name,
-                        TestResult {
-                            name: "message/send".to_string(),
-                            passed: true,
-                            error: None,
-                            response: Some(response),
-                            duration: start.elapsed(),
-                        },
-                    );
-                } else {
-                    warn!(
-                        "⚠️ message/send returned error: {:?}",
-                        response.get("error")
-                    );
-                    self.test_results.insert(
-                        test_name,
-                        TestResult {
-                            name: "message/send".to_string(),
-                            passed: false,
-                            error: Some(format!(
-                                "Server returned error: {:?}",
-                                response.get("error")
-                            )),
-                            response: Some(response),
-                            duration: start.elapsed(),
-                        },
-                    );
-                }
-            }
-            Err(e) => {
-                error!("❌ message/send test failed: {}", e);
-                self.test_results.insert(
-                    test_name,
-                    TestResult {
-                        name: "message/send".to_string(),
-                        passed: false,
-                        error: Some(e.to_string()),
-                        response: None,
-                        duration: start.elapsed(),
-                    },
-                );
-            }
-        }
-    }
-
-    async fn test_message_stream(&mut self) {
-        let start = std::time::Instant::now();
-        let test_name = "message_stream".to_string();
-
-        let request = json!({
-            "jsonrpc": "2.0",
-            "id": "test-message-stream-001",
-            "method": "message/stream",
-            "params": {
-                "message": {
-                    "kind": "message",
-                    "messageId": "msg-stream-001",
-                    "role": "user",
-                    "parts": [{
-                        "kind": "text",
-                        "text": "Hello, this is a test message for the A2A message/stream endpoint."
-                    }]
-                }
-            }
-        });
-
-        match self.send_jsonrpc_request(request).await {
-            Ok(response) => {
-                if response.get("result").is_some() {
-                    info!("✅ message/stream test passed");
-                    self.test_results.insert(
-                        test_name,
-                        TestResult {
-                            name: "message/stream".to_string(),
-                            passed: true,
-                            error: None,
-                            response: Some(response),
-                            duration: start.elapsed(),
-                        },
-                    );
-                } else {
-                    warn!(
-                        "⚠️ message/stream returned error: {:?}",
-                        response.get("error")
-                    );
-                    self.test_results.insert(
-                        test_name,
-                        TestResult {
-                            name: "message/stream".to_string(),
-                            passed: false,
-                            error: Some(format!(
-                                "Server returned error: {:?}",
-                                response.get("error")
-                            )),
-                            response: Some(response),
-                            duration: start.elapsed(),
-                        },
-                    );
-                }
-            }
-            Err(e) => {
-                error!("❌ message/stream test failed: {}", e);
-                self.test_results.insert(
-                    test_name,
-                    TestResult {
-                        name: "message/stream".to_string(),
-                        passed: false,
-                        error: Some(e.to_string()),
-                        response: None,
-                        duration: start.elapsed(),
-                    },
-                );
-            }
-        }
-    }
-
-    async fn test_tasks_get(&mut self) {
-        let start = std::time::Instant::now();
-        let test_name = "tasks_get".to_string();
-
-        let request = json!({
-            "jsonrpc": "2.0",
-            "id": "test-tasks-get-001",
-            "method": "tasks/get",
-            "params": {
-                "id": "test-task-001"
-            }
-        });
-
-        match self.send_jsonrpc_request(request).await {
-            Ok(response) => {
-                if response.get("result").is_some()
-                    || (response.get("error").is_some()
-                        && response["error"]["code"].as_i64() == Some(-32001))
-                {
-                    info!("✅ tasks/get test passed (task not found is expected)");
-                    self.test_results.insert(
-                        test_name,
-                        TestResult {
-                            name: "tasks/get".to_string(),
-                            passed: true,
-                            error: None,
-                            response: Some(response),
-                            duration: start.elapsed(),
-                        },
-                    );
-                } else {
-                    warn!(
-                        "⚠️ tasks/get returned unexpected error: {:?}",
-                        response.get("error")
-                    );
-                    self.test_results.insert(
-                        test_name,
-                        TestResult {
-                            name: "tasks/get".to_string(),
-                            passed: false,
-                            error: Some(format!("Unexpected error: {:?}", response.get("error"))),
-                            response: Some(response),
-                            duration: start.elapsed(),
-                        },
-                    );
-                }
-            }
-            Err(e) => {
-                error!("❌ tasks/get test failed: {}", e);
-                self.test_results.insert(
-                    test_name,
-                    TestResult {
-                        name: "tasks/get".to_string(),
-                        passed: false,
-                        error: Some(e.to_string()),
-                        response: None,
-                        duration: start.elapsed(),
-                    },
-                );
-            }
-        }
-    }
-
-    async fn test_tasks_cancel(&mut self) {
-        let start = std::time::Instant::now();
-        let test_name = "tasks_cancel".to_string();
-
-        let request = json!({
-            "jsonrpc": "2.0",
-            "id": "test-tasks-cancel-001",
-            "method": "tasks/cancel",
-            "params": {
-                "id": "test-task-001"
-            }
-        });
-
-        match self.send_jsonrpc_request(request).await {
-            Ok(response) => {
-                if response.get("result").is_some()
-                    || (response.get("error").is_some()
-                        && (response["error"]["code"].as_i64() == Some(-32001)
-                            || response["error"]["code"].as_i64() == Some(-32002)))
-                {
-                    info!("✅ tasks/cancel test passed (expected error for non-existent task)");
-                    self.test_results.insert(
-                        test_name,
-                        TestResult {
-                            name: "tasks/cancel".to_string(),
-                            passed: true,
-                            error: None,
-                            response: Some(response),
-                            duration: start.elapsed(),
-                        },
-                    );
-                } else {
-                    warn!(
-                        "⚠️ tasks/cancel returned unexpected error: {:?}",
-                        response.get("error")
-                    );
-                    self.test_results.insert(
-                        test_name,
-                        TestResult {
-                            name: "tasks/cancel".to_string(),
-                            passed: false,
-                            error: Some(format!("Unexpected error: {:?}", response.get("error"))),
-                            response: Some(response),
-                            duration: start.elapsed(),
-                        },
-                    );
-                }
-            }
-            Err(e) => {
-                error!("❌ tasks/cancel test failed: {}", e);
-                self.test_results.insert(
-                    test_name,
-                    TestResult {
-                        name: "tasks/cancel".to_string(),
-                        passed: false,
-                        error: Some(e.to_string()),
-                        response: None,
-                        duration: start.elapsed(),
-                    },
-                );
-            }
-        }
-    }
-
-    async fn test_push_notification_config_set(&mut self) {
-        let start = std::time::Instant::now();
-        let test_name = "push_notification_config_set".to_string();
-
-        let request = json!({
-            "jsonrpc": "2.0",
-            "id": "test-push-config-set-001",
-            "method": "tasks/pushNotificationConfig/set",
-            "params": {
-                "taskId": "test-task-001",
+    // set
+    let set_request = json!({
+        "jsonrpc": "2.0",
+        "id": "test-push-config-set-001",
+        "method": "tasks/pushNotificationConfig/set",
+        "params": {
+            "parent": parent,
+            "configId": config_id,
+            "config": {
+                "name": config_name,
                 "pushNotificationConfig": {
                     "url": "http://localhost:9999/webhook",
                     "token": "test-token-123"
                 }
             }
-        });
+        },
+    });
+    let set_response = post_jsonrpc(suite, set_request).await;
+    assert!(
+        set_response.get("error").is_none(),
+        "set push config failed: {set_response}"
+    );
+    let set_result = set_response.get("result").expect("result present");
+    let set_typed: a2a_types::TaskPushNotificationConfig =
+        serde_json::from_value(set_result.clone()).expect("config parses");
+    assert_eq!(set_typed.name, config_name);
 
-        match self.send_jsonrpc_request(request).await {
-            Ok(response) => {
-                if response.get("result").is_some()
-                    || (response.get("error").is_some()
-                        && response["error"]["code"].as_i64() == Some(-32003))
-                {
-                    info!("✅ tasks/pushNotificationConfig/set test passed");
-                    self.test_results.insert(
-                        test_name,
-                        TestResult {
-                            name: "tasks/pushNotificationConfig/set".to_string(),
-                            passed: true,
-                            error: None,
-                            response: Some(response),
-                            duration: start.elapsed(),
-                        },
-                    );
-                } else {
-                    warn!(
-                        "⚠️ push notification config set returned unexpected error: {:?}",
-                        response.get("error")
-                    );
-                    self.test_results.insert(
-                        test_name,
-                        TestResult {
-                            name: "tasks/pushNotificationConfig/set".to_string(),
-                            passed: false,
-                            error: Some(format!("Unexpected error: {:?}", response.get("error"))),
-                            response: Some(response),
-                            duration: start.elapsed(),
-                        },
-                    );
-                }
-            }
-            Err(e) => {
-                error!("❌ push notification config set test failed: {}", e);
-                self.test_results.insert(
-                    test_name,
-                    TestResult {
-                        name: "tasks/pushNotificationConfig/set".to_string(),
-                        passed: false,
-                        error: Some(e.to_string()),
-                        response: None,
-                        duration: start.elapsed(),
-                    },
-                );
-            }
-        }
-    }
+    // get
+    let get_request = json!({
+        "jsonrpc": "2.0",
+        "id": "test-push-config-get-001",
+        "method": "tasks/pushNotificationConfig/get",
+        "params": {
+            "name": config_name,
+            "tenant": "test",
+        },
+    });
+    let get_response = post_jsonrpc(suite, get_request).await;
+    assert!(
+        get_response.get("error").is_none(),
+        "get push config failed: {get_response}"
+    );
+    let get_result = get_response.get("result").expect("result present");
+    let get_typed: a2a_types::TaskPushNotificationConfig =
+        serde_json::from_value(get_result.clone()).expect("config parses");
+    assert_eq!(
+        get_typed.push_notification_config.url,
+        "http://localhost:9999/webhook"
+    );
 
-    async fn test_push_notification_config_get(&mut self) {
-        let start = std::time::Instant::now();
-        let test_name = "push_notification_config_get".to_string();
+    // list
+    let list_request = json!({
+        "jsonrpc": "2.0",
+        "id": "test-push-config-list-001",
+        "method": "tasks/pushNotificationConfig/list",
+        "params": {
+            "parent": parent,
+            "pageSize": 10,
+            "pageToken": "",
+            "tenant": "test",
+        },
+    });
+    let list_response = post_jsonrpc(suite, list_request).await;
+    assert!(
+        list_response.get("error").is_none(),
+        "list push configs failed: {list_response}"
+    );
+    let list_result = list_response.get("result").expect("result present");
+    let list_typed: a2a_types::ListTaskPushNotificationConfigResponse =
+        serde_json::from_value(list_result.clone()).expect("list parses");
+    assert!(list_typed.configs.iter().any(|c| c.name == config_name));
 
-        let request = json!({
+    // delete
+    let delete_request = json!({
+        "jsonrpc": "2.0",
+        "id": "test-push-config-delete-001",
+        "method": "tasks/pushNotificationConfig/delete",
+        "params": {
+            "name": config_name,
+            "tenant": "test",
+        },
+    });
+    let delete_response = post_jsonrpc(suite, delete_request).await;
+    assert!(
+        delete_response.get("error").is_none(),
+        "delete push config failed: {delete_response}"
+    );
+    assert!(delete_response.get("result").is_some());
+
+    // confirm the delete actually removed the config.
+    let post_delete_get = post_jsonrpc(
+        suite,
+        json!({
             "jsonrpc": "2.0",
-            "id": "test-push-config-get-001",
+            "id": "test-push-config-get-after-delete",
             "method": "tasks/pushNotificationConfig/get",
-            "params": {
-                "id": "test-task-001"
-            }
-        });
-
-        match self.send_jsonrpc_request(request).await {
-            Ok(response) => {
-                self.test_results.insert(
-                    test_name,
-                    TestResult {
-                        name: "tasks/pushNotificationConfig/get".to_string(),
-                        passed: true,
-                        error: None,
-                        response: Some(response),
-                        duration: start.elapsed(),
-                    },
-                );
-                info!("✅ tasks/pushNotificationConfig/get test passed");
-            }
-            Err(e) => {
-                error!("❌ push notification config get test failed: {}", e);
-                self.test_results.insert(
-                    test_name,
-                    TestResult {
-                        name: "tasks/pushNotificationConfig/get".to_string(),
-                        passed: false,
-                        error: Some(e.to_string()),
-                        response: None,
-                        duration: start.elapsed(),
-                    },
-                );
-            }
-        }
-    }
-
-    async fn test_push_notification_config_list(&mut self) {
-        let start = std::time::Instant::now();
-        let test_name = "push_notification_config_list".to_string();
-
-        let request = json!({
-            "jsonrpc": "2.0",
-            "id": "test-push-config-list-001",
-            "method": "tasks/pushNotificationConfig/list",
-            "params": {
-                "id": "test-task-001"
-            }
-        });
-
-        match self.send_jsonrpc_request(request).await {
-            Ok(response) => {
-                self.test_results.insert(
-                    test_name,
-                    TestResult {
-                        name: "tasks/pushNotificationConfig/list".to_string(),
-                        passed: true,
-                        error: None,
-                        response: Some(response),
-                        duration: start.elapsed(),
-                    },
-                );
-                info!("✅ tasks/pushNotificationConfig/list test passed");
-            }
-            Err(e) => {
-                error!("❌ push notification config list test failed: {}", e);
-                self.test_results.insert(
-                    test_name,
-                    TestResult {
-                        name: "tasks/pushNotificationConfig/list".to_string(),
-                        passed: false,
-                        error: Some(e.to_string()),
-                        response: None,
-                        duration: start.elapsed(),
-                    },
-                );
-            }
-        }
-    }
-
-    async fn test_push_notification_config_delete(&mut self) {
-        let start = std::time::Instant::now();
-        let test_name = "push_notification_config_delete".to_string();
-
-        let request = json!({
-            "jsonrpc": "2.0",
-            "id": "test-push-config-delete-001",
-            "method": "tasks/pushNotificationConfig/delete",
-            "params": {
-                "id": "test-task-001",
-                "pushNotificationConfigId": "test-config-001"
-            }
-        });
-
-        match self.send_jsonrpc_request(request).await {
-            Ok(response) => {
-                self.test_results.insert(
-                    test_name,
-                    TestResult {
-                        name: "tasks/pushNotificationConfig/delete".to_string(),
-                        passed: true,
-                        error: None,
-                        response: Some(response),
-                        duration: start.elapsed(),
-                    },
-                );
-                info!("✅ tasks/pushNotificationConfig/delete test passed");
-            }
-            Err(e) => {
-                error!("❌ push notification config delete test failed: {}", e);
-                self.test_results.insert(
-                    test_name,
-                    TestResult {
-                        name: "tasks/pushNotificationConfig/delete".to_string(),
-                        passed: false,
-                        error: Some(e.to_string()),
-                        response: None,
-                        duration: start.elapsed(),
-                    },
-                );
-            }
-        }
-    }
-
-    async fn test_tasks_resubscribe(&mut self) {
-        let start = std::time::Instant::now();
-        let test_name = "tasks_resubscribe".to_string();
-
-        let request = json!({
-            "jsonrpc": "2.0",
-            "id": "test-tasks-resubscribe-001",
-            "method": "tasks/resubscribe",
-            "params": {
-                "id": "test-task-001"
-            }
-        });
-
-        match self.send_jsonrpc_request(request).await {
-            Ok(response) => {
-                self.test_results.insert(
-                    test_name,
-                    TestResult {
-                        name: "tasks/resubscribe".to_string(),
-                        passed: true,
-                        error: None,
-                        response: Some(response),
-                        duration: start.elapsed(),
-                    },
-                );
-                info!("✅ tasks/resubscribe test passed");
-            }
-            Err(e) => {
-                error!("❌ tasks/resubscribe test failed: {}", e);
-                self.test_results.insert(
-                    test_name,
-                    TestResult {
-                        name: "tasks/resubscribe".to_string(),
-                        passed: false,
-                        error: Some(e.to_string()),
-                        response: None,
-                        duration: start.elapsed(),
-                    },
-                );
-            }
-        }
-    }
-
-    async fn test_invalid_json_rpc(&mut self) {
-        let start = std::time::Instant::now();
-        let test_name = "invalid_json_rpc".to_string();
-
-        let request = json!({
-            "invalid": "not a valid json-rpc request"
-        });
-
-        match self.send_jsonrpc_request(request).await {
-            Ok(response) => {
-                if response.get("error").is_some()
-                    && response["error"]["code"].as_i64() == Some(-32600)
-                {
-                    info!("✅ Invalid JSON-RPC test passed - correctly returned error -32600");
-                    self.test_results.insert(
-                        test_name,
-                        TestResult {
-                            name: "Invalid JSON-RPC Request".to_string(),
-                            passed: true,
-                            error: None,
-                            response: Some(response),
-                            duration: start.elapsed(),
-                        },
-                    );
-                } else {
-                    warn!("⚠️ Invalid JSON-RPC didn't return expected error");
-                    self.test_results.insert(
-                        test_name,
-                        TestResult {
-                            name: "Invalid JSON-RPC Request".to_string(),
-                            passed: false,
-                            error: Some("Expected error -32600 for invalid request".to_string()),
-                            response: Some(response),
-                            duration: start.elapsed(),
-                        },
-                    );
-                }
-            }
-            Err(e) => {
-                info!("✅ Invalid JSON-RPC test passed - HTTP error: {}", e);
-                self.test_results.insert(
-                    test_name,
-                    TestResult {
-                        name: "Invalid JSON-RPC Request".to_string(),
-                        passed: true,
-                        error: None,
-                        response: None,
-                        duration: start.elapsed(),
-                    },
-                );
-            }
-        }
-    }
-
-    async fn test_method_not_found(&mut self) {
-        let start = std::time::Instant::now();
-        let test_name = "method_not_found".to_string();
-
-        let request = json!({
-            "jsonrpc": "2.0",
-            "id": "test-method-not-found-001",
-            "method": "nonexistent/method",
-            "params": {}
-        });
-
-        match self.send_jsonrpc_request(request).await {
-            Ok(response) => {
-                if response.get("error").is_some()
-                    && response["error"]["code"].as_i64() == Some(-32601)
-                {
-                    info!("✅ Method not found test passed - correctly returned error -32601");
-                    self.test_results.insert(
-                        test_name,
-                        TestResult {
-                            name: "Method Not Found".to_string(),
-                            passed: true,
-                            error: None,
-                            response: Some(response),
-                            duration: start.elapsed(),
-                        },
-                    );
-                } else {
-                    warn!("⚠️ Method not found didn't return expected error");
-                    self.test_results.insert(
-                        test_name,
-                        TestResult {
-                            name: "Method Not Found".to_string(),
-                            passed: false,
-                            error: Some("Expected error -32601 for unknown method".to_string()),
-                            response: Some(response),
-                            duration: start.elapsed(),
-                        },
-                    );
-                }
-            }
-            Err(e) => {
-                error!("❌ Method not found test failed: {}", e);
-                self.test_results.insert(
-                    test_name,
-                    TestResult {
-                        name: "Method Not Found".to_string(),
-                        passed: false,
-                        error: Some(e.to_string()),
-                        response: None,
-                        duration: start.elapsed(),
-                    },
-                );
-            }
-        }
-    }
-
-    async fn test_invalid_parameters(&mut self) {
-        let start = std::time::Instant::now();
-        let test_name = "invalid_parameters".to_string();
-
-        let request = json!({
-            "jsonrpc": "2.0",
-            "id": "test-invalid-params-001",
-            "method": "message/send",
-            "params": {
-                "invalid": "parameters"
-            }
-        });
-
-        match self.send_jsonrpc_request(request).await {
-            Ok(response) => {
-                if response.get("error").is_some()
-                    && response["error"]["code"].as_i64() == Some(-32602)
-                {
-                    info!("✅ Invalid parameters test passed - correctly returned error -32602");
-                    self.test_results.insert(
-                        test_name,
-                        TestResult {
-                            name: "Invalid Parameters".to_string(),
-                            passed: true,
-                            error: None,
-                            response: Some(response),
-                            duration: start.elapsed(),
-                        },
-                    );
-                } else {
-                    warn!("⚠️ Invalid parameters didn't return expected error");
-                    self.test_results.insert(
-                        test_name,
-                        TestResult {
-                            name: "Invalid Parameters".to_string(),
-                            passed: false,
-                            error: Some("Expected error -32602 for invalid parameters".to_string()),
-                            response: Some(response),
-                            duration: start.elapsed(),
-                        },
-                    );
-                }
-            }
-            Err(e) => {
-                error!("❌ Invalid parameters test failed: {}", e);
-                self.test_results.insert(
-                    test_name,
-                    TestResult {
-                        name: "Invalid Parameters".to_string(),
-                        passed: false,
-                        error: Some(e.to_string()),
-                        response: None,
-                        duration: start.elapsed(),
-                    },
-                );
-            }
-        }
-    }
-
-    async fn send_jsonrpc_request(
-        &self,
-        request: Value,
-    ) -> Result<Value, Box<dyn std::error::Error>> {
-        let client = reqwest::Client::new();
-        let url = format!("http://{}/a2a", self.config.server_addr);
-
-        let response = timeout(
-            self.config.timeout_duration,
-            client.post(&url).json(&request).send(),
-        )
-        .await??;
-
-        let response_text = response.text().await?;
-        let response_json: Value = serde_json::from_str(&response_text)?;
-
-        debug!("Request: {}", serde_json::to_string_pretty(&request)?);
-        debug!(
-            "Response: {}",
-            serde_json::to_string_pretty(&response_json)?
-        );
-
-        Ok(response_json)
-    }
-
-    fn print_test_results(&self) {
-        println!("\n{}", "=".repeat(80));
-        println!("🧪 A2A Server Validation Results");
-        println!("{}", "=".repeat(80));
-
-        let mut passed = 0;
-        let mut failed = 0;
-
-        for result in self.test_results.values() {
-            let status = if result.passed {
-                "✅ PASS"
-            } else {
-                "❌ FAIL"
-            };
-            let duration_ms = result.duration.as_millis();
-
-            println!("{} {} ({} ms)", status, result.name, duration_ms);
-
-            if !result.passed
-                && let Some(error) = &result.error
-            {
-                println!("   Error: {error}");
-            }
-
-            if result.passed {
-                passed += 1;
-            } else {
-                failed += 1;
-            }
-        }
-
-        println!("{}", "=".repeat(80));
-        println!(
-            "📊 Summary: {} passed, {} failed, {} total",
-            passed,
-            failed,
-            passed + failed
-        );
-
-        if failed == 0 {
-            println!("🎉 All tests passed! The A2A server is working correctly.");
-        } else {
-            println!("⚠️  Some tests failed. Please review the implementation.");
-        }
-
-        println!("\n📋 Detailed Analysis:");
-        self.print_implementation_status();
-    }
-
-    fn print_implementation_status(&self) {
-        let required_methods = vec![
-            "message/send",
-            "message/stream",
-            "tasks/get",
-            "tasks/cancel",
-            "tasks/pushNotificationConfig/set",
-            "tasks/pushNotificationConfig/get",
-            "tasks/pushNotificationConfig/list",
-            "tasks/pushNotificationConfig/delete",
-            "tasks/resubscribe",
-        ];
-
-        println!("\nA2A JSON-RPC Method Implementation Status:");
-        for method in &required_methods {
-            let test_key = method.replace("/", "_");
-            if let Some(result) = self.test_results.get(&test_key) {
-                let status = if result.passed {
-                    if result
-                        .response
-                        .as_ref()
-                        .and_then(|r| r.get("error"))
-                        .is_some()
-                    {
-                        "🟡 PARTIAL (returns error)"
-                    } else {
-                        "✅ IMPLEMENTED"
-                    }
-                } else {
-                    "❌ NOT IMPLEMENTED"
-                };
-                println!("  {status} {method}");
-            } else {
-                println!("  ❓ UNKNOWN {method}");
-            }
-        }
-
-        println!("\nRecommendations:");
-        println!("- Implement proper JSON-RPC method routing in the server");
-        println!("- Add full A2A specification compliance");
-        println!("- Implement task management and persistence");
-        println!("- Add push notification support");
-        println!("- Improve error handling according to JSON-RPC 2.0 spec");
-    }
+            "params": { "name": config_name, "tenant": "test" },
+        }),
+    )
+    .await;
+    assert!(post_delete_get.get("error").is_some());
 }
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::INFO)
-        .init();
+#[tokio::test]
+async fn unknown_method_returns_method_not_found() {
+    let suite = ensure_suite();
+    let request = json!({
+        "jsonrpc": "2.0",
+        "id": "test-method-not-found-001",
+        "method": "nonexistent/method",
+        "params": {}
+    });
+    let response = post_jsonrpc(suite, request).await;
+    let code = response
+        .get("error")
+        .and_then(|e| e.get("code"))
+        .and_then(|c| c.as_i64());
+    assert_eq!(code, Some(-32601), "expected -32601, got {response}");
+}
 
-    println!("🚀 Starting A2A Server Validation Suite");
+#[tokio::test]
+async fn invalid_params_returns_invalid_params_error() {
+    let suite = ensure_suite();
+    let request = json!({
+        "jsonrpc": "2.0",
+        "id": "test-invalid-params-001",
+        "method": "message/send",
+        "params": {
+            "invalid": "parameters"
+        }
+    });
+    let response = post_jsonrpc(suite, request).await;
+    let code = response
+        .get("error")
+        .and_then(|e| e.get("code"))
+        .and_then(|c| c.as_i64());
+    assert_eq!(code, Some(-32602), "expected -32602, got {response}");
+}
 
-    let mut suite = A2AValidationSuite::new();
+#[tokio::test]
+async fn invalid_jsonrpc_envelope_returns_invalid_request() {
+    let suite = ensure_suite();
+    let request = json!({ "invalid": "not a valid json-rpc request" });
+    let response = post_jsonrpc(suite, request).await;
+    let code = response
+        .get("error")
+        .and_then(|e| e.get("code"))
+        .and_then(|c| c.as_i64());
+    assert_eq!(code, Some(-32600), "expected -32600, got {response}");
+}
 
-    suite.setup().await?;
+#[tokio::test]
+async fn client_typed_helpers_round_trip_send_and_list() {
+    let suite = ensure_suite();
+    let client = A2AClient::new(&suite.base_url).expect("client builds");
 
-    suite.run_all_tests().await?;
+    let send_params = a2a_types::SendMessageRequest {
+        configuration: None,
+        message: Some(a2a_types::Message {
+            context_id: None,
+            extensions: vec![],
+            message_id: uuid::Uuid::new_v4().to_string(),
+            metadata: None,
+            parts: vec![a2a_types::Part {
+                data: None,
+                file: None,
+                metadata: None,
+                text: Some("typed-client roundtrip".to_string()),
+            }],
+            reference_task_ids: vec![],
+            role: a2a_types::Role::RoleUser,
+            task_id: None,
+        }),
+        metadata: None,
+        tenant: "test".to_string(),
+    };
 
-    Ok(())
+    let send_response = client.send_message(send_params).await.expect("send_message ok");
+    let task = send_response.task.expect("task present");
+
+    let fetched = client
+        .get_task(a2a_types::GetTaskRequest {
+            history_length: None,
+            name: format!("tasks/{}", task.id),
+            tenant: Some("test".to_string()),
+        })
+        .await
+        .expect("get_task ok");
+    assert_eq!(fetched.id, task.id);
+
+    let listed = client
+        .list_tasks(a2a_types::ListTasksRequest {
+            context_id: String::new(),
+            history_length: None,
+            include_artifacts: None,
+            last_updated_after: 0,
+            page_size: Some(50),
+            page_token: String::new(),
+            status: a2a_types::TaskState::TaskStateUnspecified,
+            tenant: "test".to_string(),
+        })
+        .await
+        .expect("list_tasks ok");
+    assert!(listed.total_size >= 1);
 }
