@@ -8,9 +8,7 @@
 //! ```
 
 use inference_gateway_adk::A2AClient;
-use inference_gateway_adk::a2a_types::{
-    GetTaskRequest, Message, Part, Role, SendMessageRequest,
-};
+use inference_gateway_adk::a2a_types::{GetTaskRequest, Message, Part, Role, SendMessageRequest};
 use std::env;
 use tracing::info;
 use uuid::Uuid;

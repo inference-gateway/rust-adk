@@ -45,7 +45,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let response = client.send_message(request).await?;
 
     if let Some(task) = response.task {
-        info!("message/send → task {} in state {:?}", task.id, task.status.state);
+        info!(
+            "message/send → task {} in state {:?}",
+            task.id, task.status.state
+        );
     } else if let Some(msg) = response.message {
         info!("message/send → message {}", msg.message_id);
     }
