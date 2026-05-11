@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.5](https://github.com/inference-gateway/rust-adk/compare/0.2.4...0.2.5) (2026-05-11)
+
+### 👷 CI
+
+* Use crates.io trusted publishing via OIDC ([0a01d6e](https://github.com/inference-gateway/rust-adk/commit/0a01d6eaa2f0aa9499bc6e08567e71d3578fc20f))
+
 ## [0.2.4](https://github.com/inference-gateway/rust-adk/compare/0.2.3...0.2.4) (2026-05-11)
 
 ### ♻️ Improvements
