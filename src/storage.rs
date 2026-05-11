@@ -2,7 +2,7 @@
 //!
 //! The full task manager / persistence layer is tracked separately; this
 //! module provides just enough to dispatch the JSON-RPC methods listed in
-//! the A2A specification and to keep them at parity with the Go ADK.
+//! the A2A specification.
 
 use crate::a2a_types::{Task, TaskPushNotificationConfig};
 use std::collections::HashMap;
