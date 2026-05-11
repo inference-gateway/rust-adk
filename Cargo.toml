@@ -54,3 +54,44 @@ path = "examples/server-with-toolbox/server/main.rs"
 [[example]]
 name = "server-with-toolbox-client"
 path = "examples/server-with-toolbox/client/main.rs"
+
+# a2a-methods/ — one client binary per JSON-RPC method exposed by the spec.
+[[example]]
+name = "a2a-methods-server"
+path = "examples/a2a-methods/server/main.rs"
+
+[[example]]
+name = "a2a-methods-message-send"
+path = "examples/a2a-methods/client/message_send.rs"
+
+[[example]]
+name = "a2a-methods-message-stream"
+path = "examples/a2a-methods/client/message_stream.rs"
+
+[[example]]
+name = "a2a-methods-tasks-get"
+path = "examples/a2a-methods/client/tasks_get.rs"
+
+[[example]]
+name = "a2a-methods-tasks-list"
+path = "examples/a2a-methods/client/tasks_list.rs"
+
+[[example]]
+name = "a2a-methods-tasks-cancel"
+path = "examples/a2a-methods/client/tasks_cancel.rs"
+
+[[example]]
+name = "a2a-methods-push-config-set"
+path = "examples/a2a-methods/client/push_config_set.rs"
+
+[[example]]
+name = "a2a-methods-push-config-get"
+path = "examples/a2a-methods/client/push_config_get.rs"
+
+[[example]]
+name = "a2a-methods-push-config-list"
+path = "examples/a2a-methods/client/push_config_list.rs"
+
+[[example]]
+name = "a2a-methods-push-config-delete"
+path = "examples/a2a-methods/client/push_config_delete.rs"

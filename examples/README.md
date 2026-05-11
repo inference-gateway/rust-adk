@@ -12,7 +12,8 @@ Each example is its own directory with a server, a client, an optional colocated
 examples/
 ├── minimal/                # Bare-bones server/client without an agent or agent card
 ├── static-agent-card/      # Loading agent metadata from a JSON file with runtime overrides
-└── server-with-toolbox/    # LLM agent with custom sync + async function tools
+├── server-with-toolbox/    # LLM agent with custom sync + async function tools
+└── a2a-methods/            # One runnable client per A2A JSON-RPC method
 ```
 
 ## Running
@@ -77,6 +78,14 @@ runtime field overrides. Useful for environment-specific configurations.
 Server with an LLM agent registering three tools (`get_current_weather`,
 `calculate_math`, `search_web`) — two synchronous and one async — plus a client
 that exercises streaming and non-streaming flows.
+
+### `a2a-methods/`
+
+One client binary per JSON-RPC method exposed by the A2A specification
+(`message/send`, `message/stream`, `tasks/get`, `tasks/list`, `tasks/cancel`,
+and the four `tasks/pushNotificationConfig/*` operations). All clients share
+the offline server in `a2a-methods/server/`. See
+[`a2a-methods/README.md`](./a2a-methods/README.md) for the full method matrix.
 
 ## Configuration
 
