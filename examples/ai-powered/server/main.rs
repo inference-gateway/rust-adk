@@ -10,12 +10,16 @@ use tracing::{error, info};
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt().init();
 
-    let config = Config::from_env()?;
+    let mut config = Config::from_env()?;
 
     let gateway_url = env::var("INFERENCE_GATEWAY_URL")
         .unwrap_or_else(|_| "http://localhost:8080/v1".to_string());
 
-    info!("Starting A2A server with toolbox functionality...");
+    if config.agent_config.base_url.is_none() {
+        config.agent_config.base_url = Some(gateway_url.clone());
+    }
+
+    info!("Starting AI-powered A2A server (toolbox + tools)...");
     info!("Gateway URL: {}", gateway_url);
     info!("Agent provider: {}", config.agent_config.provider);
     info!("Agent model: {}", config.agent_config.model);
@@ -206,18 +210,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build()
         .await?;
 
-    info!("Agent built with toolbox and handlers");
+    info!("Agent built with toolbox and default handlers");
 
     let server = A2AServerBuilder::new()
         .with_config(config)
         .with_agent(agent)
-        .with_agent_card_from_file("agent-card.json", None)
+        .with_agent_card_from_file(".well-known/agent.json", None)
         .with_gateway_url(gateway_url)
+        .with_default_task_handlers()
         .build()
         .await?;
 
     let addr = "0.0.0.0:8082".parse()?;
-    info!("A2A server with toolbox running on port 8082");
+    info!("AI-powered A2A server running on port 8082");
 
     if let Err(e) = server.serve(addr).await {
         error!("Server failed to start: {}", e);

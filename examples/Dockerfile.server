@@ -4,6 +4,10 @@ FROM rust:${RUST_VERSION}-slim-bookworm AS builder
 
 ARG BIN_NAME
 ARG EXAMPLE_PATH
+# Comma-separated cargo features to enable when building the example
+# (e.g. `redis`). Defaults to empty so existing examples that don't
+# need optional crate features continue to build unchanged.
+ARG CARGO_FEATURES=""
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends pkg-config libssl-dev \
@@ -14,13 +18,21 @@ COPY Cargo.toml Cargo.lock ./
 COPY src ./src
 COPY examples ./examples
 
-RUN cargo build --release --example "${BIN_NAME}"
+RUN if [ -n "${CARGO_FEATURES}" ]; then \
+        cargo build --release --features "${CARGO_FEATURES}" --example "${BIN_NAME}"; \
+    else \
+        cargo build --release --example "${BIN_NAME}"; \
+    fi
 
-# Stage runtime data files (agent-card.json when present) into a known location
-# so the next stage can COPY a single directory without colliding with source dirs.
-RUN mkdir -p /staged \
-    && if [ -f "${EXAMPLE_PATH}/agent-card.json" ]; then \
-         cp "${EXAMPLE_PATH}/agent-card.json" /staged/agent-card.json; \
+# Stage runtime data files (.well-known/agent.json when present) into a known
+# location so the next stage can COPY a single directory without colliding with
+# source dirs. The agent card lives inside the server's subdir
+# (`<example>/server/.well-known/agent.json`); we mirror that layout into /app
+# so the runtime `with_agent_card_from_file(".well-known/agent.json")` lookup
+# works under WORKDIR /app.
+RUN mkdir -p /staged/.well-known \
+    && if [ -f "${EXAMPLE_PATH}/server/.well-known/agent.json" ]; then \
+         cp "${EXAMPLE_PATH}/server/.well-known/agent.json" /staged/.well-known/agent.json; \
        fi
 
 FROM debian:bookworm-slim

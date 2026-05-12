@@ -1,0 +1,205 @@
+---
+# Docker Compose manifest for the `a2a-methods` example collection.
+#
+# Layout: one long-running server + nine per-method clients (one Cargo example
+# per JSON-RPC method in the A2A spec). Each client is parked behind its own
+# Compose profile so `docker compose up` doesn't fan out into nine parallel
+# runs. Pick the method you want to exercise:
+#
+#   docker compose up --build server
+#   docker compose --profile message-send       up --build
+#   docker compose --profile message-stream     up --build
+#   docker compose --profile tasks-get          up --build
+#   docker compose --profile tasks-list         up --build
+#   docker compose --profile tasks-cancel       up --build
+#   docker compose --profile push-config-set    up --build
+#   docker compose --profile push-config-get    up --build
+#   docker compose --profile push-config-list   up --build
+#   docker compose --profile push-config-delete up --build
+#
+# Or run every client back-to-back via the `all-clients` profile:
+#
+#   docker compose --profile all-clients up --build
+#
+# The server has no `profiles:` key so it always starts when pulled in as a
+# dependency, regardless of which client profile you select.
+services:
+  server:
+    build:
+      context: ../..
+      dockerfile: examples/Dockerfile.server
+      args:
+        BIN_NAME: a2a-methods-server
+        EXAMPLE_PATH: examples/a2a-methods
+    environment:
+      SERVER_PORT: "8085"
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - --fail
+        - --silent
+        - http://localhost:8085/health
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    networks:
+      - a2a-network
+
+  message-send:
+    build:
+      context: ../..
+      dockerfile: examples/Dockerfile.client
+      args:
+        BIN_NAME: a2a-methods-message-send
+    depends_on:
+      server:
+        condition: service_healthy
+    environment:
+      SERVER_URL: http://server:8085
+    networks:
+      - a2a-network
+    profiles:
+      - message-send
+      - all-clients
+
+  message-stream:
+    build:
+      context: ../..
+      dockerfile: examples/Dockerfile.client
+      args:
+        BIN_NAME: a2a-methods-message-stream
+    depends_on:
+      server:
+        condition: service_healthy
+    environment:
+      SERVER_URL: http://server:8085
+    networks:
+      - a2a-network
+    profiles:
+      - message-stream
+      - all-clients
+
+  tasks-get:
+    build:
+      context: ../..
+      dockerfile: examples/Dockerfile.client
+      args:
+        BIN_NAME: a2a-methods-tasks-get
+    depends_on:
+      server:
+        condition: service_healthy
+    environment:
+      SERVER_URL: http://server:8085
+    networks:
+      - a2a-network
+    profiles:
+      - tasks-get
+      - all-clients
+
+  tasks-list:
+    build:
+      context: ../..
+      dockerfile: examples/Dockerfile.client
+      args:
+        BIN_NAME: a2a-methods-tasks-list
+    depends_on:
+      server:
+        condition: service_healthy
+    environment:
+      SERVER_URL: http://server:8085
+    networks:
+      - a2a-network
+    profiles:
+      - tasks-list
+      - all-clients
+
+  tasks-cancel:
+    build:
+      context: ../..
+      dockerfile: examples/Dockerfile.client
+      args:
+        BIN_NAME: a2a-methods-tasks-cancel
+    depends_on:
+      server:
+        condition: service_healthy
+    environment:
+      SERVER_URL: http://server:8085
+    networks:
+      - a2a-network
+    profiles:
+      - tasks-cancel
+      - all-clients
+
+  push-config-set:
+    build:
+      context: ../..
+      dockerfile: examples/Dockerfile.client
+      args:
+        BIN_NAME: a2a-methods-push-config-set
+    depends_on:
+      server:
+        condition: service_healthy
+    environment:
+      SERVER_URL: http://server:8085
+    networks:
+      - a2a-network
+    profiles:
+      - push-config-set
+      - all-clients
+
+  push-config-get:
+    build:
+      context: ../..
+      dockerfile: examples/Dockerfile.client
+      args:
+        BIN_NAME: a2a-methods-push-config-get
+    depends_on:
+      server:
+        condition: service_healthy
+    environment:
+      SERVER_URL: http://server:8085
+    networks:
+      - a2a-network
+    profiles:
+      - push-config-get
+      - all-clients
+
+  push-config-list:
+    build:
+      context: ../..
+      dockerfile: examples/Dockerfile.client
+      args:
+        BIN_NAME: a2a-methods-push-config-list
+    depends_on:
+      server:
+        condition: service_healthy
+    environment:
+      SERVER_URL: http://server:8085
+    networks:
+      - a2a-network
+    profiles:
+      - push-config-list
+      - all-clients
+
+  push-config-delete:
+    build:
+      context: ../..
+      dockerfile: examples/Dockerfile.client
+      args:
+        BIN_NAME: a2a-methods-push-config-delete
+    depends_on:
+      server:
+        condition: service_healthy
+    environment:
+      SERVER_URL: http://server:8085
+    networks:
+      - a2a-network
+    profiles:
+      - push-config-delete
+      - all-clients
+
+networks:
+  a2a-network:
+    driver: bridge

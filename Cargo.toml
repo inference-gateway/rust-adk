@@ -11,6 +11,10 @@ homepage = "https://github.com/inference-gateway/rust-adk"
 keywords = ["agent", "ai", "inference", "gateway", "a2a"]
 categories = ["api-bindings", "development-tools"]
 
+[features]
+default = []
+redis = ["dep:redis"]
+
 [dependencies]
 inference-gateway-sdk = "0.13.3"
 serde = { version = "1.0.228", features = ["derive"] }
@@ -28,8 +32,12 @@ tower-http = { version = "0.6.10", features = ["cors", "trace"] }
 futures = "0.3.32"
 futures-util = "0.3.32"
 async-trait = "0.1.89"
-reqwest = { version = "0.13.3", features = ["json"] }
+reqwest = { version = "0.13.3", features = ["json", "stream"] }
 regress = "0.11.1"
+tokio-stream = { version = "0.1.18", features = ["sync"] }
+tokio-util = "0.7.13"
+eventsource-stream = "0.2.3"
+redis = { version = "0.27.6", default-features = false, features = ["tokio-comp", "connection-manager"], optional = true }
 
 [[example]]
 name = "minimal-server"
@@ -48,9 +56,90 @@ name = "static-agent-card-client"
 path = "examples/static-agent-card/client/main.rs"
 
 [[example]]
-name = "server-with-toolbox-server"
-path = "examples/server-with-toolbox/server/main.rs"
+name = "ai-powered-server"
+path = "examples/ai-powered/server/main.rs"
 
 [[example]]
-name = "server-with-toolbox-client"
-path = "examples/server-with-toolbox/client/main.rs"
+name = "ai-powered-client"
+path = "examples/ai-powered/client/main.rs"
+
+[[example]]
+name = "ai-powered-streaming-server"
+path = "examples/ai-powered-streaming/server/main.rs"
+
+[[example]]
+name = "ai-powered-streaming-client"
+path = "examples/ai-powered-streaming/client/main.rs"
+
+[[example]]
+name = "default-handlers-server"
+path = "examples/default-handlers/server/main.rs"
+
+[[example]]
+name = "default-handlers-client"
+path = "examples/default-handlers/client/main.rs"
+
+[[example]]
+name = "streaming-server"
+path = "examples/streaming/server/main.rs"
+
+[[example]]
+name = "streaming-client"
+path = "examples/streaming/client/main.rs"
+
+[[example]]
+name = "input-required-server"
+path = "examples/input-required/server/main.rs"
+
+[[example]]
+name = "input-required-client"
+path = "examples/input-required/client/main.rs"
+
+# a2a-methods/ - one client binary per JSON-RPC method exposed by the spec.
+[[example]]
+name = "a2a-methods-server"
+path = "examples/a2a-methods/server/main.rs"
+
+[[example]]
+name = "a2a-methods-message-send"
+path = "examples/a2a-methods/client/message_send.rs"
+
+[[example]]
+name = "a2a-methods-message-stream"
+path = "examples/a2a-methods/client/message_stream.rs"
+
+[[example]]
+name = "a2a-methods-tasks-get"
+path = "examples/a2a-methods/client/tasks_get.rs"
+
+[[example]]
+name = "a2a-methods-tasks-list"
+path = "examples/a2a-methods/client/tasks_list.rs"
+
+[[example]]
+name = "a2a-methods-tasks-cancel"
+path = "examples/a2a-methods/client/tasks_cancel.rs"
+
+[[example]]
+name = "a2a-methods-push-config-set"
+path = "examples/a2a-methods/client/push_config_set.rs"
+
+[[example]]
+name = "a2a-methods-push-config-get"
+path = "examples/a2a-methods/client/push_config_get.rs"
+
+[[example]]
+name = "a2a-methods-push-config-list"
+path = "examples/a2a-methods/client/push_config_list.rs"
+
+[[example]]
+name = "a2a-methods-push-config-delete"
+path = "examples/a2a-methods/client/push_config_delete.rs"
+
+[[example]]
+name = "queue-storage-server"
+path = "examples/queue-storage/server/main.rs"
+
+[[example]]
+name = "queue-storage-client"
+path = "examples/queue-storage/client/main.rs"

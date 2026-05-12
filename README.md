@@ -53,6 +53,7 @@
     - [A2AServerBuilder](#a2aserverbuilder)
     - [AgentBuilder](#agentbuilder)
     - [A2AClient](#a2aclient)
+      - [A2A JSON-RPC methods](#a2a-json-rpc-methods)
     - [Agent Health Monitoring](#agent-health-monitoring)
     - [LLM Client](#llm-client)
   - [Configuration](#configuration)
@@ -273,11 +274,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ### Examples
 
-For complete working examples, see the [examples](./examples/) directory:
+For complete working examples, see the [examples](./examples/) directory.
+The catalogue is grouped by whether a scenario needs an LLM provider; see
+[`examples/README.md`](./examples/README.md) for the full table and a
+suggested learning path.
 
-- **[Minimal](./examples/minimal/)** - Bare-bones A2A server and client without an agent or agent card
-- **[Static Agent Card](./examples/static-agent-card/)** - Loading agent metadata from a JSON file with `AgentCardOverrides`
-- **[Server With Toolbox](./examples/server-with-toolbox/)** - LLM agent registering custom sync and async function tools
+**Without AI** (no Inference Gateway, no provider keys):
+
+- **[Minimal](./examples/minimal/)** - Bare A2A server + client, no agent (built-in default echo reply)
+- **[Static Agent Card](./examples/static-agent-card/)** - Load agent metadata from JSON with `AgentCardOverrides`
+- **[Streaming](./examples/streaming/)** - Custom `StreamableTaskHandler` emits a sentence word-by-word over SSE
+- **[Input Required](./examples/input-required/)** - Handler chooses `TaskStateInputRequired` when the user message is incomplete
+
+**With AI** (Inference Gateway container + provider key):
+
+- **[Default Handlers](./examples/default-handlers/)** - LLM agent + `with_default_task_handlers()`, no custom handler code
+- **[AI Powered](./examples/ai-powered/)** - LLM agent with custom function tools (weather, math, search)
+- **[AI Powered Streaming](./examples/ai-powered-streaming/)** - LLM agent streamed over `message/stream`
+
+**Storage & protocol coverage:**
+
+- **[Queue Storage](./examples/queue-storage/)** - Queue-driven `message/send` with in-memory or Redis storage (Compose profiles)
+- **[A2A Methods](./examples/a2a-methods/)** - One client binary per JSON-RPC method exposed by the A2A spec
 - **[Health Check Example](#health-check-example)** - Monitor agent health status
 
 ## ✨ Key Features
@@ -498,7 +516,7 @@ let server = A2AServerBuilder::new()
 The client struct for communicating with A2A servers:
 
 ```rust
-use inference_gateway_adk::client::A2AClient;
+use inference_gateway_adk::A2AClient;
 
 // Basic client creation
 let client = A2AClient::new("http://localhost:8080")?;
@@ -511,11 +529,191 @@ let config = ClientConfig {
 };
 let client = A2AClient::with_config(config)?;
 
-// Using the client
+// Discovery endpoints
 let agent_card = client.get_agent_card().await?;
 let health = client.get_health().await?;
+
+// Raw JSON-RPC envelope (escape hatch - most callers prefer the typed
+// helpers documented in the section below)
 let response = client.send_task(params).await?;
 client.send_task_streaming(params, event_handler).await?;
+```
+
+##### A2A JSON-RPC methods
+
+`A2AClient` exposes a typed helper for every method in the A2A specification.
+Each helper takes a request struct and returns the matching response struct
+from [`inference_gateway_adk::a2a_types`](src/a2a_types.rs). Runnable
+end-to-end examples live in
+[`examples/a2a-methods/`](examples/a2a-methods/README.md) - one client
+binary per method.
+
+| Method                                        | `A2AClient` helper                          | Request type                                  | Response type                            |
+| --------------------------------------------- | ------------------------------------------- | --------------------------------------------- | ---------------------------------------- |
+| `message/send`                                | `send_message`                              | `SendMessageRequest`                          | `SendMessageResponse`                    |
+| `message/stream`                              | `send_streaming_message`                    | `SendMessageRequest`                          | `SendMessageResponse`                    |
+| `tasks/get`                                   | `get_task`                                  | `GetTaskRequest`                              | `Task`                                   |
+| `tasks/list`                                  | `list_tasks`                                | `ListTasksRequest`                            | `ListTasksResponse`                      |
+| `tasks/cancel`                                | `cancel_task`                               | `CancelTaskRequest`                           | `Task`                                   |
+| `tasks/pushNotificationConfig/set`            | `set_task_push_notification_config`         | `SetTaskPushNotificationConfigRequest`        | `TaskPushNotificationConfig`             |
+| `tasks/pushNotificationConfig/get`            | `get_task_push_notification_config`         | `GetTaskPushNotificationConfigRequest`        | `TaskPushNotificationConfig`             |
+| `tasks/pushNotificationConfig/list`           | `list_task_push_notification_configs`       | `ListTaskPushNotificationConfigRequest`       | `ListTaskPushNotificationConfigResponse` |
+| `tasks/pushNotificationConfig/delete`         | `delete_task_push_notification_config`      | `DeleteTaskPushNotificationConfigRequest`     | `serde_json::Value`                      |
+
+###### `message/send`
+
+```rust
+use inference_gateway_adk::a2a_types::{Message, Part, Role, SendMessageRequest};
+
+let response = client
+    .send_message(SendMessageRequest {
+        configuration: None,
+        message: Some(Message {
+            context_id: None,
+            extensions: vec![],
+            message_id: uuid::Uuid::new_v4().to_string(),
+            metadata: None,
+            parts: vec![Part {
+                data: None,
+                file: None,
+                metadata: None,
+                text: Some("Hello via message/send".to_string()),
+            }],
+            reference_task_ids: vec![],
+            role: Role::RoleUser,
+            task_id: None,
+        }),
+        metadata: None,
+        tenant: "example".to_string(),
+    })
+    .await?;
+
+let task = response.task.expect("server returned a task");
+```
+
+###### `message/stream`
+
+Same request shape as `message/send`; in the current client the response is
+delivered as a single payload (true server-sent events arrive in a follow-up
+ticket).
+
+```rust
+let response = client.send_streaming_message(request).await?;
+```
+
+###### `tasks/get`
+
+```rust
+use inference_gateway_adk::a2a_types::GetTaskRequest;
+
+let task = client
+    .get_task(GetTaskRequest {
+        history_length: None,
+        name: format!("tasks/{task_id}"),
+        tenant: Some("example".to_string()),
+    })
+    .await?;
+```
+
+###### `tasks/list`
+
+```rust
+use inference_gateway_adk::a2a_types::{ListTasksRequest, TaskState};
+
+let page = client
+    .list_tasks(ListTasksRequest {
+        context_id: String::new(),
+        history_length: None,
+        include_artifacts: None,
+        last_updated_after: 0,
+        page_size: Some(50),
+        page_token: String::new(),
+        status: TaskState::TaskStateUnspecified,
+        tenant: "example".to_string(),
+    })
+    .await?;
+```
+
+###### `tasks/cancel`
+
+```rust
+use inference_gateway_adk::a2a_types::CancelTaskRequest;
+
+let cancelled = client
+    .cancel_task(CancelTaskRequest {
+        name: format!("tasks/{task_id}"),
+        tenant: "example".to_string(),
+    })
+    .await?;
+```
+
+###### `tasks/pushNotificationConfig/set`
+
+```rust
+use inference_gateway_adk::a2a_types::{
+    PushNotificationConfig, SetTaskPushNotificationConfigRequest, TaskPushNotificationConfig,
+};
+
+let parent = format!("tasks/{task_id}");
+let name = format!("{parent}/pushNotificationConfigs/primary");
+
+client
+    .set_task_push_notification_config(SetTaskPushNotificationConfigRequest {
+        parent: parent.clone(),
+        config_id: "primary".to_string(),
+        tenant: Some("example".to_string()),
+        config: TaskPushNotificationConfig {
+            name: name.clone(),
+            push_notification_config: PushNotificationConfig {
+                authentication: None,
+                id: None,
+                token: Some("shared-secret".to_string()),
+                url: "https://your-app.example/webhooks/a2a".to_string(),
+            },
+        },
+    })
+    .await?;
+```
+
+###### `tasks/pushNotificationConfig/get`
+
+```rust
+use inference_gateway_adk::a2a_types::GetTaskPushNotificationConfigRequest;
+
+let cfg = client
+    .get_task_push_notification_config(GetTaskPushNotificationConfigRequest {
+        name: name.clone(),
+        tenant: "example".to_string(),
+    })
+    .await?;
+```
+
+###### `tasks/pushNotificationConfig/list`
+
+```rust
+use inference_gateway_adk::a2a_types::ListTaskPushNotificationConfigRequest;
+
+let listed = client
+    .list_task_push_notification_configs(ListTaskPushNotificationConfigRequest {
+        parent: parent.clone(),
+        page_size: 10,
+        page_token: String::new(),
+        tenant: "example".to_string(),
+    })
+    .await?;
+```
+
+###### `tasks/pushNotificationConfig/delete`
+
+```rust
+use inference_gateway_adk::a2a_types::DeleteTaskPushNotificationConfigRequest;
+
+client
+    .delete_task_push_notification_config(DeleteTaskPushNotificationConfigRequest {
+        name: name.clone(),
+        tenant: "example".to_string(),
+    })
+    .await?;
 ```
 
 #### Agent Health Monitoring
@@ -552,20 +750,27 @@ match health.status.as_str() {
 
 #### LLM Client
 
-Create OpenAI-compatible LLM clients for agents:
+Custom LLM transports are pluggable via the `LLMClient` trait. The bundled
+`OpenAICompatibleLLMClient` wraps the Inference Gateway SDK and is what
+`AgentBuilder` constructs by default when no client is supplied:
 
 ```rust
-use inference_gateway_adk::llm::OpenAICompatibleClient;
+use inference_gateway_adk::{AgentBuilder, OpenAICompatibleLLMClient};
 
-// Create LLM client with configuration
-let llm_client = OpenAICompatibleClient::new(agent_config).await?;
+// Build the default OpenAI-compatible client from an AgentConfig
+let llm_client = OpenAICompatibleLLMClient::new(&config.agent_config)?;
 
-// Use with agent builder
+// Plug it into the agent (or implement `LLMClient` for a custom backend)
 let agent = AgentBuilder::new()
     .with_llm_client(llm_client)
     .build()
     .await?;
 ```
+
+The trait exposes two methods - `create_chat_completion` (non-streaming)
+and `create_streaming_chat_completion` - mirroring the Go ADK's
+`LLMClient` interface. Implement it manually to route requests through a
+different backend (e.g. a mock for tests).
 
 ### Configuration
 
@@ -657,10 +862,10 @@ let agent = AgentBuilder::new()
 #### Agent with Custom LLM Client
 
 ```rust
-use inference_gateway_adk::llm::OpenAICompatibleClient;
+use inference_gateway_adk::{AgentBuilder, OpenAICompatibleLLMClient};
 
-// Create a custom LLM client
-let llm_client = OpenAICompatibleClient::new(&config).await?;
+// Build the default OpenAI-compatible client (synchronous; no `await`)
+let llm_client = OpenAICompatibleLLMClient::new(&config.agent_config)?;
 
 // Build agent with the custom client
 let agent = AgentBuilder::new()
@@ -668,6 +873,22 @@ let agent = AgentBuilder::new()
     .with_system_prompt("You are a coding assistant.")
     .build()
     .await?;
+```
+
+To plug in a non-OpenAI backend, implement the `LLMClient` trait directly
+and pass your type to `.with_llm_client(...)`:
+
+```rust
+use inference_gateway_adk::LLMClient;
+
+#[derive(Debug)]
+struct MyCustomLLM;
+
+#[async_trait::async_trait]
+impl LLMClient for MyCustomLLM {
+    async fn create_chat_completion(/* ... */) -> anyhow::Result<_> { /* ... */ }
+    fn create_streaming_chat_completion(/* ... */) -> _ { /* ... */ }
+}
 ```
 
 #### Fully Configured Agent
@@ -862,61 +1083,112 @@ let server = A2AServerBuilder::new()
 
 ### Push Notifications
 
-Configure webhook notifications to receive real-time updates when task states change:
+A2A servers persist per-task webhook configurations through four JSON-RPC
+methods on `A2AClient`:
+
+- `tasks/pushNotificationConfig/set` - `client.set_task_push_notification_config(...)`
+- `tasks/pushNotificationConfig/get` - `client.get_task_push_notification_config(...)`
+- `tasks/pushNotificationConfig/list` - `client.list_task_push_notification_configs(...)`
+- `tasks/pushNotificationConfig/delete` - `client.delete_task_push_notification_config(...)`
+
+Each call uses the typed structs from
+[`inference_gateway_adk::a2a_types`](src/a2a_types.rs) and is exercised by a
+dedicated example under
+[`examples/a2a-methods/`](examples/a2a-methods/README.md).
+
+#### Storing a webhook configuration
 
 ```rust
-use inference_gateway_adk::notifications::{HttpPushNotificationSender, TaskPushNotificationConfig};
-use inference_gateway_adk::server::TaskManager;
-
-// Create an HTTP push notification sender
-let notification_sender = HttpPushNotificationSender::new();
-
-// Create a task manager with push notification support
-let task_manager = TaskManager::with_notifications(
-    100, // max conversation history
-    notification_sender,
-);
-
-// Configure push notification webhooks for a task
-let config = TaskPushNotificationConfig {
-    task_id: "task-123".to_string(),
-    push_notification_config: PushNotificationConfig {
-        url: "https://your-app.com/webhooks/task-updates".to_string(),
-        token: Some(token),
-        authentication: Some(PushNotificationAuthenticationInfo {
-            schemes: vec!["bearer".to_string()],
-            credentials: bearer_token,
-        }),
-    },
+use inference_gateway_adk::A2AClient;
+use inference_gateway_adk::a2a_types::{
+    PushNotificationConfig, SetTaskPushNotificationConfigRequest, TaskPushNotificationConfig,
 };
 
-// Set the configuration
-task_manager.set_task_push_notification_config(config).await?;
+let client = A2AClient::new("http://localhost:8080")?;
+
+let parent = format!("tasks/{}", task_id);
+let config_id = "primary";
+let name = format!("{parent}/pushNotificationConfigs/{config_id}");
+
+client
+    .set_task_push_notification_config(SetTaskPushNotificationConfigRequest {
+        parent: parent.clone(),
+        config_id: config_id.to_string(),
+        tenant: Some("example".to_string()),
+        config: TaskPushNotificationConfig {
+            name: name.clone(),
+            push_notification_config: PushNotificationConfig {
+                authentication: None,
+                id: None,
+                token: Some("shared-secret".to_string()),
+                url: "https://your-app.example/webhooks/a2a".to_string(),
+            },
+        },
+    })
+    .await?;
 ```
 
-#### Webhook Payload
+#### Reading, listing, and removing configurations
 
-When a task state changes, your webhook will receive a POST request with this payload:
+```rust
+use inference_gateway_adk::a2a_types::{
+    DeleteTaskPushNotificationConfigRequest, GetTaskPushNotificationConfigRequest,
+    ListTaskPushNotificationConfigRequest,
+};
+
+// get
+let cfg = client
+    .get_task_push_notification_config(GetTaskPushNotificationConfigRequest {
+        name: name.clone(),
+        tenant: "example".to_string(),
+    })
+    .await?;
+
+// list (paged)
+let page = client
+    .list_task_push_notification_configs(ListTaskPushNotificationConfigRequest {
+        parent: parent.clone(),
+        page_size: 10,
+        page_token: String::new(),
+        tenant: "example".to_string(),
+    })
+    .await?;
+
+// delete
+client
+    .delete_task_push_notification_config(DeleteTaskPushNotificationConfigRequest {
+        name,
+        tenant: "example".to_string(),
+    })
+    .await?;
+```
+
+> **Webhook delivery is still in development.** The four control-plane
+> methods above (set/get/list/delete) are fully wired up and durably stored
+> by the server, but the HTTP _sender_ that fans state changes out to the
+> configured URLs is tracked in a follow-up ticket. Configurations attached
+> today are picked up automatically once that sender lands.
+
+#### Expected webhook payload
+
+When the sender lands, each task state transition will POST a payload of
+roughly this shape to the configured `url`:
 
 ```json
 {
   "type": "task_update",
   "taskId": "task-123",
-  "state": "completed",
-  "timestamp": "2025-06-16T10:30:00Z",
+  "state": "TASK_STATE_COMPLETED",
+  "timestamp": "2026-05-11T10:30:00Z",
   "task": {
     "id": "task-123",
-    "kind": "task",
-    "status": {
-      "state": "completed",
-      "message": {
-        "role": "assistant",
-        "parts": [{ "kind": "text", "text": "Task completed successfully" }]
-      },
-      "timestamp": "2025-06-16T10:30:00Z"
-    },
     "contextId": "context-456",
-    "history": []
+    "status": {
+      "state": "TASK_STATE_COMPLETED",
+      "timestamp": "2026-05-11T10:30:00Z"
+    },
+    "history": [],
+    "artifacts": []
   }
 }
 ```

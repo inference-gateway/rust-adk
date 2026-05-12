@@ -1,0 +1,27 @@
+{
+  "name": "Rust A2A AI-Powered Streaming Agent",
+  "description": "LLM-backed A2A server streaming delta chunks over message/stream",
+  "version": "0.1.0",
+  "protocolVersion": "0.2.6",
+  "url": "http://localhost:8084",
+  "preferredTransport": "JSONRPC",
+  "capabilities": {
+    "streaming": true,
+    "pushNotifications": false,
+    "stateTransitionHistory": false
+  },
+  "provider": {
+    "organization": "Inference Gateway",
+    "url": "https://github.com/inference-gateway/rust-adk"
+  },
+  "skills": [
+    {
+      "id": "chat-stream",
+      "name": "chat-stream",
+      "description": "Conversational replies streamed token-by-token from the LLM",
+      "tags": ["chat", "stream"]
+    }
+  ],
+  "defaultInputModes": ["text/plain"],
+  "defaultOutputModes": ["text/plain"]
+}

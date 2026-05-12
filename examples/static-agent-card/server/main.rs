@@ -6,10 +6,14 @@ use tracing::{error, info};
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt().init();
 
-    let config = Config::from_env()?;
+    let mut config = Config::from_env()?;
 
     let gateway_url = env::var("INFERENCE_GATEWAY_URL")
         .unwrap_or_else(|_| "http://localhost:8080/v1".to_string());
+
+    if config.agent_config.base_url.is_none() {
+        config.agent_config.base_url = Some(gateway_url.clone());
+    }
 
     info!("Starting A2A server with Inference Gateway SDK...");
     info!("Gateway URL: {}", gateway_url);
@@ -28,7 +32,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_config(config)
         .with_agent(agent)
         .with_agent_card_from_file(
-            "agent-card.json",
+            ".well-known/agent.json",
             Some(AgentCardOverrides::new()
                 .with_name("My Custom Agent")
                 .with_version("2.0.0")
@@ -36,6 +40,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             )
         )
         .with_gateway_url(gateway_url)
+        .with_default_task_handlers()
         .build()
         .await?;
 

@@ -1,0 +1,27 @@
+{
+  "name": "Rust A2A Default-Handlers Agent",
+  "description": "LLM-backed A2A server using the built-in default task handlers (no custom handler code)",
+  "version": "0.1.0",
+  "protocolVersion": "0.2.6",
+  "url": "http://localhost:8085",
+  "preferredTransport": "JSONRPC",
+  "capabilities": {
+    "streaming": true,
+    "pushNotifications": false,
+    "stateTransitionHistory": false
+  },
+  "provider": {
+    "organization": "Inference Gateway",
+    "url": "https://github.com/inference-gateway/rust-adk"
+  },
+  "skills": [
+    {
+      "id": "chat",
+      "name": "chat",
+      "description": "General-purpose conversational replies routed through the default LLM handler",
+      "tags": ["chat", "default"]
+    }
+  ],
+  "defaultInputModes": ["text/plain"],
+  "defaultOutputModes": ["text/plain"]
+}
