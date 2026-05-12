@@ -9,6 +9,7 @@ mod server_builder;
 mod server_core;
 mod storage;
 mod task_handler;
+mod task_manager;
 
 pub use agent::Agent;
 pub use agent_builder::AgentBuilder;
@@ -22,3 +23,4 @@ pub use task_handler::{
     DefaultBackgroundTaskHandler, DefaultStreamingTaskHandler, StreamEmitter,
     StreamableTaskHandler, TaskHandler,
 };
+pub use task_manager::{DefaultTaskManager, TaskManagerRunner};

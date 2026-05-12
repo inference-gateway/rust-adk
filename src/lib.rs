@@ -7,9 +7,10 @@ pub use client::{A2AClient, HealthStatus};
 pub use config::{AgentConfig, ClientConfig, Config};
 pub use server::{
     A2AServer, A2AServerBuilder, Agent, AgentBuilder, AgentCardOverrides, AsyncFunctionToolHandler,
-    DefaultBackgroundTaskHandler, DefaultStreamingTaskHandler, FunctionToolHandler,
-    InMemoryStorage, LLMClient, OpenAICompatibleLLMClient, QueuedTask, Storage, StorageStats,
-    StreamEmitter, StreamableTaskHandler, TaskFilter, TaskHandler, ToolHandler,
+    DefaultBackgroundTaskHandler, DefaultStreamingTaskHandler, DefaultTaskManager,
+    FunctionToolHandler, InMemoryStorage, LLMClient, OpenAICompatibleLLMClient, QueuedTask,
+    Storage, StorageStats, StreamEmitter, StreamableTaskHandler, TaskFilter, TaskHandler,
+    TaskManagerRunner, ToolHandler,
 };
 
 #[cfg(test)]
