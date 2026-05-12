@@ -1,4 +1,4 @@
-//! `tasks/list` — page through stored tasks for a tenant.
+//! `tasks/list` - page through stored tasks for a tenant.
 //!
 //! Seeds a couple of tasks first so the response is non-empty.
 //!

@@ -1,4 +1,4 @@
-//! `message/stream` — open the SSE stream and observe each event live.
+//! `message/stream` - open the SSE stream and observe each event live.
 //!
 //! The example server registers an explicit
 //! [`EchoStreamHandler`](crate) that drives the task through

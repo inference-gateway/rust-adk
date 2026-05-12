@@ -151,7 +151,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             {
                 "id": "echo",
                 "name": "echo",
-                "description": "Echoes user input — sufficient for exercising every JSON-RPC method.",
+                "description": "Echoes user input - sufficient for exercising every JSON-RPC method.",
                 "tags": ["echo", "examples"]
             }
         ]

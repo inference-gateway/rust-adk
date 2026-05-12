@@ -1,6 +1,6 @@
 # Static Agent Card Example
 
-Demonstrates `with_agent_card_from_file()` — loading the agent card from a colocated JSON file with optional runtime overrides via `AgentCardOverrides`.
+Demonstrates `with_agent_card_from_file()` - loading the agent card from a colocated JSON file with optional runtime overrides via `AgentCardOverrides`.
 
 ## Directory Structure
 
@@ -17,7 +17,7 @@ static-agent-card/
 
 ## What This Shows
 
-- **JSON-based agent metadata**: name, description, capabilities, skills, provider — all in `server/.well-known/agent.json` (path mirrors the A2A-spec `/.well-known/agent.json` URL the server exposes)
+- **JSON-based agent metadata**: name, description, capabilities, skills, provider - all in `server/.well-known/agent.json` (path mirrors the A2A-spec `/.well-known/agent.json` URL the server exposes)
 - **Runtime overrides**: `AgentCardOverrides::new().with_name(...).with_version(...).with_description(...)` change selected fields without editing the file
 - **Env-driven LLM config**: `Config::from_env()` reads provider, model, and API key
 
@@ -33,8 +33,8 @@ docker compose up --build
 The stack starts three services on a private Docker network:
 
 - `inference-gateway` (image `ghcr.io/inference-gateway/inference-gateway:latest`)
-- `server` — built from `examples/Dockerfile.server`, runs the example server
-- `client` — built from `examples/Dockerfile.client`, runs after the server is healthy
+- `server` - built from `examples/Dockerfile.server`, runs the example server
+- `client` - built from `examples/Dockerfile.client`, runs after the server is healthy
 
 Defaults: `AGENT_CLIENT_PROVIDER=deepseek`, `AGENT_CLIENT_MODEL=deepseek-v4-flash`.
 Override via `.env` to switch to any other provider supported by the gateway

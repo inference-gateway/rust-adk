@@ -63,7 +63,7 @@ path = "examples/server-with-toolbox/server/main.rs"
 name = "server-with-toolbox-client"
 path = "examples/server-with-toolbox/client/main.rs"
 
-# a2a-methods/ — one client binary per JSON-RPC method exposed by the spec.
+# a2a-methods/ - one client binary per JSON-RPC method exposed by the spec.
 [[example]]
 name = "a2a-methods-server"
 path = "examples/a2a-methods/server/main.rs"

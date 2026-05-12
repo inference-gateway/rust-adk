@@ -1,8 +1,8 @@
-//! `tasks/pushNotificationConfig/set` — store a push notification
+//! `tasks/pushNotificationConfig/set` - store a push notification
 //! configuration on a task.
 //!
 //! The server persists the config in storage; an actual webhook sender is
-//! tracked in a separate ticket, so no HTTP delivery happens yet — but the
+//! tracked in a separate ticket, so no HTTP delivery happens yet - but the
 //! set/get/list/delete control plane is fully wired up.
 //!
 //! ```bash

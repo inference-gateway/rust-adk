@@ -16,7 +16,7 @@ use tracing::{debug, warn};
 ///
 /// Implementations receive a freshly-built task (already in
 /// `TaskStateSubmitted`) plus the incoming user message, run the business
-/// logic, and return the final task — typically with `state == Completed`
+/// logic, and return the final task - typically with `state == Completed`
 /// and an agent reply attached to `status.message`.
 #[async_trait::async_trait]
 pub trait TaskHandler: Send + Sync + std::fmt::Debug {
@@ -255,7 +255,7 @@ struct ToolLoopOutcome {
 /// (which only emits raw OpenAI-style tool_calls) and the registered
 /// [`ToolHandler`] implementations on the agent.
 ///
-/// Tool activity is silent at the wire level — which
+/// Tool activity is silent at the wire level - which
 /// only debug-logs tool lifecycle events from inside its
 /// `DefaultBackgroundTaskHandler` instead of forwarding them as A2A
 /// `TaskStatusUpdate` events (the A2A spec has no tool-event variant).
@@ -410,7 +410,7 @@ impl TaskHandler for DefaultBackgroundTaskHandler {
 /// When an [`Agent`] is configured, the handler iterates `generate_content_stream`
 /// from the inference gateway, parses each OpenAI-style delta, and emits a
 /// [`TaskArtifactUpdateEvent`] per non-empty content chunk (`append: true`,
-/// shared `artifact_id`) — clients see the reply build up in real time. The
+/// shared `artifact_id`) - clients see the reply build up in real time. The
 /// stream terminates with a final `last_chunk: true` artifact + a
 /// `Completed` status update.
 ///

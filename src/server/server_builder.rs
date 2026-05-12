@@ -75,7 +75,7 @@ impl A2AServerBuilder {
         self
     }
 
-    /// Inject an external storage backend. Pass any `Arc<dyn Storage>` —
+    /// Inject an external storage backend. Pass any `Arc<dyn Storage>` -
     /// the bundled [`InMemoryStorage`] is used by default when this is not
     /// called. Useful for tests, for sharing state across multiple
     /// `A2AServer` instances, or for plugging in a Redis/Postgres-backed
@@ -133,7 +133,7 @@ impl A2AServerBuilder {
     /// Number of background workers that drain the storage queue for
     /// `message/send`. Defaults to 1 if unset. Clamped to a minimum of
     /// 1 by [`DefaultTaskManager`]. Only meaningful when a background
-    /// task handler is configured — without one the manager is not
+    /// task handler is configured - without one the manager is not
     /// spawned.
     pub fn with_workers(mut self, count: usize) -> Self {
         self.worker_count = Some(count);
@@ -225,7 +225,7 @@ impl A2AServerBuilder {
         ) {
             (false, false) => {
                 return Err(anyhow!(
-                    "at least one task handler must be configured — use \
+                    "at least one task handler must be configured - use \
                      A2AServerBuilder::with_background_task_handler()/\
                      with_streaming_task_handler(), or with_default_task_handlers() \
                      for both"
@@ -234,14 +234,14 @@ impl A2AServerBuilder {
             (false, _) if !streaming_enabled => {
                 return Err(anyhow!(
                     "background task handler is required when streaming is not enabled \
-                     in the agent card — use with_background_task_handler() or \
+                     in the agent card - use with_background_task_handler() or \
                      with_default_background_task_handler()"
                 ));
             }
             (_, false) if streaming_enabled => {
                 return Err(anyhow!(
                     "streaming task handler is required when streaming is enabled in \
-                     the agent card — use with_streaming_task_handler() or \
+                     the agent card - use with_streaming_task_handler() or \
                      with_default_streaming_task_handler()"
                 ));
             }

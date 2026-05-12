@@ -111,7 +111,7 @@ fn validate_send_message_request(req: &SendMessageRequest) -> Result<(), String>
     };
     if msg.message_id.is_empty() {
         return Err(
-            "`message.messageId` must be a non-empty string — per the A2A spec the message \
+            "`message.messageId` must be a non-empty string - per the A2A spec the message \
              creator owns this identifier (used by the server for duplicate detection)"
                 .to_string(),
         );

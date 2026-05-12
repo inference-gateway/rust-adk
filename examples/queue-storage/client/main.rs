@@ -140,7 +140,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     info!(
-        "done — total wall time {:.2}s for {} tasks",
+        "done - total wall time {:.2}s for {} tasks",
         start.elapsed().as_secs_f64(),
         n
     );

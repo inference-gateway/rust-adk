@@ -138,13 +138,13 @@ impl A2AClient {
     // Typed JSON-RPC methods (one per A2A specification method)
     // -------------------------------------------------------------------
 
-    /// `message/send` — dispatch a message and return the resulting task /
+    /// `message/send` - dispatch a message and return the resulting task /
     /// agent response.
     pub async fn send_message(&self, params: SendMessageRequest) -> Result<SendMessageResponse> {
         self.call_typed("message/send", params).await
     }
 
-    /// `message/stream` — open an SSE stream and yield each
+    /// `message/stream` - open an SSE stream and yield each
     /// [`StreamResponse`] event as it arrives.
     ///
     /// The first event typically carries the freshly-created `Task` in
@@ -220,7 +220,7 @@ impl A2AClient {
         Ok(stream)
     }
 
-    /// `message/stream` — drain the SSE stream and return a single
+    /// `message/stream` - drain the SSE stream and return a single
     /// [`SendMessageResponse`] assembled from the last task seen and the
     /// final agent message (if any). Kept for callers that prefer a
     /// `message/send`-shaped response; use [`A2AClient::stream_message`]
@@ -265,22 +265,22 @@ impl A2AClient {
         })
     }
 
-    /// `tasks/get` — fetch a stored task by resource name (`tasks/{task_id}`).
+    /// `tasks/get` - fetch a stored task by resource name (`tasks/{task_id}`).
     pub async fn get_task(&self, params: GetTaskRequest) -> Result<Task> {
         self.call_typed("tasks/get", params).await
     }
 
-    /// `tasks/list` — page through stored tasks.
+    /// `tasks/list` - page through stored tasks.
     pub async fn list_tasks(&self, params: ListTasksRequest) -> Result<ListTasksResponse> {
         self.call_typed("tasks/list", params).await
     }
 
-    /// `tasks/cancel` — request cancellation of a stored task.
+    /// `tasks/cancel` - request cancellation of a stored task.
     pub async fn cancel_task(&self, params: CancelTaskRequest) -> Result<Task> {
         self.call_typed("tasks/cancel", params).await
     }
 
-    /// `tasks/pushNotificationConfig/set` — create/replace a push
+    /// `tasks/pushNotificationConfig/set` - create/replace a push
     /// notification configuration for a task.
     pub async fn set_task_push_notification_config(
         &self,
@@ -290,7 +290,7 @@ impl A2AClient {
             .await
     }
 
-    /// `tasks/pushNotificationConfig/get` — fetch a push notification
+    /// `tasks/pushNotificationConfig/get` - fetch a push notification
     /// configuration by resource name.
     pub async fn get_task_push_notification_config(
         &self,
@@ -300,7 +300,7 @@ impl A2AClient {
             .await
     }
 
-    /// `tasks/pushNotificationConfig/list` — list push notification configs
+    /// `tasks/pushNotificationConfig/list` - list push notification configs
     /// belonging to a parent task.
     pub async fn list_task_push_notification_configs(
         &self,
@@ -310,7 +310,7 @@ impl A2AClient {
             .await
     }
 
-    /// `tasks/pushNotificationConfig/delete` — remove a push notification
+    /// `tasks/pushNotificationConfig/delete` - remove a push notification
     /// configuration.
     pub async fn delete_task_push_notification_config(
         &self,

@@ -1,4 +1,4 @@
-//! `message/send` — dispatch a message to the agent and read the resulting
+//! `message/send` - dispatch a message to the agent and read the resulting
 //! task off the response.
 //!
 //! Run alongside `a2a-methods-server`:

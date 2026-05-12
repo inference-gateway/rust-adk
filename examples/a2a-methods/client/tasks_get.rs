@@ -1,4 +1,4 @@
-//! `tasks/get` — fetch a stored task by its resource name (`tasks/{task_id}`).
+//! `tasks/get` - fetch a stored task by its resource name (`tasks/{task_id}`).
 //!
 //! Creates a task via `message/send` first so the example is self-contained.
 //!

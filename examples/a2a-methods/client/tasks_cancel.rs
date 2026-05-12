@@ -1,4 +1,4 @@
-//! `tasks/cancel` — cancel a stored task.
+//! `tasks/cancel` - cancel a stored task.
 //!
 //! `message/send` (non-blocking) leaves the task in SUBMITTED, so the cancel
 //! transitions it to CANCELLED.

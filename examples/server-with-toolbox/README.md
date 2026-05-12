@@ -21,7 +21,7 @@ server-with-toolbox/
 - **`with_function_tool(name, fn)`**: synchronous tool handler (weather, math)
 - **`with_async_function_tool(name, async fn)`**: async tool handler (web search)
 - **Periodic health monitoring** showing `gateway_healthy` propagation
-- **Streaming flow** from the client — note: the server does not currently
+- **Streaming flow** from the client - note: the server does not currently
   expose a server-sent-events streaming endpoint, so the client's streaming
   call falls back / errors gracefully. The non-streaming path is the
   recommended one to follow.
@@ -38,8 +38,8 @@ docker compose up --build
 The stack starts three services on a private Docker network:
 
 - `inference-gateway` (image `ghcr.io/inference-gateway/inference-gateway:latest`)
-- `server` — built from `examples/Dockerfile.server`, listens on port 8082 inside the network
-- `client` — built from `examples/Dockerfile.client`, runs after the server is healthy
+- `server` - built from `examples/Dockerfile.server`, listens on port 8082 inside the network
+- `client` - built from `examples/Dockerfile.client`, runs after the server is healthy
 
 Defaults: `AGENT_CLIENT_PROVIDER=deepseek`, `AGENT_CLIENT_MODEL=deepseek-v4-flash`.
 Override via `.env` to switch to any other provider supported by the gateway

@@ -3,7 +3,7 @@
 //! [`Storage`] is the trait the A2A server holds as `Arc<dyn Storage>` to
 //! persist tasks, contexts, and push-notification configurations and to
 //! drive the background-task queue. [`InMemoryStorage`] is the bundled
-//! default — a `Mutex`+`Notify`-backed structure suitable for tests,
+//! default - a `Mutex`+`Notify`-backed structure suitable for tests,
 //! single-instance deployments, and bootstrap. Implement [`Storage`]
 //! yourself to plug in Redis, Postgres, or any other backend without
 //! forking the crate.
@@ -23,7 +23,7 @@ use tokio::sync::Notify;
 
 /// A task pulled off the queue, plus the JSON-RPC `request_id` that
 /// originally enqueued it. The `request_id` is preserved for
-/// correlation/tracing — it is not consumed by the worker today,
+/// correlation/tracing - it is not consumed by the worker today,
 /// `Serialize`/`Deserialize` so the Redis backend
 /// can JSON-encode the value into a Redis LIST entry.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

@@ -49,11 +49,11 @@ containers from the shared `examples/Dockerfile.server` /
 ```bash
 cd examples/<scenario>
 cp .env.example .env
-# edit .env — set DEEPSEEK_API_KEY (or another provider's key) where applicable
+# edit .env - set DEEPSEEK_API_KEY (or another provider's key) where applicable
 docker compose up --build
 ```
 
-- `minimal/` runs server + client only — no Inference Gateway, since it has no
+- `minimal/` runs server + client only - no Inference Gateway, since it has no
   agent and `POST /a2a` is expected to return a JSON-RPC "no agent configured"
   error. The colocated `.env.example` exists for layout consistency; the
   minimal stack doesn't actually consume any provider keys.
@@ -66,7 +66,7 @@ docker compose up --build
   wired into per-method Compose profiles. Use
   `docker compose --profile <method> up --build` to exercise a single method,
   or `--profile all-clients` to run every client back-to-back against the
-  shared server. No provider keys required — the server is offline.
+  shared server. No provider keys required - the server is offline.
 
 ## Available Examples
 
@@ -83,7 +83,7 @@ runtime field overrides. Useful for environment-specific configurations.
 ### `server-with-toolbox/`
 
 Server with an LLM agent registering three tools (`get_current_weather`,
-`calculate_math`, `search_web`) — two synchronous and one async — plus a client
+`calculate_math`, `search_web`) - two synchronous and one async - plus a client
 that exercises streaming and non-streaming flows.
 
 ### `a2a-methods/`
@@ -102,6 +102,6 @@ the `INFERENCE_GATEWAY_URL` environment variable. See the top-level
 
 ## Learning Path
 
-1. **`minimal/`** — understand the bare A2A server + client wire-up
-2. **`static-agent-card/`** — externalise agent metadata to JSON
-3. **`server-with-toolbox/`** — add LLM-driven tools and streaming
+1. **`minimal/`** - understand the bare A2A server + client wire-up
+2. **`static-agent-card/`** - externalise agent metadata to JSON
+3. **`server-with-toolbox/`** - add LLM-driven tools and streaming

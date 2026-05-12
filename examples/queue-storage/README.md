@@ -1,7 +1,7 @@
 # queue-storage example
 
 Demonstrates the queue-driven `message/send` flow with selectable
-`Storage` backends — in-memory (default) or Redis. Mirrors the Go ADK's
+`Storage` backends - in-memory (default) or Redis. Mirrors the Go ADK's
 async task lifecycle: `message/send` enqueues and returns immediately;
 a configurable number of background workers drain the queue and route
 each task to the active or dead-letter store based on its terminal
@@ -45,7 +45,7 @@ Expected client log (5 tasks × 2s delay, serial):
 [6.30s] task #2 → state=TaskStateCompleted reply="echo: hello #2"
 [8.40s] task #3 → state=TaskStateCompleted reply="echo: hello #3"
 [10.50s] task #4 → state=TaskStateCompleted reply="echo: hello #4"
-done — total wall time 10.50s for 5 tasks
+done - total wall time 10.50s for 5 tasks
 ```
 
 ### Redis (4 workers)
@@ -69,11 +69,11 @@ Expected client log (5 tasks × 2s delay, 4 workers → 2 batches):
 [2.11s] task #2 → state=TaskStateCompleted
 [2.12s] task #3 → state=TaskStateCompleted
 [4.20s] task #4 → state=TaskStateCompleted
-done — total wall time 4.20s for 5 tasks
+done - total wall time 4.20s for 5 tasks
 ```
 
 The 4 workers each grab one task, sleep for 2s, complete. The 5th task
-waits for a worker to free up — its completion lands at ~4s.
+waits for a worker to free up - its completion lands at ~4s.
 
 ## Tuning
 
@@ -98,13 +98,13 @@ or restart doesn't lose work. Try it:
 # Terminal 1
 docker compose --env-file .env.redis --profile redis up --build
 
-# Terminal 2 — while the client is mid-poll
+# Terminal 2 - while the client is mid-poll
 docker compose --env-file .env.redis stop server
 sleep 5
 docker compose --env-file .env.redis --profile redis start server
 ```
 
-The remaining tasks resume on the new server instance — the client's
+The remaining tasks resume on the new server instance - the client's
 poll loop catches the completion as normal. With the in-memory
 backend, the same sequence would lose every queued task.
 
@@ -118,5 +118,5 @@ in the example explicitly mentions Redis; switching backends is a pure
 config-time decision.
 
 The image is built with `--features redis` so the same binary supports
-both providers — `cargo build --features redis` makes `RedisStorage`
+both providers - `cargo build --features redis` makes `RedisStorage`
 available, the runtime then picks based on the env.

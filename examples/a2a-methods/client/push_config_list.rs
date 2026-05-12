@@ -1,4 +1,4 @@
-//! `tasks/pushNotificationConfig/list` — list the push notification
+//! `tasks/pushNotificationConfig/list` - list the push notification
 //! configurations belonging to a task.
 //!
 //! ```bash

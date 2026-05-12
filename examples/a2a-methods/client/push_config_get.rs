@@ -1,4 +1,4 @@
-//! `tasks/pushNotificationConfig/get` — read back a stored push notification
+//! `tasks/pushNotificationConfig/get` - read back a stored push notification
 //! configuration.
 //!
 //! ```bash

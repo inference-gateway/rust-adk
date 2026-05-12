@@ -97,7 +97,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    // message/send — enqueues the task and returns Submitted immediately
+    // message/send - enqueues the task and returns Submitted immediately
     // (matches the Go ADK's async semantics). Poll tasks/get until the
     // background worker drives the task to a terminal state.
     match client
@@ -138,7 +138,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    // message/stream — observe state transitions and incremental artifacts.
+    // message/stream - observe state transitions and incremental artifacts.
     match client
         .stream_message(user_message(
             "Search the web for 'Rust async programming' and summarise the top results.",

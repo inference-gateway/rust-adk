@@ -1,4 +1,4 @@
-//! `tasks/pushNotificationConfig/delete` — remove a push notification
+//! `tasks/pushNotificationConfig/delete` - remove a push notification
 //! configuration.
 //!
 //! ```bash

@@ -2,7 +2,7 @@
 
 One runnable client example per JSON-RPC method in the A2A specification,
 sharing a single offline server. Every example uses the typed request /
-response structs from [`inference_gateway_adk::a2a_types`] — no hand-rolled
+response structs from [`inference_gateway_adk::a2a_types`] - no hand-rolled
 JSON envelopes.
 
 ## Layout
@@ -49,7 +49,7 @@ docker compose --profile all-clients up --build
 ```
 
 The selected profile pulls the `server` service in as a dependency, so you
-never need to start it by hand. No `.env` file is required — the server is
+never need to start it by hand. No `.env` file is required - the server is
 offline (no Inference Gateway, no LLM credentials).
 
 [compose-profiles]: https://docs.docker.com/compose/profiles/
