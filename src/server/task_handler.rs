@@ -734,7 +734,7 @@ mod tests {
         let addr = listener.local_addr().expect("addr");
         let app = Router::new()
             .route("/a2a", post(a2a_handler))
-            .with_state(Arc::new(AppState { server }));
+            .with_state(Arc::new(AppState::new(server)));
         tokio::spawn(async move {
             axum::serve(listener, app).await.ok();
         });
@@ -1023,7 +1023,7 @@ mod tests {
         let addr = listener.local_addr().expect("a2a addr");
         let app = Router::new()
             .route("/a2a", post(a2a_handler))
-            .with_state(Arc::new(AppState { server }));
+            .with_state(Arc::new(AppState::new(server)));
         tokio::spawn(async move {
             axum::serve(listener, app).await.ok();
         });
@@ -1145,7 +1145,7 @@ mod tests {
         let addr = listener.local_addr().expect("a2a addr");
         let app = Router::new()
             .route("/a2a", post(a2a_handler))
-            .with_state(Arc::new(AppState { server }));
+            .with_state(Arc::new(AppState::new(server)));
         tokio::spawn(async move {
             axum::serve(listener, app).await.ok();
         });

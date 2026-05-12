@@ -296,6 +296,7 @@ suggested learning path.
 
 - **[Queue Storage](./examples/queue-storage/)** - Queue-driven `message/send` with in-memory or Redis storage (Compose profiles)
 - **[A2A Methods](./examples/a2a-methods/)** - One client binary per JSON-RPC method exposed by the A2A spec
+- **[Auth](./examples/auth/)** - Bearer-token authentication on `POST /a2a` with public `/health` and `/.well-known/agent.json`
 - **[Health Check Example](#health-check-example)** - Monitor agent health status
 
 ## Key Features
@@ -1283,6 +1284,43 @@ let server = A2AServerBuilder::new()
 
 **Note:** Build-time metadata takes precedence as defaults, but can be overridden at runtime using the configuration.
 
+### Authentication
+
+When `AUTH_ENABLE=true`, the server gates `POST /a2a` behind an
+`Authorization: Bearer <token>` header validated against the OIDC issuer
+configured by `AUTH_ISSUER_URL`. The bundled `OidcJwtVerifier`:
+
+1. Performs OIDC discovery at `<AUTH_ISSUER_URL>/.well-known/openid-configuration`.
+2. Fetches and caches the JWKS advertised by the discovery document.
+3. Validates the JWT signature, `iss`, `exp`, and (when `AUTH_CLIENT_ID`
+   is set) `aud` claims.
+
+`GET /health` and `GET /.well-known/agent.json` are always public so
+health probes and discovery clients keep working without a credential.
+Tokens that fail any check produce **HTTP 401** with a
+`WWW-Authenticate: Bearer realm="a2a"` header.
+
+To plug in a custom backend (static keys, internal identity service,
+mocks for tests) implement `AuthVerifier` and pass it to
+`A2AServerBuilder::with_auth_verifier(...)` - this overrides whatever
+`AUTH_ENABLE` selects and works the same way `with_storage(...)` does.
+
+The authenticated principal (subject, tenant, all JWT claims) is
+attached to the request via an Axum extension and forwarded to the
+JSON-RPC dispatcher so per-tenant filtering of the extended agent card
+is a future no-op behind a feature flag rather than a breaking change.
+
+**Behaviour when `AUTH_ENABLE=false`** — the middleware is not attached
+and `agent/getAuthenticatedExtendedCard` returns the configured card
+whenever `supportsExtendedAgentCard == true` on the agent card. This
+preserves backwards compatibility for callers who have not opted in to
+authentication. Operators that want the method to hard-fail when auth
+is globally off should set `supportsExtendedAgentCard: false` on the
+agent card; the handler returns JSON-RPC `-32601 METHOD_NOT_FOUND` in
+that case.
+
+See [`examples/auth/`](./examples/auth/) for a runnable end-to-end demo.
+
 ### Environment Configuration
 
 Key environment variables for configuring your agent:
@@ -1311,11 +1349,11 @@ CAPABILITIES_STREAMING="true"
 CAPABILITIES_PUSH_NOTIFICATIONS="true"
 CAPABILITIES_STATE_TRANSITION_HISTORY="false"
 
-# Authentication (optional)
-AUTH_ENABLE="false"
-AUTH_ISSUER_URL="http://keycloak:8080/realms/inference-gateway-realm"
-AUTH_CLIENT_ID="inference-gateway-client"
-AUTH_CLIENT_SECRET="your-secret"
+# Authentication (optional, OIDC bearer-token JWT)
+AUTH_ENABLE="false"                                                  # when true, POST /a2a requires a valid bearer token
+AUTH_ISSUER_URL="http://keycloak:8080/realms/inference-gateway-realm" # OIDC issuer; the server performs discovery + JWKS lookup
+AUTH_CLIENT_ID="inference-gateway-client"                            # validated as the JWT audience when set
+AUTH_CLIENT_SECRET="your-secret"                                     # currently unused server-side (reserved for client-side OAuth2)
 
 # TLS (optional)
 SERVER_TLS_ENABLE="false"
