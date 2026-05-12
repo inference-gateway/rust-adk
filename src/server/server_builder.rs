@@ -1,12 +1,12 @@
 use super::agent::Agent;
 use super::agent_card::AgentCardOverrides;
 use super::server_core::A2AServer;
+use super::storage::{InMemoryStorage, Storage};
 use super::task_handler::{
     DefaultBackgroundTaskHandler, DefaultStreamingTaskHandler, StreamableTaskHandler, TaskHandler,
 };
 use crate::a2a_types::AgentCard;
 use crate::config::Config;
-use crate::storage::InMemoryStorage;
 use anyhow::{Result, anyhow};
 use std::sync::Arc;
 use tracing::info;
@@ -18,7 +18,7 @@ pub struct A2AServerBuilder {
     agent_card_overrides: Option<AgentCardOverrides>,
     agent: Option<Arc<Agent>>,
     gateway_url: Option<String>,
-    storage: Option<Arc<InMemoryStorage>>,
+    storage: Option<Arc<dyn Storage>>,
     background_task_handler: Option<Arc<dyn TaskHandler>>,
     streaming_task_handler: Option<Arc<dyn StreamableTaskHandler>>,
     use_default_background_task_handler: bool,
@@ -72,9 +72,12 @@ impl A2AServerBuilder {
         self
     }
 
-    /// Inject an external in-memory storage. Mostly useful for tests and for
-    /// sharing state across multiple `A2AServer` instances.
-    pub fn with_storage(mut self, storage: Arc<InMemoryStorage>) -> Self {
+    /// Inject an external storage backend. Pass any `Arc<dyn Storage>` —
+    /// the bundled [`InMemoryStorage`] is used by default when this is not
+    /// called. Useful for tests, for sharing state across multiple
+    /// `A2AServer` instances, or for plugging in a Redis/Postgres-backed
+    /// implementation.
+    pub fn with_storage(mut self, storage: Arc<dyn Storage>) -> Self {
         self.storage = Some(storage);
         self
     }
@@ -242,7 +245,7 @@ impl A2AServerBuilder {
             gateway_url,
             storage: self
                 .storage
-                .unwrap_or_else(|| Arc::new(InMemoryStorage::new())),
+                .unwrap_or_else(|| Arc::new(InMemoryStorage::new()) as Arc<dyn Storage>),
             background_task_handler,
             streaming_task_handler,
         })

@@ -1,10 +1,10 @@
 use super::agent::Agent;
 use super::protocol::{AppState, a2a_handler};
+use super::storage::Storage;
 use super::task_handler::{StreamableTaskHandler, TaskHandler};
 use crate::a2a_types::AgentCard;
 use crate::client::HealthStatus;
 use crate::config::Config;
-use crate::storage::InMemoryStorage;
 use anyhow::{Result, anyhow};
 use axum::{
     Router,
@@ -28,15 +28,15 @@ pub struct A2AServer {
     pub(super) agent_card: Option<AgentCard>,
     pub(super) agent: Option<Arc<Agent>>,
     pub(super) gateway_url: String,
-    pub(super) storage: Arc<InMemoryStorage>,
+    pub(super) storage: Arc<dyn Storage>,
     pub(super) background_task_handler: Option<Arc<dyn TaskHandler>>,
     pub(super) streaming_task_handler: Option<Arc<dyn StreamableTaskHandler>>,
 }
 
 impl A2AServer {
-    /// Access the in-memory storage backing this server. Useful for tests
-    /// and callers that need to inspect or pre-populate state.
-    pub fn storage(&self) -> Arc<InMemoryStorage> {
+    /// Access the storage backing this server. Useful for tests and
+    /// callers that need to inspect or pre-populate state.
+    pub fn storage(&self) -> Arc<dyn Storage> {
         Arc::clone(&self.storage)
     }
 

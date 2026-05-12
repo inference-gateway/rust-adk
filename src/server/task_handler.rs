@@ -1,9 +1,9 @@
 use super::agent::Agent;
+use super::storage::Storage;
 use crate::a2a_types::{
     Artifact, Message as A2AMessage, Part, Role, StreamResponse, Task, TaskArtifactUpdateEvent,
     TaskState, TaskStatus, TaskStatusUpdateEvent, Timestamp,
 };
-use crate::storage::InMemoryStorage;
 use anyhow::{Result, anyhow};
 use futures_util::stream::StreamExt;
 use inference_gateway_sdk::{Message, MessageContent, MessageRole};
@@ -51,7 +51,7 @@ pub trait StreamableTaskHandler: Send + Sync + std::fmt::Debug {
 #[derive(Clone)]
 pub struct StreamEmitter {
     tx: mpsc::Sender<StreamResponse>,
-    storage: Arc<InMemoryStorage>,
+    storage: Arc<dyn Storage>,
 }
 
 impl std::fmt::Debug for StreamEmitter {
@@ -61,7 +61,7 @@ impl std::fmt::Debug for StreamEmitter {
 }
 
 impl StreamEmitter {
-    pub(super) fn new(tx: mpsc::Sender<StreamResponse>, storage: Arc<InMemoryStorage>) -> Self {
+    pub(super) fn new(tx: mpsc::Sender<StreamResponse>, storage: Arc<dyn Storage>) -> Self {
         Self { tx, storage }
     }
 
@@ -91,7 +91,7 @@ impl StreamEmitter {
             timestamp: Some(now),
         };
 
-        self.storage.update_task(task_id, |task| {
+        self.storage.update_task(task_id, &mut |task| {
             task.status = new_status.clone();
             if let Some(ref msg) = message {
                 task.history.push(msg.clone());
@@ -140,7 +140,7 @@ impl StreamEmitter {
             }],
         };
 
-        self.storage.update_task(task_id, |task| {
+        self.storage.update_task(task_id, &mut |task| {
             task.artifacts.push(artifact.clone());
         });
 

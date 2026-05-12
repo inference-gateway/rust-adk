@@ -7,6 +7,7 @@ mod errors;
 mod protocol;
 mod server_builder;
 mod server_core;
+mod storage;
 mod task_handler;
 
 pub use agent::Agent;
@@ -16,6 +17,7 @@ pub use agent_llm_client::{LLMClient, OpenAICompatibleLLMClient};
 pub use agent_toolbox::{AsyncFunctionToolHandler, FunctionToolHandler, ToolHandler};
 pub use server_builder::A2AServerBuilder;
 pub use server_core::A2AServer;
+pub use storage::{InMemoryStorage, Storage};
 pub use task_handler::{
     DefaultBackgroundTaskHandler, DefaultStreamingTaskHandler, StreamEmitter,
     StreamableTaskHandler, TaskHandler,

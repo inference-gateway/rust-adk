@@ -2,6 +2,7 @@ use super::errors::{
     invalid_params, invalid_params_message, json_rpc_error, json_rpc_success, jsonrpc_errors,
 };
 use super::server_core::A2AServer;
+use super::storage::parse_task_name;
 use super::task_handler::StreamEmitter;
 use crate::a2a_types::{
     CancelTaskRequest, DeleteTaskPushNotificationConfigRequest,
@@ -10,7 +11,6 @@ use crate::a2a_types::{
     SendMessageRequest, SendMessageResponse, SetTaskPushNotificationConfigRequest, StreamResponse,
     Task, TaskState, TaskStatus, Timestamp,
 };
-use crate::storage::parse_task_name;
 use axum::{
     extract::State,
     response::{
@@ -429,7 +429,7 @@ fn handle_tasks_cancel(state: &Arc<AppState>, id: Value, params: Value) -> Json<
     let updated = state
         .server
         .storage
-        .update_task(&task_id, |t| {
+        .update_task(&task_id, &mut |t| {
             t.status = TaskStatus {
                 message: None,
                 state: TaskState::TaskStateCancelled,
