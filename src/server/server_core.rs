@@ -105,7 +105,6 @@ async fn health_handler(
             "has_agent": state.server.agent.is_some(),
             "gateway_healthy": gateway_healthy,
             "version": env!("CARGO_PKG_VERSION"),
-            "sdk_version": "0.13.3"
         })),
     };
 
