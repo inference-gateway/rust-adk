@@ -271,9 +271,6 @@ impl AuthVerifier for OidcJwtVerifier {
             ));
         };
 
-        // Try the cached key. If absent, refresh the JWKS once and try
-        // again - this covers the common case of an issuer rotating keys
-        // between requests.
         let key_and_alg = match self.key_for_kid(&kid).await {
             Some(found) => found,
             None => {
@@ -350,8 +347,6 @@ fn reject(err: AuthError) -> Response {
         header::WWW_AUTHENTICATE,
         axum::http::HeaderValue::from_static("Bearer realm=\"a2a\""),
     );
-    // Suppress unused-import warning when this helper is the only
-    // consumer of `Body` in some compilation modes.
     let _ = std::marker::PhantomData::<Body>;
     response
 }

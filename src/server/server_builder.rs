@@ -274,10 +274,6 @@ impl A2AServerBuilder {
             DefaultTaskManager::new(Arc::clone(&storage), Arc::clone(handler), worker_count)
         });
 
-        // Resolve the auth verifier. An explicit `with_auth_verifier`
-        // call always wins; otherwise we instantiate the OIDC verifier
-        // when `AuthConfig.enable == true`. Anything else leaves
-        // auth disabled.
         let auth_verifier = match self.auth_verifier {
             Some(v) => Some(v),
             None => match config.auth_config.as_ref() {

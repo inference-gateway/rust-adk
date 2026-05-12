@@ -151,8 +151,6 @@ fn extended_card_request() -> Value {
 
 #[tokio::test]
 async fn auth_off_extended_card_is_reachable_without_token() {
-    // (a) auth off → behaviour unchanged: callers that hit POST /a2a
-    // without a token still get the JSON-RPC response.
     let addr = spawn_server(None, true);
     let url = format!("http://{addr}/a2a");
     let client = reqwest::Client::new();
@@ -178,7 +176,6 @@ async fn auth_off_extended_card_is_reachable_without_token() {
 
 #[tokio::test]
 async fn auth_on_with_valid_token_returns_extended_card() {
-    // (b) auth on + valid token → the call succeeds end-to-end.
     let verifier: Arc<dyn AuthVerifier> = Arc::new(AcceptOneToken { token: "good" });
     let addr = spawn_server(Some(verifier), true);
     let url = format!("http://{addr}/a2a");
@@ -227,7 +224,6 @@ async fn auth_on_with_missing_token_returns_401() {
 
 #[tokio::test]
 async fn auth_on_with_invalid_token_returns_401() {
-    // (c2) auth on + invalid token → HTTP 401.
     let verifier: Arc<dyn AuthVerifier> = Arc::new(AcceptOneToken { token: "good" });
     let addr = spawn_server(Some(verifier), true);
     let url = format!("http://{addr}/a2a");
@@ -243,7 +239,6 @@ async fn auth_on_with_invalid_token_returns_401() {
 
 #[tokio::test]
 async fn auth_on_malformed_header_returns_401() {
-    // Header present but not using the `Bearer` scheme.
     let verifier: Arc<dyn AuthVerifier> = Arc::new(AcceptOneToken { token: "good" });
     let addr = spawn_server(Some(verifier), true);
     let url = format!("http://{addr}/a2a");
@@ -281,10 +276,6 @@ async fn auth_on_health_and_card_endpoints_remain_public() {
 
 #[tokio::test]
 async fn auth_on_method_not_found_still_reaches_handler() {
-    // (e) sanity: with a valid token, an agent card that does NOT
-    // advertise `supportsExtendedAgentCard` still returns -32601 from
-    // the JSON-RPC handler, not 401. This is the path called out in
-    // the acceptance criteria as "do not change".
     let verifier: Arc<dyn AuthVerifier> = Arc::new(AcceptOneToken { token: "good" });
     let addr = spawn_server(Some(verifier), false);
     let url = format!("http://{addr}/a2a");
