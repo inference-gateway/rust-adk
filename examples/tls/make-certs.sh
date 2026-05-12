@@ -6,7 +6,11 @@
 #                           client to validate the other peer.
 #   certs/ca.key          - root CA private key.
 #   certs/server.crt      - server leaf, signed by ca.crt, with
-#                           subjectAltName=DNS:localhost,IP:127.0.0.1.
+#                           subjectAltName covering localhost, 127.0.0.1
+#                           and the Docker Compose service hostnames
+#                           (tls-server, mtls-server) so the same
+#                           material works for host-side curl and the
+#                           in-network client containers.
 #   certs/server.key      - server leaf private key.
 #   certs/client.crt      - client leaf, signed by ca.crt, with
 #                           subject `CN=demo-client`. Use this for mTLS.
@@ -43,6 +47,8 @@ keyUsage = digitalSignature, keyEncipherment
 
 [alt_names]
 DNS.1 = localhost
+DNS.2 = tls-server
+DNS.3 = mtls-server
 IP.1  = 127.0.0.1
 EOF
 

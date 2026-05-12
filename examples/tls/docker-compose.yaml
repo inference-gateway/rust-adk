@@ -17,7 +17,8 @@
 
 services:
   tls-server:
-    profiles: [tls]
+    profiles:
+      - tls
     build:
       context: ../..
       dockerfile: examples/Dockerfile.server
@@ -35,7 +36,8 @@ services:
       - tls-network
 
   tls-client:
-    profiles: [tls]
+    profiles:
+      - tls
     build:
       context: ../..
       dockerfile: examples/Dockerfile.client
@@ -52,7 +54,8 @@ services:
       - tls-network
 
   mtls-server:
-    profiles: [mtls]
+    profiles:
+      - mtls
     build:
       context: ../..
       dockerfile: examples/Dockerfile.server
@@ -71,7 +74,8 @@ services:
       - tls-network
 
   mtls-client:
-    profiles: [mtls]
+    profiles:
+      - mtls
     build:
       context: ../..
       dockerfile: examples/Dockerfile.client
