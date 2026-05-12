@@ -37,6 +37,7 @@ regress = "0.11.1"
 tokio-stream = { version = "0.1.18", features = ["sync"] }
 tokio-util = "0.7.13"
 eventsource-stream = "0.2.3"
+jsonwebtoken = "10.4.0"
 redis = { version = "0.27.6", default-features = false, features = ["tokio-comp", "connection-manager"], optional = true }
 
 [[example]]
@@ -151,3 +152,11 @@ path = "examples/queue-storage/server/main.rs"
 [[example]]
 name = "queue-storage-client"
 path = "examples/queue-storage/client/main.rs"
+
+[[example]]
+name = "auth-server"
+path = "examples/auth/server/main.rs"
+
+[[example]]
+name = "auth-client"
+path = "examples/auth/client/main.rs"

@@ -1,3 +1,4 @@
+use super::auth::{AuthVerifier, AuthenticatedPrincipal};
 use super::errors::{
     invalid_params, invalid_params_message, json_rpc_error, json_rpc_success, jsonrpc_errors,
 };
@@ -29,12 +30,52 @@ use tracing::{debug, error, warn};
 #[derive(Debug)]
 pub(crate) struct AppState {
     pub(crate) server: A2AServer,
+    /// Bearer-token verifier consulted by the auth middleware. `None`
+    /// when `AuthConfig.enable == false` (or no `AuthConfig` is set) -
+    /// in that mode the middleware is not attached and routes behave
+    /// exactly as they did before authentication landed.
+    pub(crate) auth_verifier: Option<Arc<dyn AuthVerifier>>,
+}
+
+impl AppState {
+    /// Construct an `AppState` with no auth verifier. The middleware is
+    /// a no-op in this mode and `POST /a2a` is reachable without a
+    /// bearer token.
+    pub(crate) fn new(server: A2AServer) -> Self {
+        Self {
+            server,
+            auth_verifier: None,
+        }
+    }
+
+    /// Construct an `AppState` with an auth verifier wired up. Callers
+    /// must also attach [`super::auth::auth_middleware`] to the routes
+    /// they want protected - the verifier alone has no effect.
+    pub(crate) fn with_auth(server: A2AServer, verifier: Arc<dyn AuthVerifier>) -> Self {
+        Self {
+            server,
+            auth_verifier: Some(verifier),
+        }
+    }
 }
 
 pub(crate) async fn a2a_handler(
     State(state): State<Arc<AppState>>,
+    principal: Option<axum::Extension<AuthenticatedPrincipal>>,
     Json(payload): Json<Value>,
 ) -> Response {
+    // Principal is plumbed in by the auth middleware. We log it for
+    // observability and keep it available to handlers via a future
+    // extension - per-tenant filtering of the extended card is the
+    // first planned consumer.
+    if let Some(axum::Extension(p)) = principal.as_ref() {
+        debug!(
+            subject = %p.subject,
+            tenant = %p.tenant,
+            issuer = %p.issuer,
+            "authenticated A2A request",
+        );
+    }
     debug!("A2A request received: {payload:?}");
 
     let id = payload.get("id").cloned().unwrap_or(Value::Null);
@@ -901,7 +942,7 @@ mod tests {
         let addr = listener.local_addr().expect("local addr");
         let app = Router::new()
             .route("/a2a", post(a2a_handler))
-            .with_state(Arc::new(AppState { server }));
+            .with_state(Arc::new(AppState::new(server)));
         tokio::spawn(async move {
             axum::serve(listener, app).await.ok();
         });
@@ -1039,7 +1080,7 @@ mod tests {
         let addr = listener.local_addr().expect("addr");
         let app = Router::new()
             .route("/a2a", post(a2a_handler))
-            .with_state(Arc::new(AppState { server }));
+            .with_state(Arc::new(AppState::new(server)));
         tokio::spawn(async move {
             axum::serve(listener, app).await.ok();
         });
@@ -1109,7 +1150,7 @@ mod tests {
         let addr = listener.local_addr().expect("addr");
         let app = Router::new()
             .route("/a2a", post(a2a_handler))
-            .with_state(Arc::new(AppState { server }));
+            .with_state(Arc::new(AppState::new(server)));
         tokio::spawn(async move {
             axum::serve(listener, app).await.ok();
         });

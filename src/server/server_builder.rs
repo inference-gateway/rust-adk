@@ -1,5 +1,6 @@
 use super::agent::Agent;
 use super::agent_card::AgentCardOverrides;
+use super::auth::{AuthVerifier, OidcJwtVerifier};
 use super::server_core::A2AServer;
 use super::storage::{Storage, create_storage};
 use super::task_handler::{
@@ -25,6 +26,7 @@ pub struct A2AServerBuilder {
     use_default_background_task_handler: bool,
     use_default_streaming_task_handler: bool,
     worker_count: Option<usize>,
+    auth_verifier: Option<Arc<dyn AuthVerifier>>,
 }
 
 impl A2AServerBuilder {
@@ -42,6 +44,7 @@ impl A2AServerBuilder {
             use_default_background_task_handler: false,
             use_default_streaming_task_handler: false,
             worker_count: None,
+            auth_verifier: None,
         }
     }
 
@@ -137,6 +140,18 @@ impl A2AServerBuilder {
     /// spawned.
     pub fn with_workers(mut self, count: usize) -> Self {
         self.worker_count = Some(count);
+        self
+    }
+
+    /// Inject a custom [`AuthVerifier`] used by the auth middleware.
+    /// Calling this enables authentication on `POST /a2a` regardless of
+    /// whether [`crate::config::AuthConfig`] is set. Useful for tests
+    /// (where you want to stub the verifier) and for plugging in a
+    /// non-OIDC backend such as a static signing key.
+    ///
+    /// `GET /health` and `GET /.well-known/agent.json` remain public.
+    pub fn with_auth_verifier(mut self, verifier: Arc<dyn AuthVerifier>) -> Self {
+        self.auth_verifier = Some(verifier);
         self
     }
 
@@ -259,6 +274,26 @@ impl A2AServerBuilder {
             DefaultTaskManager::new(Arc::clone(&storage), Arc::clone(handler), worker_count)
         });
 
+        // Resolve the auth verifier. An explicit `with_auth_verifier`
+        // call always wins; otherwise we instantiate the OIDC verifier
+        // when `AuthConfig.enable == true`. Anything else leaves
+        // auth disabled.
+        let auth_verifier = match self.auth_verifier {
+            Some(v) => Some(v),
+            None => match config.auth_config.as_ref() {
+                Some(auth_cfg) if auth_cfg.enable => {
+                    info!(
+                        issuer = %auth_cfg.issuer_url,
+                        "enabling bearer-token auth on POST /a2a (issuer={})",
+                        auth_cfg.issuer_url
+                    );
+                    let verifier = OidcJwtVerifier::from_config(auth_cfg)?;
+                    Some(Arc::new(verifier) as Arc<dyn AuthVerifier>)
+                }
+                _ => None,
+            },
+        };
+
         Ok(A2AServer {
             config,
             agent_card,
@@ -268,6 +303,7 @@ impl A2AServerBuilder {
             background_task_handler,
             streaming_task_handler,
             task_manager,
+            auth_verifier,
         })
     }
 }

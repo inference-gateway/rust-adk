@@ -1,4 +1,5 @@
 use super::agent::Agent;
+use super::auth::{AuthVerifier, auth_middleware};
 use super::protocol::{AppState, a2a_handler};
 use super::storage::Storage;
 use super::task_handler::{StreamableTaskHandler, TaskHandler};
@@ -11,6 +12,7 @@ use axum::{
     Router,
     extract::State,
     http::StatusCode,
+    middleware,
     response::Json,
     routing::{get, post},
 };
@@ -33,6 +35,10 @@ pub struct A2AServer {
     pub(super) background_task_handler: Option<Arc<dyn TaskHandler>>,
     pub(super) streaming_task_handler: Option<Arc<dyn StreamableTaskHandler>>,
     pub(super) task_manager: Option<DefaultTaskManager>,
+    /// When `Some`, the JSON-RPC route (`POST /a2a`) is wrapped with an
+    /// auth middleware that requires a valid bearer token. `GET /health`
+    /// and `GET /.well-known/agent.json` are always public.
+    pub(super) auth_verifier: Option<Arc<dyn AuthVerifier>>,
 }
 
 impl A2AServer {
@@ -44,19 +50,37 @@ impl A2AServer {
 
     pub async fn serve(mut self, addr: SocketAddr) -> Result<()> {
         let runner = self.task_manager.take().map(|m| m.start());
+        let auth_verifier = self.auth_verifier.clone();
 
-        let state = AppState { server: self };
+        let state = Arc::new(match auth_verifier {
+            Some(v) => AppState::with_auth(self, v),
+            None => AppState::new(self),
+        });
 
-        let app = Router::new()
+        // Public routes - never gated by the auth middleware so health
+        // probes and discovery clients keep working without a token.
+        let public = Router::new()
             .route("/health", get(health_handler))
             .route("/.well-known/agent.json", get(agent_card_handler))
+            .with_state(Arc::clone(&state));
+
+        // Protected JSON-RPC route. The middleware is a no-op when
+        // `AppState::auth_verifier` is `None`, but we attach it
+        // unconditionally so the protected sub-router has a consistent
+        // type regardless of configuration.
+        let protected = Router::new()
             .route("/a2a", post(a2a_handler))
-            .layer(
-                ServiceBuilder::new()
-                    .layer(TraceLayer::new_for_http())
-                    .layer(CorsLayer::permissive()),
-            )
-            .with_state(Arc::new(state));
+            .route_layer(middleware::from_fn_with_state(
+                Arc::clone(&state),
+                auth_middleware,
+            ))
+            .with_state(Arc::clone(&state));
+
+        let app = public.merge(protected).layer(
+            ServiceBuilder::new()
+                .layer(TraceLayer::new_for_http())
+                .layer(CorsLayer::permissive()),
+        );
 
         info!("A2A Server starting on {}", addr);
 
