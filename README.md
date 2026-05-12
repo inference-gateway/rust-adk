@@ -555,10 +555,12 @@ binary per method.
 | `tasks/get`                                   | `get_task`                                  | `GetTaskRequest`                              | `Task`                                   |
 | `tasks/list`                                  | `list_tasks`                                | `ListTasksRequest`                            | `ListTasksResponse`                      |
 | `tasks/cancel`                                | `cancel_task`                               | `CancelTaskRequest`                           | `Task`                                   |
+| `tasks/resubscribe`                           | `resubscribe_task`                          | `SubscribeToTaskRequest`                      | `Stream<StreamResponse>` (SSE)           |
 | `tasks/pushNotificationConfig/set`            | `set_task_push_notification_config`         | `SetTaskPushNotificationConfigRequest`        | `TaskPushNotificationConfig`             |
 | `tasks/pushNotificationConfig/get`            | `get_task_push_notification_config`         | `GetTaskPushNotificationConfigRequest`        | `TaskPushNotificationConfig`             |
 | `tasks/pushNotificationConfig/list`           | `list_task_push_notification_configs`       | `ListTaskPushNotificationConfigRequest`       | `ListTaskPushNotificationConfigResponse` |
 | `tasks/pushNotificationConfig/delete`         | `delete_task_push_notification_config`      | `DeleteTaskPushNotificationConfigRequest`     | `serde_json::Value`                      |
+| `agent/getAuthenticatedExtendedCard`          | `get_authenticated_extended_card`           | `GetExtendedAgentCardRequest`                 | `AgentCard`                              |
 
 ###### `message/send`
 
@@ -647,6 +649,37 @@ let cancelled = client
     .await?;
 ```
 
+###### `tasks/resubscribe`
+
+Re-attach to an already-running task and stream subsequent state
+transitions over SSE. The first event carries a snapshot of the task at
+the current status; later events are `TaskStatusUpdateEvent` deltas. The
+stream terminates after the server emits an event with `final: true`.
+
+```rust
+use futures::StreamExt;
+use inference_gateway_adk::a2a_types::SubscribeToTaskRequest;
+
+let mut stream = Box::pin(
+    client
+        .resubscribe_task(SubscribeToTaskRequest {
+            name: format!("tasks/{task_id}"),
+            tenant: "example".to_string(),
+        })
+        .await?,
+);
+
+while let Some(event) = stream.next().await {
+    let event = event?;
+    if let Some(update) = event.status_update.as_ref() {
+        println!("task is now {:?}", update.status.state);
+        if update.final_ {
+            break;
+        }
+    }
+}
+```
+
 ###### `tasks/pushNotificationConfig/set`
 
 ```rust
@@ -711,6 +744,24 @@ use inference_gateway_adk::a2a_types::DeleteTaskPushNotificationConfigRequest;
 client
     .delete_task_push_notification_config(DeleteTaskPushNotificationConfigRequest {
         name: name.clone(),
+        tenant: "example".to_string(),
+    })
+    .await?;
+```
+
+###### `agent/getAuthenticatedExtendedCard`
+
+Fetch the authenticated extended [`AgentCard`] for the calling tenant.
+The server only honours the request when the agent card it serves at
+`/.well-known/agent.json` advertises `supportsExtendedAgentCard: true`;
+otherwise the call surfaces a JSON-RPC `METHOD_NOT_FOUND` error so the
+client can fall back to the unauthenticated card.
+
+```rust
+use inference_gateway_adk::a2a_types::GetExtendedAgentCardRequest;
+
+let card = client
+    .get_authenticated_extended_card(GetExtendedAgentCardRequest {
         tenant: "example".to_string(),
     })
     .await?;

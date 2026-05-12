@@ -617,3 +617,77 @@ async fn client_typed_helpers_round_trip_send_and_list() {
         .expect("list_tasks ok");
     assert!(listed.total_size >= 1);
 }
+
+#[tokio::test]
+async fn tasks_resubscribe_returns_snapshot_and_final_event() {
+    use futures::StreamExt;
+
+    let suite = ensure_suite();
+    let task = create_task(suite, "resubscribe round-trip").await;
+
+    let client = A2AClient::new(&suite.base_url).expect("client builds");
+    let mut stream = Box::pin(
+        client
+            .resubscribe_task(a2a_types::SubscribeToTaskRequest {
+                name: format!("tasks/{}", task.id),
+                tenant: "test".to_string(),
+            })
+            .await
+            .expect("resubscribe_task ok"),
+    );
+
+    let first = timeout(suite.timeout_duration, stream.next())
+        .await
+        .expect("first event arrives")
+        .expect("stream not empty")
+        .expect("first event decodes");
+    let snapshot = first.task.expect("first event carries task snapshot");
+    assert_eq!(snapshot.id, task.id);
+
+    drop(stream);
+}
+
+#[tokio::test]
+async fn tasks_resubscribe_unknown_task_returns_task_not_found() {
+    let suite = ensure_suite();
+    let request = json!({
+        "jsonrpc": "2.0",
+        "id": "test-resubscribe-not-found",
+        "method": "tasks/resubscribe",
+        "params": {
+            "name": "tasks/does-not-exist",
+            "tenant": "test"
+        }
+    });
+    let response = post_jsonrpc(suite, request).await;
+    let code = response
+        .get("error")
+        .and_then(|e| e.get("code"))
+        .and_then(|c| c.as_i64());
+    assert_eq!(
+        code,
+        Some(-32001),
+        "expected TASK_NOT_FOUND, got {response}"
+    );
+}
+
+#[tokio::test]
+async fn get_authenticated_extended_card_rejects_when_not_supported() {
+    let suite = ensure_suite();
+    let request = json!({
+        "jsonrpc": "2.0",
+        "id": "test-get-extended-card-disabled",
+        "method": "agent/getAuthenticatedExtendedCard",
+        "params": { "tenant": "test" }
+    });
+    let response = post_jsonrpc(suite, request).await;
+    let code = response
+        .get("error")
+        .and_then(|e| e.get("code"))
+        .and_then(|c| c.as_i64());
+    assert_eq!(
+        code,
+        Some(-32601),
+        "expected METHOD_NOT_FOUND, got {response}"
+    );
+}
