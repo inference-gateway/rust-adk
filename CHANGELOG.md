@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0](https://github.com/inference-gateway/rust-adk/compare/0.3.1...0.4.0) (2026-05-12)
+
+### ✨ Features
+
+* **protocol:** Implement tasks/resubscribe and agent/getAuthenticatedExtendedCard ([#24](https://github.com/inference-gateway/rust-adk/issues/24)) ([cf36ad1](https://github.com/inference-gateway/rust-adk/commit/cf36ad1fd9a2f4113d5493dc976820f79d852d4d)), closes [#22](https://github.com/inference-gateway/rust-adk/issues/22)
+* **server:** Enforce authentication on agent/getAuthenticatedExtendedCard and wire up AuthConfig ([#27](https://github.com/inference-gateway/rust-adk/issues/27)) ([5efa830](https://github.com/inference-gateway/rust-adk/commit/5efa830d8d097346790caa2b1f20cf6bf938e80d)), closes [#25](https://github.com/inference-gateway/rust-adk/issues/25)
+* **server:** Wire up TlsConfig for TLS termination and mTLS client certs ([#32](https://github.com/inference-gateway/rust-adk/issues/32)) ([44652b5](https://github.com/inference-gateway/rust-adk/commit/44652b57403ab7b8362e4f4cf01a32b0fe180d0f))
+
+### 📚 Documentation
+
+* **examples:** Add tasks/resubscribe and agent/getAuthenticatedExtendedCard examples ([#26](https://github.com/inference-gateway/rust-adk/issues/26)) ([9d4714c](https://github.com/inference-gateway/rust-adk/commit/9d4714c2654a0c1f941cda774d9390a0a571a0b0)), closes [#23](https://github.com/inference-gateway/rust-adk/issues/23)
+
 ## [0.3.1](https://github.com/inference-gateway/rust-adk/compare/0.3.0...0.3.1) (2026-05-12)
 
 ### ♻️ Improvements
