@@ -8,6 +8,7 @@
 //! forking the crate.
 
 use crate::a2a_types::{Task, TaskPushNotificationConfig};
+use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::Mutex;
 
@@ -16,37 +17,35 @@ use std::sync::Mutex;
 /// Postgres, etc.) and wire it in via
 /// [`A2AServerBuilder::with_storage`](super::server_builder::A2AServerBuilder::with_storage).
 ///
-/// All methods take `&self`; implementations use interior mutability
-/// (mutex, connection pool, etc.) to keep the public signatures
-/// `Arc<dyn Storage>`-friendly.
+/// All methods are async to accommodate backends that need to issue
+/// I/O (Redis, Postgres, etc.). Implementations use interior
+/// mutability (mutex, connection pool, etc.) so the public signatures
+/// stay `Arc<dyn Storage>`-friendly.
+#[async_trait]
 pub trait Storage: Send + Sync + std::fmt::Debug {
     /// Insert or replace a task, keyed by its bare `id` (the portion after
     /// `tasks/` in a resource name).
-    fn put_task(&self, task: Task);
+    async fn put_task(&self, task: Task);
 
     /// Fetch a task by bare id, returning a cloned copy.
-    fn get_task(&self, id: &str) -> Option<Task>;
+    async fn get_task(&self, id: &str) -> Option<Task>;
 
     /// Return every stored task. Pagination/filtering is applied by the
     /// caller.
-    fn list_tasks(&self) -> Vec<Task>;
-
-    /// Apply `f` to the task identified by `id` if it exists, returning
-    /// the updated task (cloned) on success. The closure is `&mut dyn
-    /// FnMut` rather than `FnOnce` so the trait is object-safe.
-    fn update_task(&self, id: &str, f: &mut dyn FnMut(&mut Task)) -> Option<Task>;
+    async fn list_tasks(&self) -> Vec<Task>;
 
     /// Insert or replace a push notification configuration. Keyed by the
     /// canonical resource name on the config.
-    fn put_push_notification_config(&self, config: TaskPushNotificationConfig);
+    async fn put_push_notification_config(&self, config: TaskPushNotificationConfig);
 
-    fn get_push_notification_config(&self, name: &str) -> Option<TaskPushNotificationConfig>;
+    async fn get_push_notification_config(&self, name: &str) -> Option<TaskPushNotificationConfig>;
 
     /// Return every config whose resource name lives under `parent`
     /// (`parent` should be of the form `tasks/{task_id}`).
-    fn list_push_notification_configs(&self, parent: &str) -> Vec<TaskPushNotificationConfig>;
+    async fn list_push_notification_configs(&self, parent: &str)
+    -> Vec<TaskPushNotificationConfig>;
 
-    fn delete_push_notification_config(&self, name: &str) -> bool;
+    async fn delete_push_notification_config(&self, name: &str) -> bool;
 }
 
 /// Simple in-memory [`Storage`] implementation for tasks and push
@@ -69,42 +68,39 @@ impl InMemoryStorage {
     }
 }
 
+#[async_trait]
 impl Storage for InMemoryStorage {
-    fn put_task(&self, task: Task) {
+    async fn put_task(&self, task: Task) {
         let mut inner = self.inner.lock().expect("storage mutex poisoned");
         inner.tasks.insert(task.id.clone(), task);
     }
 
-    fn get_task(&self, id: &str) -> Option<Task> {
+    async fn get_task(&self, id: &str) -> Option<Task> {
         let inner = self.inner.lock().expect("storage mutex poisoned");
         inner.tasks.get(id).cloned()
     }
 
-    fn list_tasks(&self) -> Vec<Task> {
+    async fn list_tasks(&self) -> Vec<Task> {
         let inner = self.inner.lock().expect("storage mutex poisoned");
         inner.tasks.values().cloned().collect()
     }
 
-    fn update_task(&self, id: &str, f: &mut dyn FnMut(&mut Task)) -> Option<Task> {
-        let mut inner = self.inner.lock().expect("storage mutex poisoned");
-        let task = inner.tasks.get_mut(id)?;
-        f(task);
-        Some(task.clone())
-    }
-
-    fn put_push_notification_config(&self, config: TaskPushNotificationConfig) {
+    async fn put_push_notification_config(&self, config: TaskPushNotificationConfig) {
         let mut inner = self.inner.lock().expect("storage mutex poisoned");
         inner
             .push_notification_configs
             .insert(config.name.clone(), config);
     }
 
-    fn get_push_notification_config(&self, name: &str) -> Option<TaskPushNotificationConfig> {
+    async fn get_push_notification_config(&self, name: &str) -> Option<TaskPushNotificationConfig> {
         let inner = self.inner.lock().expect("storage mutex poisoned");
         inner.push_notification_configs.get(name).cloned()
     }
 
-    fn list_push_notification_configs(&self, parent: &str) -> Vec<TaskPushNotificationConfig> {
+    async fn list_push_notification_configs(
+        &self,
+        parent: &str,
+    ) -> Vec<TaskPushNotificationConfig> {
         let prefix = format!("{parent}/pushNotificationConfigs/");
         let inner = self.inner.lock().expect("storage mutex poisoned");
         inner
@@ -115,7 +111,7 @@ impl Storage for InMemoryStorage {
             .collect()
     }
 
-    fn delete_push_notification_config(&self, name: &str) -> bool {
+    async fn delete_push_notification_config(&self, name: &str) -> bool {
         let mut inner = self.inner.lock().expect("storage mutex poisoned");
         inner.push_notification_configs.remove(name).is_some()
     }
@@ -162,51 +158,79 @@ mod tests {
         }
     }
 
-    #[test]
-    fn task_round_trip() {
+    #[tokio::test]
+    async fn task_round_trip() {
         let storage = InMemoryStorage::new();
         let task = make_task("abc");
-        storage.put_task(task.clone());
-        let got = storage.get_task("abc").expect("task should be present");
+        storage.put_task(task.clone()).await;
+        let got = storage
+            .get_task("abc")
+            .await
+            .expect("task should be present");
         assert_eq!(got.id, task.id);
-        assert_eq!(storage.list_tasks().len(), 1);
+        assert_eq!(storage.list_tasks().await.len(), 1);
     }
 
-    #[test]
-    fn update_task_mutates_in_place() {
+    #[tokio::test]
+    async fn put_replaces_existing_task() {
         let storage = InMemoryStorage::new();
-        storage.put_task(make_task("abc"));
+        storage.put_task(make_task("abc")).await;
+        let mut task = storage
+            .get_task("abc")
+            .await
+            .expect("task should be present");
+        task.status.state = TaskState::TaskStateCancelled;
+        storage.put_task(task).await;
         let updated = storage
-            .update_task("abc", &mut |t| {
-                t.status.state = TaskState::TaskStateCancelled;
-            })
+            .get_task("abc")
+            .await
             .expect("task should be present");
         assert_eq!(updated.status.state, TaskState::TaskStateCancelled);
-        assert!(storage.update_task("missing", &mut |_| {}).is_none());
+        assert!(storage.get_task("missing").await.is_none());
     }
 
-    #[test]
-    fn push_notification_configs_filter_by_parent() {
+    #[tokio::test]
+    async fn push_notification_configs_filter_by_parent() {
         let storage = InMemoryStorage::new();
-        storage.put_push_notification_config(make_config(
-            "tasks/abc/pushNotificationConfigs/c1",
-            "https://a.example/webhook",
-        ));
-        storage.put_push_notification_config(make_config(
-            "tasks/abc/pushNotificationConfigs/c2",
-            "https://b.example/webhook",
-        ));
-        storage.put_push_notification_config(make_config(
-            "tasks/other/pushNotificationConfigs/c3",
-            "https://c.example/webhook",
-        ));
+        storage
+            .put_push_notification_config(make_config(
+                "tasks/abc/pushNotificationConfigs/c1",
+                "https://a.example/webhook",
+            ))
+            .await;
+        storage
+            .put_push_notification_config(make_config(
+                "tasks/abc/pushNotificationConfigs/c2",
+                "https://b.example/webhook",
+            ))
+            .await;
+        storage
+            .put_push_notification_config(make_config(
+                "tasks/other/pushNotificationConfigs/c3",
+                "https://c.example/webhook",
+            ))
+            .await;
 
-        let configs = storage.list_push_notification_configs("tasks/abc");
+        let configs = storage.list_push_notification_configs("tasks/abc").await;
         assert_eq!(configs.len(), 2);
 
-        assert!(storage.delete_push_notification_config("tasks/abc/pushNotificationConfigs/c1"));
-        assert_eq!(storage.list_push_notification_configs("tasks/abc").len(), 1);
-        assert!(!storage.delete_push_notification_config("tasks/abc/pushNotificationConfigs/c1"));
+        assert!(
+            storage
+                .delete_push_notification_config("tasks/abc/pushNotificationConfigs/c1")
+                .await
+        );
+        assert_eq!(
+            storage
+                .list_push_notification_configs("tasks/abc")
+                .await
+                .len(),
+            1
+        );
+        assert!(
+            !storage
+                .delete_push_notification_config("tasks/abc/pushNotificationConfigs/c1")
+                .await
+        );
     }
 
     #[test]
@@ -220,17 +244,14 @@ mod tests {
         assert_eq!(parse_task_name("notasks/abc"), None);
     }
 
-    #[test]
-    fn dyn_storage_dispatches_through_trait() {
+    #[tokio::test]
+    async fn dyn_storage_dispatches_through_trait() {
         let storage: std::sync::Arc<dyn Storage> = std::sync::Arc::new(InMemoryStorage::new());
-        storage.put_task(make_task("abc"));
-        let got = storage.get_task("abc").expect("task should be present");
-        assert_eq!(got.id, "abc");
-        let updated = storage
-            .update_task("abc", &mut |t| {
-                t.status.state = TaskState::TaskStateCompleted;
-            })
+        storage.put_task(make_task("abc")).await;
+        let got = storage
+            .get_task("abc")
+            .await
             .expect("task should be present");
-        assert_eq!(updated.status.state, TaskState::TaskStateCompleted);
+        assert_eq!(got.id, "abc");
     }
 }

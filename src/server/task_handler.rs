@@ -91,12 +91,13 @@ impl StreamEmitter {
             timestamp: Some(now),
         };
 
-        self.storage.update_task(task_id, &mut |task| {
+        if let Some(mut task) = self.storage.get_task(task_id).await {
             task.status = new_status.clone();
             if let Some(ref msg) = message {
                 task.history.push(msg.clone());
             }
-        });
+            self.storage.put_task(task).await;
+        }
 
         let event = TaskStatusUpdateEvent {
             context_id: context_id.to_string(),
@@ -140,9 +141,10 @@ impl StreamEmitter {
             }],
         };
 
-        self.storage.update_task(task_id, &mut |task| {
+        if let Some(mut task) = self.storage.get_task(task_id).await {
             task.artifacts.push(artifact.clone());
-        });
+            self.storage.put_task(task).await;
+        }
 
         let event = TaskArtifactUpdateEvent {
             append: None,

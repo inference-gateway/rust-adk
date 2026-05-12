@@ -72,21 +72,23 @@ pub(crate) async fn a2a_handler(
             .await
             .into_response(),
         "message/stream" => handle_message_stream(state.clone(), id, params).await,
-        "tasks/get" => handle_tasks_get(&state, id, params).into_response(),
-        "tasks/list" => handle_tasks_list(&state, id, params).into_response(),
-        "tasks/cancel" => handle_tasks_cancel(&state, id, params).into_response(),
-        "tasks/pushNotificationConfig/set" => {
-            handle_set_push_config(&state, id, params).into_response()
-        }
-        "tasks/pushNotificationConfig/get" => {
-            handle_get_push_config(&state, id, params).into_response()
-        }
-        "tasks/pushNotificationConfig/list" => {
-            handle_list_push_configs(&state, id, params).into_response()
-        }
-        "tasks/pushNotificationConfig/delete" => {
-            handle_delete_push_config(&state, id, params).into_response()
-        }
+        "tasks/get" => handle_tasks_get(&state, id, params).await.into_response(),
+        "tasks/list" => handle_tasks_list(&state, id, params).await.into_response(),
+        "tasks/cancel" => handle_tasks_cancel(&state, id, params)
+            .await
+            .into_response(),
+        "tasks/pushNotificationConfig/set" => handle_set_push_config(&state, id, params)
+            .await
+            .into_response(),
+        "tasks/pushNotificationConfig/get" => handle_get_push_config(&state, id, params)
+            .await
+            .into_response(),
+        "tasks/pushNotificationConfig/list" => handle_list_push_configs(&state, id, params)
+            .await
+            .into_response(),
+        "tasks/pushNotificationConfig/delete" => handle_delete_push_config(&state, id, params)
+            .await
+            .into_response(),
         other => {
             warn!("Unknown JSON-RPC method requested: {other}");
             json_rpc_error(
@@ -176,7 +178,7 @@ async fn handle_message_send(state: &Arc<AppState>, id: Value, params: Value) ->
     };
 
     let initial_task = build_task_from_request(&request);
-    state.server.storage.put_task(initial_task.clone());
+    state.server.storage.put_task(initial_task.clone()).await;
 
     let task = match handler.handle_task(initial_task, request.message).await {
         Ok(t) => t,
@@ -191,7 +193,7 @@ async fn handle_message_send(state: &Arc<AppState>, id: Value, params: Value) ->
         }
     };
 
-    state.server.storage.put_task(task.clone());
+    state.server.storage.put_task(task.clone()).await;
 
     let reply = task.status.message.clone();
     let response = SendMessageResponse {
@@ -234,7 +236,7 @@ async fn handle_message_stream(state: Arc<AppState>, id: Value, params: Value) -
     };
 
     let task = build_task_from_request(&request);
-    state.server.storage.put_task(task.clone());
+    state.server.storage.put_task(task.clone()).await;
 
     let (tx, rx) = mpsc::channel::<StreamResponse>(32);
 
@@ -287,7 +289,7 @@ async fn handle_message_stream(state: Arc<AppState>, id: Value, params: Value) -
         .into_response()
 }
 
-fn handle_tasks_get(state: &Arc<AppState>, id: Value, params: Value) -> Json<Value> {
+async fn handle_tasks_get(state: &Arc<AppState>, id: Value, params: Value) -> Json<Value> {
     let request: GetTaskRequest = match serde_json::from_value(params) {
         Ok(r) => r,
         Err(e) => return invalid_params(id, e),
@@ -308,7 +310,7 @@ fn handle_tasks_get(state: &Arc<AppState>, id: Value, params: Value) -> Json<Val
         }
     };
 
-    match state.server.storage.get_task(task_id) {
+    match state.server.storage.get_task(task_id).await {
         Some(mut task) => {
             if let Some(limit) = request.history_length {
                 let limit = limit.max(0) as usize;
@@ -336,13 +338,13 @@ fn handle_tasks_get(state: &Arc<AppState>, id: Value, params: Value) -> Json<Val
     }
 }
 
-fn handle_tasks_list(state: &Arc<AppState>, id: Value, params: Value) -> Json<Value> {
+async fn handle_tasks_list(state: &Arc<AppState>, id: Value, params: Value) -> Json<Value> {
     let request: ListTasksRequest = match serde_json::from_value(params) {
         Ok(r) => r,
         Err(e) => return invalid_params(id, e),
     };
 
-    let mut tasks = state.server.storage.list_tasks();
+    let mut tasks = state.server.storage.list_tasks().await;
 
     if !request.context_id.is_empty() {
         tasks.retain(|t| t.context_id == request.context_id);
@@ -375,7 +377,7 @@ fn handle_tasks_list(state: &Arc<AppState>, id: Value, params: Value) -> Json<Va
     }
 }
 
-fn handle_tasks_cancel(state: &Arc<AppState>, id: Value, params: Value) -> Json<Value> {
+async fn handle_tasks_cancel(state: &Arc<AppState>, id: Value, params: Value) -> Json<Value> {
     let request: CancelTaskRequest = match serde_json::from_value(params) {
         Ok(r) => r,
         Err(e) => return invalid_params(id, e),
@@ -396,7 +398,7 @@ fn handle_tasks_cancel(state: &Arc<AppState>, id: Value, params: Value) -> Json<
         }
     };
 
-    let existing = match state.server.storage.get_task(&task_id) {
+    let existing = match state.server.storage.get_task(&task_id).await {
         Some(t) => t,
         None => {
             return json_rpc_error(
@@ -426,17 +428,13 @@ fn handle_tasks_cancel(state: &Arc<AppState>, id: Value, params: Value) -> Json<
         );
     }
 
-    let updated = state
-        .server
-        .storage
-        .update_task(&task_id, &mut |t| {
-            t.status = TaskStatus {
-                message: None,
-                state: TaskState::TaskStateCancelled,
-                timestamp: Some(Timestamp(chrono::Utc::now())),
-            };
-        })
-        .expect("task disappeared between get and update");
+    let mut updated = existing;
+    updated.status = TaskStatus {
+        message: None,
+        state: TaskState::TaskStateCancelled,
+        timestamp: Some(Timestamp(chrono::Utc::now())),
+    };
+    state.server.storage.put_task(updated.clone()).await;
 
     match serde_json::to_value(updated) {
         Ok(v) => json_rpc_success(id, v),
@@ -449,7 +447,7 @@ fn handle_tasks_cancel(state: &Arc<AppState>, id: Value, params: Value) -> Json<
     }
 }
 
-fn handle_set_push_config(state: &Arc<AppState>, id: Value, params: Value) -> Json<Value> {
+async fn handle_set_push_config(state: &Arc<AppState>, id: Value, params: Value) -> Json<Value> {
     let request: SetTaskPushNotificationConfigRequest = match serde_json::from_value(params) {
         Ok(r) => r,
         Err(e) => return invalid_params(id, e),
@@ -468,7 +466,8 @@ fn handle_set_push_config(state: &Arc<AppState>, id: Value, params: Value) -> Js
     state
         .server
         .storage
-        .put_push_notification_config(config.clone());
+        .put_push_notification_config(config.clone())
+        .await;
 
     match serde_json::to_value(config) {
         Ok(v) => json_rpc_success(id, v),
@@ -481,7 +480,7 @@ fn handle_set_push_config(state: &Arc<AppState>, id: Value, params: Value) -> Js
     }
 }
 
-fn handle_get_push_config(state: &Arc<AppState>, id: Value, params: Value) -> Json<Value> {
+async fn handle_get_push_config(state: &Arc<AppState>, id: Value, params: Value) -> Json<Value> {
     let request: GetTaskPushNotificationConfigRequest = match serde_json::from_value(params) {
         Ok(r) => r,
         Err(e) => return invalid_params(id, e),
@@ -491,6 +490,7 @@ fn handle_get_push_config(state: &Arc<AppState>, id: Value, params: Value) -> Js
         .server
         .storage
         .get_push_notification_config(&request.name)
+        .await
     {
         Some(config) => match serde_json::to_value(config) {
             Ok(v) => json_rpc_success(id, v),
@@ -510,7 +510,7 @@ fn handle_get_push_config(state: &Arc<AppState>, id: Value, params: Value) -> Js
     }
 }
 
-fn handle_list_push_configs(state: &Arc<AppState>, id: Value, params: Value) -> Json<Value> {
+async fn handle_list_push_configs(state: &Arc<AppState>, id: Value, params: Value) -> Json<Value> {
     let request: ListTaskPushNotificationConfigRequest = match serde_json::from_value(params) {
         Ok(r) => r,
         Err(e) => return invalid_params(id, e),
@@ -519,7 +519,8 @@ fn handle_list_push_configs(state: &Arc<AppState>, id: Value, params: Value) -> 
     let configs = state
         .server
         .storage
-        .list_push_notification_configs(&request.parent);
+        .list_push_notification_configs(&request.parent)
+        .await;
 
     let response = ListTaskPushNotificationConfigResponse {
         configs,
@@ -537,7 +538,7 @@ fn handle_list_push_configs(state: &Arc<AppState>, id: Value, params: Value) -> 
     }
 }
 
-fn handle_delete_push_config(state: &Arc<AppState>, id: Value, params: Value) -> Json<Value> {
+async fn handle_delete_push_config(state: &Arc<AppState>, id: Value, params: Value) -> Json<Value> {
     let request: DeleteTaskPushNotificationConfigRequest = match serde_json::from_value(params) {
         Ok(r) => r,
         Err(e) => return invalid_params(id, e),
@@ -546,7 +547,8 @@ fn handle_delete_push_config(state: &Arc<AppState>, id: Value, params: Value) ->
     let removed = state
         .server
         .storage
-        .delete_push_notification_config(&request.name);
+        .delete_push_notification_config(&request.name)
+        .await;
 
     if !removed {
         return json_rpc_error(
