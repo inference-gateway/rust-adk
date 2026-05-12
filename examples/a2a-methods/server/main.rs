@@ -145,6 +145,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             "pushNotifications": true,
             "stateTransitionHistory": false
         },
+        // Opt the example in to `agent/getAuthenticatedExtendedCard` so the
+        // dedicated client example returns a card instead of METHOD_NOT_FOUND.
+        "supportsExtendedAgentCard": true,
         "defaultInputModes": ["text/plain"],
         "defaultOutputModes": ["text/plain"],
         "skills": [

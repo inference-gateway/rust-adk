@@ -1,21 +1,23 @@
 ---
 # Docker Compose manifest for the `a2a-methods` example collection.
 #
-# Layout: one long-running server + nine per-method clients (one Cargo example
-# per JSON-RPC method in the A2A spec). Each client is parked behind its own
-# Compose profile so `docker compose up` doesn't fan out into nine parallel
-# runs. Pick the method you want to exercise:
+# Layout: one long-running server + eleven per-method clients (one Cargo
+# example per JSON-RPC method in the A2A spec). Each client is parked behind
+# its own Compose profile so `docker compose up` doesn't fan out into eleven
+# parallel runs. Pick the method you want to exercise:
 #
 #   docker compose up --build server
-#   docker compose --profile message-send       up --build
-#   docker compose --profile message-stream     up --build
-#   docker compose --profile tasks-get          up --build
-#   docker compose --profile tasks-list         up --build
-#   docker compose --profile tasks-cancel       up --build
-#   docker compose --profile push-config-set    up --build
-#   docker compose --profile push-config-get    up --build
-#   docker compose --profile push-config-list   up --build
-#   docker compose --profile push-config-delete up --build
+#   docker compose --profile message-send                       up --build
+#   docker compose --profile message-stream                     up --build
+#   docker compose --profile tasks-get                          up --build
+#   docker compose --profile tasks-list                         up --build
+#   docker compose --profile tasks-cancel                       up --build
+#   docker compose --profile tasks-resubscribe                  up --build
+#   docker compose --profile push-config-set                    up --build
+#   docker compose --profile push-config-get                    up --build
+#   docker compose --profile push-config-list                   up --build
+#   docker compose --profile push-config-delete                 up --build
+#   docker compose --profile agent-authenticated-extended-card  up --build
 #
 # Or run every client back-to-back via the `all-clients` profile:
 #
@@ -132,6 +134,23 @@ services:
       - tasks-cancel
       - all-clients
 
+  tasks-resubscribe:
+    build:
+      context: ../..
+      dockerfile: examples/Dockerfile.client
+      args:
+        BIN_NAME: a2a-methods-tasks-resubscribe
+    depends_on:
+      server:
+        condition: service_healthy
+    environment:
+      SERVER_URL: http://server:8085
+    networks:
+      - a2a-network
+    profiles:
+      - tasks-resubscribe
+      - all-clients
+
   push-config-set:
     build:
       context: ../..
@@ -198,6 +217,23 @@ services:
       - a2a-network
     profiles:
       - push-config-delete
+      - all-clients
+
+  agent-authenticated-extended-card:
+    build:
+      context: ../..
+      dockerfile: examples/Dockerfile.client
+      args:
+        BIN_NAME: a2a-methods-agent-authenticated-extended-card
+    depends_on:
+      server:
+        condition: service_healthy
+    environment:
+      SERVER_URL: http://server:8085
+    networks:
+      - a2a-network
+    profiles:
+      - agent-authenticated-extended-card
       - all-clients
 
 networks:

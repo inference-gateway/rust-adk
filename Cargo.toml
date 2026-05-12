@@ -137,6 +137,14 @@ name = "a2a-methods-push-config-delete"
 path = "examples/a2a-methods/client/push_config_delete.rs"
 
 [[example]]
+name = "a2a-methods-tasks-resubscribe"
+path = "examples/a2a-methods/client/tasks_resubscribe.rs"
+
+[[example]]
+name = "a2a-methods-agent-authenticated-extended-card"
+path = "examples/a2a-methods/client/agent_authenticated_extended_card.rs"
+
+[[example]]
 name = "queue-storage-server"
 path = "examples/queue-storage/server/main.rs"
 
