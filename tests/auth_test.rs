@@ -253,8 +253,6 @@ async fn auth_on_malformed_header_returns_401() {
 
 #[tokio::test]
 async fn auth_on_health_and_card_endpoints_remain_public() {
-    // (d) /health and /.well-known/agent.json must stay reachable
-    // without a token even when auth is enabled.
     let verifier: Arc<dyn AuthVerifier> = Arc::new(AcceptOneToken { token: "good" });
     let addr = spawn_server(Some(verifier), true);
     let base = format!("http://{addr}");
