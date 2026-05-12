@@ -6,11 +6,12 @@ A2A server that exposes custom tools to the LLM via `AgentBuilder::with_toolbox(
 
 ```
 server-with-toolbox/
-├── docker-compose.yaml  # Server + client + inference-gateway:latest
-├── .env.example         # DEEPSEEK_API_KEY + provider/model overrides
-├── agent-card.json      # Agent metadata loaded at startup
-├── server/main.rs       # Server registering three tools (weather, math, web search)
-├── client/main.rs       # Client exercising non-streaming, streaming, and health checks
+├── docker-compose.yaml          # Server + client + inference-gateway:latest
+├── .env.example                 # DEEPSEEK_API_KEY + provider/model overrides
+├── server/
+│   ├── .well-known/agent.json   # Agent metadata loaded at startup
+│   └── main.rs                  # Server registering three tools (weather, math, web search)
+├── client/main.rs               # Client exercising non-streaming, streaming, and health checks
 └── README.md
 ```
 
@@ -47,7 +48,9 @@ Override via `.env` to switch to any other provider supported by the gateway
 ## Running locally
 
 ```bash
-# Start an Inference Gateway separately, then:
+# Start an Inference Gateway separately, then run the server from inside its
+# subdir so `.well-known/agent.json` resolves correctly:
+cd examples/server-with-toolbox/server
 cargo run --example server-with-toolbox-server
 # or: task examples:server-with-toolbox-server
 

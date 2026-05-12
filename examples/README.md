@@ -6,7 +6,8 @@ Development Kit (ADK).
 ## Structure
 
 Each example is its own directory with a server, a client, an optional colocated
-`agent-card.json`, and a README:
+agent card at `server/.well-known/agent.json` (mirroring the A2A-spec URL the
+server exposes), and a README:
 
 ```text
 examples/
@@ -34,9 +35,9 @@ task examples:minimal-server
 task examples:minimal-client
 ```
 
-> Examples that load `agent-card.json` resolve it relative to the current
-> working directory. Run those servers from inside their example directory, or
-> pass an absolute path via `with_agent_card_from_file(...)`.
+> Examples that load `.well-known/agent.json` resolve it relative to the
+> current working directory. Run those servers from inside their `server/`
+> directory, or pass an absolute path via `with_agent_card_from_file(...)`.
 
 ### Docker Compose
 

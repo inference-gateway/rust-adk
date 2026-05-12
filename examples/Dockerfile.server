@@ -16,11 +16,15 @@ COPY examples ./examples
 
 RUN cargo build --release --example "${BIN_NAME}"
 
-# Stage runtime data files (agent-card.json when present) into a known location
-# so the next stage can COPY a single directory without colliding with source dirs.
-RUN mkdir -p /staged \
-    && if [ -f "${EXAMPLE_PATH}/agent-card.json" ]; then \
-         cp "${EXAMPLE_PATH}/agent-card.json" /staged/agent-card.json; \
+# Stage runtime data files (.well-known/agent.json when present) into a known
+# location so the next stage can COPY a single directory without colliding with
+# source dirs. The agent card lives inside the server's subdir
+# (`<example>/server/.well-known/agent.json`); we mirror that layout into /app
+# so the runtime `with_agent_card_from_file(".well-known/agent.json")` lookup
+# works under WORKDIR /app.
+RUN mkdir -p /staged/.well-known \
+    && if [ -f "${EXAMPLE_PATH}/server/.well-known/agent.json" ]; then \
+         cp "${EXAMPLE_PATH}/server/.well-known/agent.json" /staged/.well-known/agent.json; \
        fi
 
 FROM debian:bookworm-slim
