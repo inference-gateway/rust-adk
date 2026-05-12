@@ -9,40 +9,44 @@ JSON envelopes.
 
 ```text
 a2a-methods/
-├── docker-compose.yaml                  # Server + one Compose profile per client
-├── server/main.rs                       # shared offline server (echo fallback)
+├── docker-compose.yaml                          # Server + one Compose profile per client
+├── server/main.rs                               # shared offline server (echo fallback)
 └── client/
-    ├── message_send.rs                  # message/send
-    ├── message_stream.rs                # message/stream
-    ├── tasks_get.rs                     # tasks/get
-    ├── tasks_list.rs                    # tasks/list
-    ├── tasks_cancel.rs                  # tasks/cancel
-    ├── push_config_set.rs               # tasks/pushNotificationConfig/set
-    ├── push_config_get.rs               # tasks/pushNotificationConfig/get
-    ├── push_config_list.rs              # tasks/pushNotificationConfig/list
-    └── push_config_delete.rs            # tasks/pushNotificationConfig/delete
+    ├── message_send.rs                          # message/send
+    ├── message_stream.rs                        # message/stream
+    ├── tasks_get.rs                             # tasks/get
+    ├── tasks_list.rs                            # tasks/list
+    ├── tasks_cancel.rs                          # tasks/cancel
+    ├── tasks_resubscribe.rs                     # tasks/resubscribe
+    ├── push_config_set.rs                       # tasks/pushNotificationConfig/set
+    ├── push_config_get.rs                       # tasks/pushNotificationConfig/get
+    ├── push_config_list.rs                      # tasks/pushNotificationConfig/list
+    ├── push_config_delete.rs                    # tasks/pushNotificationConfig/delete
+    └── agent_authenticated_extended_card.rs     # agent/getAuthenticatedExtendedCard
 ```
 
 ## Running with Docker Compose
 
-The compose manifest builds one long-running `server` container plus nine
+The compose manifest builds one long-running `server` container plus eleven
 per-method client containers, each parked behind its own
 [Compose profile][compose-profiles] so a bare `docker compose up` doesn't
-fan out into nine parallel runs.
+fan out into eleven parallel runs.
 
 ```bash
 cd examples/a2a-methods
 
 # Pick a single method to exercise:
-docker compose --profile message-send       up --build
-docker compose --profile message-stream     up --build
-docker compose --profile tasks-get          up --build
-docker compose --profile tasks-list         up --build
-docker compose --profile tasks-cancel       up --build
-docker compose --profile push-config-set    up --build
-docker compose --profile push-config-get    up --build
-docker compose --profile push-config-list   up --build
-docker compose --profile push-config-delete up --build
+docker compose --profile message-send                       up --build
+docker compose --profile message-stream                     up --build
+docker compose --profile tasks-get                          up --build
+docker compose --profile tasks-list                         up --build
+docker compose --profile tasks-cancel                       up --build
+docker compose --profile tasks-resubscribe                  up --build
+docker compose --profile push-config-set                    up --build
+docker compose --profile push-config-get                    up --build
+docker compose --profile push-config-list                   up --build
+docker compose --profile push-config-delete                 up --build
+docker compose --profile agent-authenticated-extended-card  up --build
 
 # Or run every client in sequence against the same server:
 docker compose --profile all-clients up --build
@@ -70,10 +74,12 @@ cargo run --example a2a-methods-message-stream
 cargo run --example a2a-methods-tasks-get
 cargo run --example a2a-methods-tasks-list
 cargo run --example a2a-methods-tasks-cancel
+cargo run --example a2a-methods-tasks-resubscribe
 cargo run --example a2a-methods-push-config-set
 cargo run --example a2a-methods-push-config-get
 cargo run --example a2a-methods-push-config-list
 cargo run --example a2a-methods-push-config-delete
+cargo run --example a2a-methods-agent-authenticated-extended-card
 ```
 
 The server listens on port `8085` by default (override with `SERVER_PORT=…`).
@@ -90,3 +96,14 @@ Clients respect `SERVER_URL` and default to `http://localhost:8085`.
 - Webhook *delivery* for push notifications is tracked in a separate ticket;
   the four `pushNotificationConfig/*` methods here exercise the control plane
   (storage + retrieval) only.
+- The shared example server opts into the extended agent card by setting
+  `supportsExtendedAgentCard: true` on the static agent card it advertises;
+  this is what lets `a2a-methods-agent-authenticated-extended-card` succeed
+  rather than receive `METHOD_NOT_FOUND`. Production agents should gate the
+  flag on their own auth policy.
+- `tasks/resubscribe` lets a client re-attach to an existing
+  `tasks/{task_id}` resource and receive a snapshot of its current state
+  followed by any remaining `TaskStatusUpdateEvent` deltas. The example
+  here seeds a task via `message/send` (which the echo handler completes
+  immediately) so the resubscribed stream emits a snapshot and a terminal
+  `final: true` update.
