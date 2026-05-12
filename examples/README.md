@@ -14,7 +14,8 @@ examples/
 ├── minimal/                # Bare-bones server/client without an agent or agent card
 ├── static-agent-card/      # Loading agent metadata from a JSON file with runtime overrides
 ├── server-with-toolbox/    # LLM agent with custom sync + async function tools
-└── a2a-methods/            # One runnable client per A2A JSON-RPC method
+├── a2a-methods/            # One runnable client per A2A JSON-RPC method
+└── queue-storage/          # Queue-driven message/send with in-memory vs Redis Storage
 ```
 
 ## Running

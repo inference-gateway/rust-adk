@@ -13,9 +13,6 @@ categories = ["api-bindings", "development-tools"]
 
 [features]
 default = []
-# Enable the Redis-backed `Storage` implementation. Use
-# `cargo build --features redis` (or add `inference-gateway-adk = { ...,
-# features = ["redis"] }` in downstream Cargo.toml) to pull it in.
 redis = ["dep:redis"]
 
 [dependencies]
@@ -106,3 +103,11 @@ path = "examples/a2a-methods/client/push_config_list.rs"
 [[example]]
 name = "a2a-methods-push-config-delete"
 path = "examples/a2a-methods/client/push_config_delete.rs"
+
+[[example]]
+name = "queue-storage-server"
+path = "examples/queue-storage/server/main.rs"
+
+[[example]]
+name = "queue-storage-client"
+path = "examples/queue-storage/client/main.rs"

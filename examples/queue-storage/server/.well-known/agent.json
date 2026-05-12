@@ -1,0 +1,27 @@
+{
+  "name": "Queue Storage Demo",
+  "description": "Demonstrates queue-driven message/send with selectable in-memory or Redis Storage backend",
+  "version": "0.1.0",
+  "protocolVersion": "0.2.6",
+  "url": "http://localhost:8083",
+  "preferredTransport": "JSONRPC",
+  "capabilities": {
+    "streaming": true,
+    "pushNotifications": false,
+    "stateTransitionHistory": false
+  },
+  "provider": {
+    "organization": "Inference Gateway",
+    "url": "https://github.com/inference-gateway/rust-adk"
+  },
+  "skills": [
+    {
+      "id": "sleep-echo",
+      "name": "Sleep + Echo",
+      "description": "Sleeps for a configurable delay then echoes the user message back. Used to make queue worker concurrency observable.",
+      "tags": ["demo", "queue"]
+    }
+  ],
+  "defaultInputModes": ["text/plain"],
+  "defaultOutputModes": ["text/plain"]
+}
