@@ -1,8 +1,7 @@
 use axum::response::Json;
 use serde_json::Value;
 
-/// JSON-RPC standard error codes plus A2A-specific extensions used by the
-/// Go ADK. The values are kept aligned with `inference-gateway/adk`.
+/// JSON-RPC standard error codes plus A2A-specific extensions.
 pub(super) mod jsonrpc_errors {
     /// Server received invalid JSON. The default axum extractor rejects
     /// malformed JSON before it reaches our handler, but the constant is

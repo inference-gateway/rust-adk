@@ -277,7 +277,6 @@ impl Config {
             }
         }
 
-        // Queue / storage backend (matches the Go ADK's A2A_QUEUE_* prefix).
         if let Ok(provider) = std::env::var("A2A_QUEUE_PROVIDER") {
             config.queue_config.provider = match provider.to_lowercase().as_str() {
                 "redis" => QueueProvider::Redis,

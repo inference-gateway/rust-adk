@@ -8,8 +8,7 @@
 //! yourself to plug in Redis, Postgres, or any other backend without
 //! forking the crate.
 //!
-//! The trait surface mirrors the Go ADK's `Storage` interface
-//! (`adk/server/storage.go`): a queue (enqueue/dequeue/length/clear),
+//! A queue (enqueue/dequeue/length/clear),
 //! an active-task store (create/get/update), a dead-letter store
 //! (store/list), context bookkeeping, cleanup helpers, and stats.
 
@@ -24,8 +23,8 @@ use tokio::sync::Notify;
 
 /// A task pulled off the queue, plus the JSON-RPC `request_id` that
 /// originally enqueued it. The `request_id` is preserved for
-/// correlation/tracing — it is not consumed by the worker today, mirroring
-/// the Go ADK's behavior. `Serialize`/`Deserialize` so the Redis backend
+/// correlation/tracing — it is not consumed by the worker today,
+/// `Serialize`/`Deserialize` so the Redis backend
 /// can JSON-encode the value into a Redis LIST entry.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct QueuedTask {
@@ -53,8 +52,7 @@ pub struct StorageStats {
     pub contexts: usize,
 }
 
-/// Pluggable storage for the A2A task manager. Mirrors the Go ADK's
-/// `Storage` interface so a Redis/Postgres/etc. backend can be swapped
+/// Pluggable storage for the A2A task manager. backend can be swapped
 /// in via [`A2AServerBuilder::with_storage`](super::server_builder::A2AServerBuilder::with_storage).
 ///
 /// All methods are async to accommodate backends that need to issue
@@ -209,9 +207,6 @@ impl Storage for InMemoryStorage {
 
     async fn dequeue_task(&self) -> Result<QueuedTask> {
         loop {
-            // Take the notified() future BEFORE checking the queue so we
-            // don't miss a notify_one() that lands between our check and
-            // our await (tokio::sync::Notify documents this pattern).
             let notified = self.queue_notify.notified();
             {
                 let mut inner = self.inner.lock().expect("storage mutex poisoned");
@@ -384,9 +379,6 @@ impl Storage for InMemoryStorage {
     async fn cleanup_tasks_with_retention(&self, max_completed: usize, max_failed: usize) -> usize {
         let mut inner = self.inner.lock().expect("storage mutex poisoned");
 
-        // Tasks in the dead-letter store don't track an eviction timestamp
-        // separate from their last status timestamp, so we sort by status
-        // timestamp (oldest first) and drop the leading overage.
         fn evict(store: &mut HashMap<String, Task>, state: TaskState, keep: usize) -> usize {
             let mut matching: Vec<(String, Option<DateTime<Utc>>)> = store
                 .iter()
@@ -561,7 +553,6 @@ mod tests {
         let storage = std::sync::Arc::new(InMemoryStorage::new());
         let storage_consumer = storage.clone();
         let consumer = tokio::spawn(async move { storage_consumer.dequeue_task().await });
-        // Give the consumer a moment to park on the notify
         tokio::task::yield_now().await;
         storage
             .enqueue_task(make_task("t2"), Value::Null)
@@ -790,11 +781,9 @@ mod tests {
     #[tokio::test]
     async fn cleanup_with_retention_keeps_newest() {
         let storage = InMemoryStorage::new();
-        // Three completed tasks, each with a slightly newer timestamp.
         for (i, id) in ["old", "mid", "new"].iter().enumerate() {
             let mut t = make_task(id);
             t.status.state = TaskState::TaskStateCompleted;
-            // bias the timestamps so cleanup picks oldest first
             t.status.timestamp = Some(Timestamp(Utc::now() + chrono::Duration::seconds(i as i64)));
             storage
                 .store_dead_letter_task(&t)

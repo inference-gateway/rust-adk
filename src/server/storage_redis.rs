@@ -1,6 +1,4 @@
-//! Redis-backed implementation of the [`Storage`] trait. Mirrors the Go
-//! ADK's `server/storage_redis.go` key layout so a single Redis instance
-//! can be shared between Rust and Go ADK servers.
+//! Redis-backed implementation of the [`Storage`] trait.
 //!
 //! Behind the `redis` cargo feature: `cargo build --features redis`.
 //!
@@ -170,9 +168,6 @@ impl Storage for RedisStorage {
     }
 
     async fn dequeue_task(&self) -> Result<QueuedTask> {
-        // BRPOP needs a dedicated connection because it parks for the
-        // full blocking duration. Use a fresh `aio` connection so we
-        // don't tie up the shared manager.
         let mut conn = self
             .client
             .get_multiplexed_async_connection()
@@ -180,7 +175,7 @@ impl Storage for RedisStorage {
             .map_err(redis_err)?;
         let popped: Option<(String, String)> = redis::cmd("BRPOP")
             .arg(self.queue_key())
-            .arg(0.0_f64) // 0 = block indefinitely
+            .arg(0.0_f64)
             .query_async(&mut conn)
             .await
             .map_err(redis_err)?;
@@ -248,8 +243,6 @@ impl Storage for RedisStorage {
     }
 
     async fn put_task(&self, task: Task) {
-        // Convenience upsert into the active store: matches
-        // `InMemoryStorage::put_task` semantics.
         let mut conn = self.conn();
         let Ok(payload) = serde_json::to_string(&task) else {
             return;
@@ -275,7 +268,6 @@ impl Storage for RedisStorage {
             .sadd(self.dead_letter_index_key(), &task.id)
             .await
             .map_err(redis_err)?;
-        // Evict from active store if present (matches Go).
         let _: () = conn
             .del(self.active_key(&task.id))
             .await
@@ -462,7 +454,6 @@ impl Storage for RedisStorage {
             .smembers(self.dead_letter_index_key())
             .await
             .unwrap_or_default();
-        // Fetch all dead-letter tasks so we can sort by status timestamp.
         let keys: Vec<String> = ids.iter().map(|id| self.dead_letter_key(id)).collect();
         let payloads: Vec<Option<String>> = if keys.is_empty() {
             Vec::new()

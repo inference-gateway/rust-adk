@@ -1,7 +1,6 @@
 //! Background task manager that drains the [`Storage`] queue and
 //! dispatches each dequeued task to the configured [`TaskHandler`].
 //!
-//! Mirrors the Go ADK's `task_manager.go` + `server.go` worker loop:
 //! one or more workers call [`Storage::dequeue_task`] (blocking), move
 //! the task into the active store, drive the handler to a terminal
 //! state, then route the result to the active store (intermediate

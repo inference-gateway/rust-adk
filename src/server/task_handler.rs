@@ -233,7 +233,7 @@ fn build_sdk_messages(agent: &Agent, task: &Task) -> Vec<Message> {
 }
 
 /// Static message returned by the default handlers when no agent is
-/// configured. Mirrors the Go ADK's instructional fallback.
+/// configured.
 const NO_AGENT_REPLY: &str = "I received your message. I'm a default task handler without AI capabilities. \
      To enable AI responses, configure an OpenAI-compatible agent via \
      `A2AServerBuilder::with_agent(...)`.";
@@ -255,7 +255,7 @@ struct ToolLoopOutcome {
 /// (which only emits raw OpenAI-style tool_calls) and the registered
 /// [`ToolHandler`] implementations on the agent.
 ///
-/// Tool activity is silent at the wire level — matching the Go ADK, which
+/// Tool activity is silent at the wire level — which
 /// only debug-logs tool lifecycle events from inside its
 /// `DefaultBackgroundTaskHandler` instead of forwarding them as A2A
 /// `TaskStatusUpdate` events (the A2A spec has no tool-event variant).
@@ -340,8 +340,7 @@ async fn run_tool_loop(agent: &Agent, mut messages: Vec<Message>) -> Result<Tool
 /// When an [`Agent`] is configured, delegates to the inference gateway via a
 /// single non-streaming `generate_content` call and returns the resulting
 /// task with `state == Completed` and the reply attached. Without an agent,
-/// returns the static [`NO_AGENT_REPLY`] message — mirroring the Go ADK's
-/// `processWithoutAgentBackground`.
+/// returns the static [`NO_AGENT_REPLY`] message - `processWithoutAgentBackground`.
 #[derive(Debug)]
 pub struct DefaultBackgroundTaskHandler {
     agent: Option<Arc<Agent>>,
@@ -785,7 +784,6 @@ mod tests {
         assert_eq!(working.status.state, TaskState::TaskStateWorking);
         assert!(!working.final_);
 
-        // Deltas: collect artifact_ids and texts across events 2, 3, 4.
         let mut artifact_ids = std::collections::HashSet::new();
         let chunks: Vec<String> = (2..=4)
             .map(|i| {
@@ -1015,9 +1013,6 @@ mod tests {
             .await
             .expect("server builds");
 
-        // `message/send` is queue-driven (matches the Go ADK): start the
-        // task manager so a worker drains the enqueue and runs the
-        // background handler.
         let runner = server
             .task_manager
             .take()
@@ -1061,8 +1056,6 @@ mod tests {
         let submitted = response.task.expect("task in response");
         assert_eq!(submitted.status.state, TaskState::TaskStateSubmitted);
 
-        // Poll tasks/get until the worker has driven the task to a
-        // terminal state and routed it to the dead-letter store.
         let final_task = poll_until_terminal(&client, &submitted.id).await;
         assert_eq!(final_task.status.state, TaskState::TaskStateCompleted);
         let final_text = final_task
@@ -1205,7 +1198,7 @@ mod tests {
         });
         assert!(
             !saw_tool_status,
-            "stream should NOT carry tool-lifecycle status updates (Go-parity)",
+            "stream should NOT carry tool-lifecycle status updates",
         );
 
         let accumulated: String = events

@@ -202,9 +202,6 @@ impl A2AServerBuilder {
             .and_then(|c| c.capabilities.streaming)
             .unwrap_or(false);
 
-        // Construct opt-in defaults now so the agent + gateway URL captured
-        // here are visible to the handlers, regardless of the order in which
-        // `with_agent` / `with_default_*` were called.
         let background_task_handler = match self.background_task_handler {
             Some(h) => Some(h),
             None if self.use_default_background_task_handler => Some(Arc::new(
@@ -251,10 +248,6 @@ impl A2AServerBuilder {
             _ => {}
         }
 
-        // Resolve the storage backend. If the caller injected one
-        // explicitly via `with_storage`, use it. Otherwise build one
-        // from `config.queue_config` (driven by A2A_QUEUE_* env vars
-        // when `Config::from_env()` was used).
         let storage = if let Some(s) = self.storage {
             s
         } else {

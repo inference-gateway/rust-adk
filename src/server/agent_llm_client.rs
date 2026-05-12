@@ -14,8 +14,7 @@ use tracing::debug;
 
 /// Defines the interface for Language Model clients used by an [`Agent`].
 ///
-/// Mirrors the Go ADK's `LLMClient` interface
-/// (`adk/server/agent_llm_client.go`): a non-streaming chat completion
+/// A non-streaming chat completion
 /// method plus a streaming one. Custom implementations let callers plug in
 /// alternative LLM backends or test doubles while keeping the rest of the
 /// ADK (`run_tool_loop`, default task handlers) unchanged.
@@ -47,8 +46,7 @@ pub trait LLMClient: Send + Sync + std::fmt::Debug {
 /// Construct one via [`OpenAICompatibleLLMClient::new`] (reads provider,
 /// model, and base URL from [`AgentConfig`]). Each chat completion call
 /// retries up to `config.max_retries` times on failure, with a linear
-/// 1-second backoff per attempt — matching the Go ADK's behaviour in
-/// `OpenAICompatibleLLMClient.CreateChatCompletion`.
+/// 1-second backoff per attempt.
 pub struct OpenAICompatibleLLMClient {
     base_url: String,
     config: AgentConfig,

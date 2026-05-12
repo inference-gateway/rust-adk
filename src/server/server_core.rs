@@ -43,8 +43,6 @@ impl A2AServer {
     }
 
     pub async fn serve(mut self, addr: SocketAddr) -> Result<()> {
-        // Hand the task manager its own JoinSet via `start()` so workers
-        // begin draining the queue alongside the HTTP listener.
         let runner = self.task_manager.take().map(|m| m.start());
 
         let state = AppState { server: self };
@@ -68,8 +66,6 @@ impl A2AServer {
 
         let serve = axum::serve(listener, app);
 
-        // Race the HTTP server against SIGINT so the task manager can be
-        // shut down cleanly when the operator stops the process.
         let result = tokio::select! {
             res = serve => res.map_err(|e| anyhow!("Server error: {}", e)),
             _ = tokio::signal::ctrl_c() => {
