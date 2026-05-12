@@ -14,6 +14,7 @@ pub struct Config {
     pub queue_config: QueueConfig,
     pub server_config: ServerConfig,
     pub telemetry_config: TelemetryConfig,
+    pub artifacts_config: ArtifactsConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -103,6 +104,76 @@ pub struct TelemetryConfig {
     pub endpoint: Option<String>,
 }
 
+/// Top-level configuration for the artifacts subsystem - the optional
+/// HTTP server that serves persisted task artifacts, the pluggable
+/// storage backend behind it, and the retention policy applied to
+/// stored blobs.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ArtifactsConfig {
+    /// Whether the artifacts server should be started when
+    /// [`A2AServer::serve`](crate::A2AServer::serve) runs.
+    pub enable: bool,
+    pub server: ArtifactsServerConfig,
+    pub storage: ArtifactsStorageConfig,
+    pub retention: ArtifactRetentionConfig,
+}
+
+/// Listener-side knobs for the artifacts HTTP server. The server runs
+/// on its own socket (defaulting to `:8081`) so the main A2A JSON-RPC
+/// surface isn't entangled with bulk-download traffic.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ArtifactsServerConfig {
+    pub host: String,
+    pub port: u16,
+    /// Read timeout for incoming requests.
+    pub read_timeout: Duration,
+    /// Write timeout for outgoing responses.
+    pub write_timeout: Duration,
+    /// Optional TLS configuration for the artifacts endpoint. When set,
+    /// re-uses the same machinery as the main A2A server.
+    pub tls: Option<TlsConfig>,
+}
+
+/// Backend selector for the artifacts storage layer.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum ArtifactsStorageProvider {
+    #[default]
+    Filesystem,
+    S3,
+}
+
+/// Storage backend configuration. The full S3 / MinIO surface is
+/// included here so callers can express the intent via env vars even
+/// when the `s3` feature is not compiled in.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ArtifactsStorageConfig {
+    pub provider: ArtifactsStorageProvider,
+    /// Filesystem root for the `Filesystem` provider.
+    pub base_path: String,
+    /// Public URL prefix the [`ArtifactsServer`](crate::server::ArtifactsServer)
+    /// can be reached at - used to build the URI baked into file artifacts.
+    pub base_url: String,
+    /// Endpoint URL for an S3-compatible service (e.g. MinIO).
+    pub endpoint: Option<String>,
+    pub access_key: Option<String>,
+    pub secret_key: Option<String>,
+    pub bucket_name: Option<String>,
+    pub region: Option<String>,
+    pub use_ssl: bool,
+}
+
+/// Retention policy applied by the background cleanup task.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ArtifactRetentionConfig {
+    /// Maximum number of artifacts retained per the backend's view.
+    pub max_artifacts: usize,
+    /// Maximum age of any artifact - older blobs are pruned.
+    pub max_age: Duration,
+    /// Frequency of the retention loop.
+    pub cleanup_interval: Duration,
+}
+
 impl Default for Config {
     fn default() -> Self {
         Self {
@@ -117,6 +188,45 @@ impl Default for Config {
             queue_config: QueueConfig::default(),
             server_config: ServerConfig::default(),
             telemetry_config: TelemetryConfig::default(),
+            artifacts_config: ArtifactsConfig::default(),
+        }
+    }
+}
+
+impl Default for ArtifactsServerConfig {
+    fn default() -> Self {
+        Self {
+            host: "0.0.0.0".to_string(),
+            port: 8081,
+            read_timeout: Duration::from_secs(30),
+            write_timeout: Duration::from_secs(30),
+            tls: None,
+        }
+    }
+}
+
+impl Default for ArtifactsStorageConfig {
+    fn default() -> Self {
+        Self {
+            provider: ArtifactsStorageProvider::Filesystem,
+            base_path: "./artifacts".to_string(),
+            base_url: "http://localhost:8081".to_string(),
+            endpoint: None,
+            access_key: None,
+            secret_key: None,
+            bucket_name: None,
+            region: None,
+            use_ssl: false,
+        }
+    }
+}
+
+impl Default for ArtifactRetentionConfig {
+    fn default() -> Self {
+        Self {
+            max_artifacts: 5,
+            max_age: Duration::from_secs(7 * 24 * 60 * 60),
+            cleanup_interval: Duration::from_secs(24 * 60 * 60),
         }
     }
 }
@@ -322,8 +432,123 @@ impl Config {
             config.queue_config.max_size = n;
         }
 
+        if let Ok(enable) = std::env::var("ARTIFACTS_ENABLE") {
+            config.artifacts_config.enable = enable.to_lowercase() == "true";
+        }
+
+        if let Ok(host) = std::env::var("ARTIFACTS_SERVER_HOST") {
+            config.artifacts_config.server.host = host;
+        }
+        if let Ok(port) = std::env::var("ARTIFACTS_SERVER_PORT")
+            && let Ok(n) = port.parse::<u16>()
+        {
+            config.artifacts_config.server.port = n;
+        }
+        if let Ok(rt) = std::env::var("ARTIFACTS_SERVER_READ_TIMEOUT")
+            && let Some(d) = parse_duration(&rt)
+        {
+            config.artifacts_config.server.read_timeout = d;
+        }
+        if let Ok(wt) = std::env::var("ARTIFACTS_SERVER_WRITE_TIMEOUT")
+            && let Some(d) = parse_duration(&wt)
+        {
+            config.artifacts_config.server.write_timeout = d;
+        }
+
+        if let Ok(provider) = std::env::var("ARTIFACTS_STORAGE_PROVIDER") {
+            config.artifacts_config.storage.provider = match provider.to_lowercase().as_str() {
+                "s3" | "minio" => ArtifactsStorageProvider::S3,
+                "filesystem" | "fs" | "" => ArtifactsStorageProvider::Filesystem,
+                other => {
+                    return Err(format!(
+                        "ARTIFACTS_STORAGE_PROVIDER must be one of `filesystem` or `s3` (got {other:?})"
+                    )
+                    .into());
+                }
+            };
+        }
+        if let Ok(base_path) = std::env::var("ARTIFACTS_STORAGE_BASE_PATH") {
+            config.artifacts_config.storage.base_path = base_path;
+        }
+        if let Ok(base_url) = std::env::var("ARTIFACTS_STORAGE_BASE_URL") {
+            config.artifacts_config.storage.base_url = base_url;
+        }
+        if let Ok(endpoint) = std::env::var("ARTIFACTS_STORAGE_ENDPOINT") {
+            config.artifacts_config.storage.endpoint = Some(endpoint);
+        }
+        if let Ok(ak) = std::env::var("ARTIFACTS_STORAGE_ACCESS_KEY") {
+            config.artifacts_config.storage.access_key = Some(ak);
+        }
+        if let Ok(sk) = std::env::var("ARTIFACTS_STORAGE_SECRET_KEY") {
+            config.artifacts_config.storage.secret_key = Some(sk);
+        }
+        if let Ok(bucket) = std::env::var("ARTIFACTS_STORAGE_BUCKET_NAME") {
+            config.artifacts_config.storage.bucket_name = Some(bucket);
+        }
+        if let Ok(region) = std::env::var("ARTIFACTS_STORAGE_REGION") {
+            config.artifacts_config.storage.region = Some(region);
+        }
+        if let Ok(use_ssl) = std::env::var("ARTIFACTS_STORAGE_USE_SSL") {
+            config.artifacts_config.storage.use_ssl = use_ssl.to_lowercase() == "true";
+        }
+
+        if let Ok(max) = std::env::var("ARTIFACTS_RETENTION_MAX_ARTIFACTS")
+            && let Ok(n) = max.parse::<usize>()
+        {
+            config.artifacts_config.retention.max_artifacts = n;
+        }
+        if let Ok(age) = std::env::var("ARTIFACTS_RETENTION_MAX_AGE")
+            && let Some(d) = parse_duration(&age)
+        {
+            config.artifacts_config.retention.max_age = d;
+        }
+        if let Ok(interval) = std::env::var("ARTIFACTS_RETENTION_CLEANUP_INTERVAL")
+            && let Some(d) = parse_duration(&interval)
+        {
+            config.artifacts_config.retention.cleanup_interval = d;
+        }
+
         Ok(config)
     }
+}
+
+/// Tiny Go-style duration parser, sufficient for the
+/// `ARTIFACTS_RETENTION_*` env vars. Accepts plain seconds (`30`),
+/// suffixed values (`30s`, `15m`, `2h`, `7d`), or a comma/space-separated
+/// composite (`1h30m`). Returns `None` on any parse failure.
+fn parse_duration(s: &str) -> Option<Duration> {
+    let s = s.trim();
+    if s.is_empty() {
+        return None;
+    }
+    // Plain integer = seconds (matches the rest of the codebase).
+    if let Ok(secs) = s.parse::<u64>() {
+        return Some(Duration::from_secs(secs));
+    }
+    let mut total: u64 = 0;
+    let mut num = String::new();
+    for ch in s.chars() {
+        if ch.is_ascii_digit() {
+            num.push(ch);
+            continue;
+        }
+        let n: u64 = num.parse().ok()?;
+        num.clear();
+        let mul = match ch {
+            's' => 1,
+            'm' => 60,
+            'h' => 60 * 60,
+            'd' => 60 * 60 * 24,
+            _ => return None,
+        };
+        total = total.checked_add(n.checked_mul(mul)?)?;
+    }
+    if !num.is_empty() {
+        // Trailing number with no unit -> seconds.
+        let n: u64 = num.parse().ok()?;
+        total = total.checked_add(n)?;
+    }
+    Some(Duration::from_secs(total))
 }
 
 #[derive(Debug, Clone)]

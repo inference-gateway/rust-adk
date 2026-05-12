@@ -1,0 +1,40 @@
+services:
+  server:
+    build:
+      context: ../../
+      dockerfile: examples/Dockerfile.server
+      args:
+        EXAMPLE_NAME: artifacts-filesystem-server
+        EXAMPLE_DIR: examples/artifacts-filesystem/server
+    ports:
+      - "8087:8087"   # A2A JSON-RPC
+      - "8088:8088"   # Artifacts HTTP
+    environment:
+      RUST_LOG: info
+      ARTIFACTS_ENABLE: "true"
+      ARTIFACTS_SERVER_HOST: "0.0.0.0"
+      ARTIFACTS_SERVER_PORT: "8088"
+      ARTIFACTS_STORAGE_PROVIDER: filesystem
+      ARTIFACTS_STORAGE_BASE_PATH: /data/artifacts
+      ARTIFACTS_STORAGE_BASE_URL: http://localhost:8088
+      ARTIFACTS_RETENTION_MAX_ARTIFACTS: "5"
+      ARTIFACTS_RETENTION_MAX_AGE: "168h"
+      ARTIFACTS_RETENTION_CLEANUP_INTERVAL: "24h"
+    volumes:
+      - artifacts-data:/data/artifacts
+
+  client:
+    build:
+      context: ../../
+      dockerfile: examples/Dockerfile.client
+      args:
+        EXAMPLE_NAME: artifacts-filesystem-client
+        EXAMPLE_DIR: examples/artifacts-filesystem/client
+    environment:
+      RUST_LOG: info
+      SERVER_URL: http://server:8087
+    depends_on:
+      - server
+
+volumes:
+  artifacts-data:

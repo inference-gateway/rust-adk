@@ -1,4 +1,6 @@
 use super::agent::Agent;
+use super::artifact_service::ArtifactService;
+use super::artifacts_server::{ArtifactsServer, spawn_retention_task};
 use super::auth::{AuthVerifier, auth_middleware};
 use super::protocol::{AppState, a2a_handler};
 use super::storage::Storage;
@@ -24,7 +26,7 @@ use std::sync::Arc;
 use tokio::net::TcpListener;
 use tower::ServiceBuilder;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, warn};
 
 #[derive(Debug)]
 pub struct A2AServer {
@@ -41,6 +43,11 @@ pub struct A2AServer {
     /// auth middleware that requires a valid bearer token. `GET /health`
     /// and `GET /.well-known/agent.json` are always public.
     pub(super) auth_verifier: Option<Arc<dyn AuthVerifier>>,
+    /// Optional artifact service used to mint and serve file/data
+    /// artifacts. When `Some` and `config.artifacts_config.enable` is
+    /// true, [`serve`](Self::serve) spawns a dedicated artifacts HTTP
+    /// server alongside the main A2A listener.
+    pub(super) artifact_service: Option<Arc<dyn ArtifactService>>,
 }
 
 impl A2AServer {
@@ -50,10 +57,21 @@ impl A2AServer {
         Arc::clone(&self.storage)
     }
 
+    /// Access the artifact service backing this server, if one is wired
+    /// up. Useful for task handlers that want to mint file artifacts.
+    pub fn artifact_service(&self) -> Option<Arc<dyn ArtifactService>> {
+        self.artifact_service.clone()
+    }
+
     pub async fn serve(mut self, addr: SocketAddr) -> Result<()> {
         let runner = self.task_manager.take().map(|m| m.start());
         let auth_verifier = self.auth_verifier.clone();
         let tls_config = self.config.tls_config.clone();
+        let artifacts_config = self.config.artifacts_config.clone();
+        let artifact_service = self.artifact_service.clone();
+
+        let (artifacts_handle, retention_handle) =
+            spawn_artifacts_subsystem(&artifacts_config, artifact_service.clone());
 
         let state = Arc::new(match auth_verifier {
             Some(v) => AppState::with_auth(self, v),
@@ -94,8 +112,70 @@ impl A2AServer {
             runner.shutdown().await;
         }
 
+        if let Some(handle) = retention_handle {
+            handle.abort();
+        }
+        if let Some(handle) = artifacts_handle {
+            handle.abort();
+            let _ = handle.await;
+        }
+
         result
     }
+}
+
+/// Spawn the artifacts HTTP server + retention loop based on
+/// [`ArtifactsConfig`]. Returns `(server_handle, retention_handle)` -
+/// both `None` when artifacts are disabled or the bind address is
+/// invalid.
+fn spawn_artifacts_subsystem(
+    artifacts_config: &crate::config::ArtifactsConfig,
+    artifact_service: Option<Arc<dyn ArtifactService>>,
+) -> (
+    Option<tokio::task::JoinHandle<()>>,
+    Option<tokio::task::JoinHandle<()>>,
+) {
+    let Some(service) = artifact_service else {
+        if artifacts_config.enable {
+            warn!(
+                "ARTIFACTS_ENABLE=true but no artifact service is configured; skipping \
+                 artifacts server startup"
+            );
+        }
+        return (None, None);
+    };
+    if !artifacts_config.enable {
+        return (None, None);
+    }
+    let server_cfg = artifacts_config.server.clone();
+    let bind_addr: SocketAddr = match format!("{}:{}", server_cfg.host, server_cfg.port).parse() {
+        Ok(addr) => addr,
+        Err(e) => {
+            warn!(
+                "invalid artifacts bind address `{}:{}`: {e}; artifacts server disabled",
+                server_cfg.host, server_cfg.port,
+            );
+            return (None, None);
+        }
+    };
+    let artifacts_server = ArtifactsServer::new(server_cfg.clone(), Arc::clone(&service))
+        .with_tls(server_cfg.tls.clone());
+    info!(
+        "spawning artifacts server on {}:{}",
+        server_cfg.host, server_cfg.port,
+    );
+    let server_handle = tokio::spawn(async move {
+        if let Err(e) = artifacts_server.serve(bind_addr).await {
+            error!("artifacts server exited with error: {e}");
+        }
+    });
+    let retention_handle = spawn_retention_task(
+        Arc::clone(&service),
+        artifacts_config.retention.cleanup_interval,
+        artifacts_config.retention.max_age,
+        Some(artifacts_config.retention.max_artifacts),
+    );
+    (Some(server_handle), Some(retention_handle))
 }
 
 async fn serve_plain(app: Router, addr: SocketAddr) -> Result<()> {

@@ -326,7 +326,8 @@ async fn handle_message_stream(state: Arc<AppState>, id: Value, params: Value) -
         .into_response();
     }
 
-    let emitter = StreamEmitter::new(tx, Arc::clone(&state.server.storage));
+    let emitter = StreamEmitter::new(tx, Arc::clone(&state.server.storage))
+        .with_artifact_service(state.server.artifact_service.clone());
     let task_id = task.id.clone();
     let message = request.message;
     tokio::spawn(async move {

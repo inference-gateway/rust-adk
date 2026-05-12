@@ -1,4 +1,5 @@
 use super::agent::Agent;
+use super::artifact_service::ArtifactService;
 use super::storage::Storage;
 use crate::a2a_types::{
     Artifact, Message as A2AMessage, Part, Role, StreamResponse, Task, TaskArtifactUpdateEvent,
@@ -52,6 +53,7 @@ pub trait StreamableTaskHandler: Send + Sync + std::fmt::Debug {
 pub struct StreamEmitter {
     tx: mpsc::Sender<StreamResponse>,
     storage: Arc<dyn Storage>,
+    artifact_service: Option<Arc<dyn ArtifactService>>,
 }
 
 impl std::fmt::Debug for StreamEmitter {
@@ -62,7 +64,29 @@ impl std::fmt::Debug for StreamEmitter {
 
 impl StreamEmitter {
     pub(super) fn new(tx: mpsc::Sender<StreamResponse>, storage: Arc<dyn Storage>) -> Self {
-        Self { tx, storage }
+        Self {
+            tx,
+            storage,
+            artifact_service: None,
+        }
+    }
+
+    /// Attach an [`ArtifactService`] so the emitter can mint URI-bearing
+    /// file/data artifacts (via [`emit_file_artifact`](Self::emit_file_artifact)
+    /// / [`emit_data_artifact`](Self::emit_data_artifact)).
+    pub(super) fn with_artifact_service(
+        mut self,
+        artifact_service: Option<Arc<dyn ArtifactService>>,
+    ) -> Self {
+        self.artifact_service = artifact_service;
+        self
+    }
+
+    /// Access the underlying artifact service, when one is wired up.
+    /// Streaming handlers can fall back to building their own artifacts
+    /// when this returns `None`.
+    pub fn artifact_service(&self) -> Option<Arc<dyn ArtifactService>> {
+        self.artifact_service.clone()
     }
 
     /// Send a raw `StreamResponse` to the connected client.
@@ -155,6 +179,94 @@ impl StreamEmitter {
             task_id: task_id.to_string(),
         };
 
+        self.emit(StreamResponse {
+            artifact_update: Some(event),
+            message: None,
+            status_update: None,
+            task: None,
+        })
+        .await
+    }
+
+    /// Persist `data` through the configured [`ArtifactService`] and
+    /// emit a [`TaskArtifactUpdateEvent`] whose [`FilePart`] carries a
+    /// URI rather than inline bytes.
+    ///
+    /// Falls back to a [`FilePart`] with `fileWithBytes` when no
+    /// [`ArtifactService`] is configured.
+    ///
+    /// [`FilePart`]: crate::a2a_types::FilePart
+    pub async fn emit_file_artifact(
+        &self,
+        task_id: &str,
+        context_id: &str,
+        filename: &str,
+        data: Vec<u8>,
+        mime: Option<&str>,
+        last_chunk: bool,
+    ) -> Result<()> {
+        let svc = match self.artifact_service.as_ref() {
+            Some(s) => Arc::clone(s),
+            None => Arc::new(super::artifact_service::DefaultArtifactService::without_storage())
+                as Arc<dyn ArtifactService>,
+        };
+        let artifact = svc
+            .create_file_artifact(filename, "", filename, data, mime)
+            .await?;
+
+        if let Some(mut task) = self.storage.get_task(task_id).await {
+            task.artifacts.push(artifact.clone());
+            self.storage.put_task(task).await;
+        }
+
+        let event = TaskArtifactUpdateEvent {
+            append: None,
+            artifact,
+            context_id: context_id.to_string(),
+            last_chunk: Some(last_chunk),
+            metadata: None,
+            task_id: task_id.to_string(),
+        };
+        self.emit(StreamResponse {
+            artifact_update: Some(event),
+            message: None,
+            status_update: None,
+            task: None,
+        })
+        .await
+    }
+
+    /// Build a structured-data artifact via the configured
+    /// [`ArtifactService`] (or a service-less default) and emit a
+    /// [`TaskArtifactUpdateEvent`] describing it.
+    pub async fn emit_data_artifact(
+        &self,
+        task_id: &str,
+        context_id: &str,
+        name: &str,
+        description: &str,
+        data: serde_json::Value,
+        last_chunk: bool,
+    ) -> Result<()> {
+        let svc: Arc<dyn ArtifactService> = match self.artifact_service.as_ref() {
+            Some(s) => Arc::clone(s),
+            None => Arc::new(super::artifact_service::DefaultArtifactService::without_storage()),
+        };
+        let artifact = svc.create_data_artifact(name, description, data);
+
+        if let Some(mut task) = self.storage.get_task(task_id).await {
+            task.artifacts.push(artifact.clone());
+            self.storage.put_task(task).await;
+        }
+
+        let event = TaskArtifactUpdateEvent {
+            append: None,
+            artifact,
+            context_id: context_id.to_string(),
+            last_chunk: Some(last_chunk),
+            metadata: None,
+            task_id: task_id.to_string(),
+        };
         self.emit(StreamResponse {
             artifact_update: Some(event),
             message: None,

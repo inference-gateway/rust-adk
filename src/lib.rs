@@ -5,18 +5,21 @@ pub mod server;
 
 pub use client::{A2AClient, HealthStatus};
 pub use config::{
-    AgentConfig, AuthConfig, CapabilitiesConfig, ClientConfig, Config, QueueConfig, QueueProvider,
-    ServerConfig, TelemetryConfig, TlsConfig,
+    AgentConfig, ArtifactRetentionConfig, ArtifactsConfig, ArtifactsServerConfig,
+    ArtifactsStorageConfig, ArtifactsStorageProvider, AuthConfig, CapabilitiesConfig, ClientConfig,
+    Config, QueueConfig, QueueProvider, ServerConfig, TelemetryConfig, TlsConfig,
 };
 #[cfg(feature = "redis")]
 pub use server::RedisStorage;
 pub use server::{
-    A2AServer, A2AServerBuilder, Agent, AgentBuilder, AgentCardOverrides, AsyncFunctionToolHandler,
-    AuthError, AuthVerifier, AuthenticatedPrincipal, ClientCertPrincipal,
+    A2AServer, A2AServerBuilder, Agent, AgentBuilder, AgentCardOverrides, ArtifactService,
+    ArtifactStorage, ArtifactsServer, AsyncFunctionToolHandler, AuthError, AuthVerifier,
+    AuthenticatedPrincipal, ClientCertPrincipal, DefaultArtifactService,
     DefaultBackgroundTaskHandler, DefaultStreamingTaskHandler, DefaultTaskManager,
-    FunctionToolHandler, InMemoryStorage, LLMClient, OidcJwtVerifier, OpenAICompatibleLLMClient,
-    PeerCert, QueuedTask, Storage, StorageStats, StreamEmitter, StreamableTaskHandler, TaskFilter,
-    TaskHandler, TaskManagerRunner, ToolHandler, create_storage,
+    FilesystemArtifactStorage, FunctionToolHandler, InMemoryStorage, LLMClient, OidcJwtVerifier,
+    OpenAICompatibleLLMClient, PeerCert, QueuedTask, Storage, StorageStats, StoredArtifactInfo,
+    StreamEmitter, StreamableTaskHandler, TaskFilter, TaskHandler, TaskManagerRunner, ToolHandler,
+    create_storage, infer_mime_type, spawn_retention_task,
 };
 
 #[cfg(test)]

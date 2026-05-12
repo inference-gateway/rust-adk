@@ -176,3 +176,11 @@ path = "examples/tls/server/main.rs"
 [[example]]
 name = "tls-client"
 path = "examples/tls/client/main.rs"
+
+[[example]]
+name = "artifacts-filesystem-server"
+path = "examples/artifacts-filesystem/server/main.rs"
+
+[[example]]
+name = "artifacts-filesystem-client"
+path = "examples/artifacts-filesystem/client/main.rs"
