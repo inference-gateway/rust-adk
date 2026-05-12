@@ -1,9 +1,10 @@
 use crate::a2a_types::{
     AgentCard, CancelTaskRequest, DeleteTaskPushNotificationConfigRequest,
-    GetTaskPushNotificationConfigRequest, GetTaskRequest, ListTaskPushNotificationConfigRequest,
-    ListTaskPushNotificationConfigResponse, ListTasksRequest, ListTasksResponse,
-    SendMessageRequest, SendMessageResponse, SetTaskPushNotificationConfigRequest, StreamResponse,
-    Task, TaskPushNotificationConfig, TaskState,
+    GetExtendedAgentCardRequest, GetTaskPushNotificationConfigRequest, GetTaskRequest,
+    ListTaskPushNotificationConfigRequest, ListTaskPushNotificationConfigResponse,
+    ListTasksRequest, ListTasksResponse, SendMessageRequest, SendMessageResponse,
+    SetTaskPushNotificationConfigRequest, StreamResponse, SubscribeToTaskRequest, Task,
+    TaskPushNotificationConfig, TaskState,
 };
 use crate::config::ClientConfig;
 use anyhow::{Result, anyhow};
@@ -155,69 +156,22 @@ impl A2AClient {
         &self,
         params: SendMessageRequest,
     ) -> Result<impl Stream<Item = Result<StreamResponse>> + Send + 'static> {
-        let envelope = serde_json::json!({
-            "jsonrpc": "2.0",
-            "id": Uuid::new_v4().to_string(),
-            "method": "message/stream",
-            "params": serde_json::to_value(params)
-                .map_err(|e| anyhow!("failed to serialize stream params: {e}"))?,
-        });
+        self.call_streaming("message/stream", params).await
+    }
 
-        let url = format!("{}/a2a", self.base_url);
-        let response = self
-            .http_client
-            .post(&url)
-            .header("Accept", "text/event-stream")
-            .json(&envelope)
-            .send()
-            .await
-            .map_err(|e| anyhow!("message/stream request failed: {e}"))?;
-
-        if !response.status().is_success() {
-            let status = response.status();
-            let body = response.text().await.unwrap_or_default();
-            return Err(anyhow!("message/stream failed: HTTP {status}: {body}"));
-        }
-
-        let event_stream = response.bytes_stream().eventsource();
-
-        let stream = event_stream.filter_map(|event| async move {
-            match event {
-                Ok(event) => {
-                    if event.data.is_empty() {
-                        return None;
-                    }
-                    let parsed: Value = match serde_json::from_str(&event.data) {
-                        Ok(v) => v,
-                        Err(e) => {
-                            return Some(Err(anyhow!(
-                                "failed to parse SSE event as JSON: {e}: {data}",
-                                data = event.data
-                            )));
-                        }
-                    };
-                    if let Some(err) = parsed.get("error") {
-                        return Some(Err(anyhow!("JSON-RPC error in stream: {err}")));
-                    }
-                    let result = match parsed.get("result").cloned() {
-                        Some(v) => v,
-                        None => {
-                            return Some(Err(anyhow!(
-                                "SSE event missing `result`: {data}",
-                                data = event.data
-                            )));
-                        }
-                    };
-                    match serde_json::from_value::<StreamResponse>(result) {
-                        Ok(r) => Some(Ok(r)),
-                        Err(e) => Some(Err(anyhow!("failed to decode StreamResponse: {e}"))),
-                    }
-                }
-                Err(e) => Some(Err(anyhow!("SSE transport error: {e}"))),
-            }
-        });
-
-        Ok(stream)
+    /// `tasks/resubscribe` - re-attach to an existing task by `tasks/{task_id}`
+    /// resource name and stream subsequent state transitions over SSE.
+    ///
+    /// The first event carries a snapshot of the task as currently
+    /// persisted; later events are `TaskStatusUpdateEvent` deltas as the
+    /// task progresses. The stream terminates after the server emits an
+    /// event with `final: true` (i.e. the task has reached a terminal
+    /// state).
+    pub async fn resubscribe_task(
+        &self,
+        params: SubscribeToTaskRequest,
+    ) -> Result<impl Stream<Item = Result<StreamResponse>> + Send + 'static> {
+        self.call_streaming("tasks/resubscribe", params).await
     }
 
     /// `message/stream` - drain the SSE stream and return a single
@@ -320,9 +274,128 @@ impl A2AClient {
             .await
     }
 
+    /// `agent/getAuthenticatedExtendedCard` - fetch the authenticated
+    /// extended [`AgentCard`] for the calling tenant. The server returns
+    /// the configured agent card when the card advertises
+    /// `supportsExtendedAgentCard: true`; otherwise the call surfaces a
+    /// JSON-RPC `METHOD_NOT_FOUND` error.
+    pub async fn get_authenticated_extended_card(
+        &self,
+        params: GetExtendedAgentCardRequest,
+    ) -> Result<AgentCard> {
+        self.call_typed("agent/getAuthenticatedExtendedCard", params)
+            .await
+    }
+
     // -------------------------------------------------------------------
     // Internals
     // -------------------------------------------------------------------
+
+    /// Drive a JSON-RPC method that responds over SSE, decoding each
+    /// event's `result` field as a [`StreamResponse`]. Shared by
+    /// [`A2AClient::stream_message`] and [`A2AClient::resubscribe_task`].
+    async fn call_streaming<P>(
+        &self,
+        method: &str,
+        params: P,
+    ) -> Result<impl Stream<Item = Result<StreamResponse>> + Send + 'static>
+    where
+        P: Serialize,
+    {
+        let params_value = serde_json::to_value(params)
+            .map_err(|e| anyhow!("failed to serialize params for {method}: {e}"))?;
+
+        let envelope = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": Uuid::new_v4().to_string(),
+            "method": method,
+            "params": params_value,
+        });
+
+        let url = format!("{}/a2a", self.base_url);
+        let response = self
+            .http_client
+            .post(&url)
+            .header("Accept", "text/event-stream")
+            .json(&envelope)
+            .send()
+            .await
+            .map_err(|e| anyhow!("{method} request failed: {e}"))?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(anyhow!("{method} failed: HTTP {status}: {body}"));
+        }
+
+        // If the server responded with a JSON-RPC error envelope (which it
+        // does for validation / not-found errors that happen before the SSE
+        // stream begins), the content type will be JSON rather than
+        // `text/event-stream`. Inspect the content type and unwrap the
+        // error eagerly so callers don't have to fish it out of the SSE
+        // stream.
+        let content_type = response
+            .headers()
+            .get(reqwest::header::CONTENT_TYPE)
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("")
+            .to_string();
+        if !content_type.starts_with("text/event-stream") {
+            let body = response.text().await.unwrap_or_default();
+            let parsed: Value = serde_json::from_str(&body)
+                .map_err(|e| anyhow!("{method} unexpected non-SSE response: {e}: {body}"))?;
+            if let Some(err) = parsed.get("error") {
+                return Err(anyhow!("JSON-RPC error for {method}: {err}"));
+            }
+            return Err(anyhow!(
+                "{method} returned an unexpected payload (content-type={content_type:?}): {body}"
+            ));
+        }
+
+        let event_stream = response.bytes_stream().eventsource();
+        let method_owned = method.to_string();
+
+        let stream = event_stream.filter_map(move |event| {
+            let method = method_owned.clone();
+            async move {
+                match event {
+                    Ok(event) => {
+                        if event.data.is_empty() {
+                            return None;
+                        }
+                        let parsed: Value = match serde_json::from_str(&event.data) {
+                            Ok(v) => v,
+                            Err(e) => {
+                                return Some(Err(anyhow!(
+                                    "failed to parse SSE event as JSON: {e}: {data}",
+                                    data = event.data
+                                )));
+                            }
+                        };
+                        if let Some(err) = parsed.get("error") {
+                            return Some(Err(anyhow!("JSON-RPC error in {method} stream: {err}")));
+                        }
+                        let result = match parsed.get("result").cloned() {
+                            Some(v) => v,
+                            None => {
+                                return Some(Err(anyhow!(
+                                    "SSE event missing `result`: {data}",
+                                    data = event.data
+                                )));
+                            }
+                        };
+                        match serde_json::from_value::<StreamResponse>(result) {
+                            Ok(r) => Some(Ok(r)),
+                            Err(e) => Some(Err(anyhow!("failed to decode StreamResponse: {e}"))),
+                        }
+                    }
+                    Err(e) => Some(Err(anyhow!("SSE transport error: {e}"))),
+                }
+            }
+        });
+
+        Ok(stream)
+    }
 
     async fn post_raw(&self, body: Value) -> Result<Value> {
         let url = format!("{}/a2a", self.base_url);
