@@ -733,20 +733,27 @@ match health.status.as_str() {
 
 #### LLM Client
 
-Create OpenAI-compatible LLM clients for agents:
+Custom LLM transports are pluggable via the `LLMClient` trait. The bundled
+`OpenAICompatibleLLMClient` wraps the Inference Gateway SDK and is what
+`AgentBuilder` constructs by default when no client is supplied:
 
 ```rust
-use inference_gateway_adk::llm::OpenAICompatibleClient;
+use inference_gateway_adk::{AgentBuilder, OpenAICompatibleLLMClient};
 
-// Create LLM client with configuration
-let llm_client = OpenAICompatibleClient::new(agent_config).await?;
+// Build the default OpenAI-compatible client from an AgentConfig
+let llm_client = OpenAICompatibleLLMClient::new(&config.agent_config)?;
 
-// Use with agent builder
+// Plug it into the agent (or implement `LLMClient` for a custom backend)
 let agent = AgentBuilder::new()
     .with_llm_client(llm_client)
     .build()
     .await?;
 ```
+
+The trait exposes two methods — `create_chat_completion` (non-streaming)
+and `create_streaming_chat_completion` — mirroring the Go ADK's
+`LLMClient` interface. Implement it manually to route requests through a
+different backend (e.g. a mock for tests).
 
 ### Configuration
 
@@ -838,10 +845,10 @@ let agent = AgentBuilder::new()
 #### Agent with Custom LLM Client
 
 ```rust
-use inference_gateway_adk::llm::OpenAICompatibleClient;
+use inference_gateway_adk::{AgentBuilder, OpenAICompatibleLLMClient};
 
-// Create a custom LLM client
-let llm_client = OpenAICompatibleClient::new(&config).await?;
+// Build the default OpenAI-compatible client (synchronous; no `await`)
+let llm_client = OpenAICompatibleLLMClient::new(&config.agent_config)?;
 
 // Build agent with the custom client
 let agent = AgentBuilder::new()
@@ -849,6 +856,22 @@ let agent = AgentBuilder::new()
     .with_system_prompt("You are a coding assistant.")
     .build()
     .await?;
+```
+
+To plug in a non-OpenAI backend, implement the `LLMClient` trait directly
+and pass your type to `.with_llm_client(...)`:
+
+```rust
+use inference_gateway_adk::LLMClient;
+
+#[derive(Debug)]
+struct MyCustomLLM;
+
+#[async_trait::async_trait]
+impl LLMClient for MyCustomLLM {
+    async fn create_chat_completion(/* ... */) -> anyhow::Result<_> { /* ... */ }
+    fn create_streaming_chat_completion(/* ... */) -> _ { /* ... */ }
+}
 ```
 
 #### Fully Configured Agent

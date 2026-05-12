@@ -8,8 +8,9 @@ pub use client::{A2AClient, HealthStatus};
 pub use config::{AgentConfig, ClientConfig, Config};
 pub use server::{
     A2AServer, A2AServerBuilder, Agent, AgentBuilder, AgentCardOverrides,
-    DefaultBackgroundTaskHandler, DefaultStreamingTaskHandler, StreamEmitter,
-    StreamableTaskHandler, TaskHandler,
+    AsyncFunctionToolHandler, DefaultBackgroundTaskHandler, DefaultStreamingTaskHandler,
+    FunctionToolHandler, LLMClient, OpenAICompatibleLLMClient, StreamEmitter,
+    StreamableTaskHandler, TaskHandler, ToolHandler,
 };
 pub use storage::InMemoryStorage;
 
