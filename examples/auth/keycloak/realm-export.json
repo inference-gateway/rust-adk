@@ -1,0 +1,41 @@
+{
+  "realm": "inference-gateway-realm",
+  "enabled": true,
+  "displayName": "Inference Gateway A2A Demo",
+  "accessTokenLifespan": 600,
+  "sslRequired": "none",
+  "clients": [
+    {
+      "clientId": "inference-gateway-client",
+      "name": "Inference Gateway A2A Client",
+      "description": "Service-account client used by the auth example to obtain JWTs via the client_credentials grant.",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "inference-gateway-client-secret",
+      "clientAuthenticatorType": "client-secret",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "frontchannelLogout": false,
+      "fullScopeAllowed": true,
+      "attributes": {
+        "access.token.lifespan": "600"
+      },
+      "protocolMappers": [
+        {
+          "name": "audience-mapper",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "inference-gateway-client",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ]
+}

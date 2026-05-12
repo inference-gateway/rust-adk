@@ -32,12 +32,12 @@ tower-http = { version = "0.6.10", features = ["cors", "trace"] }
 futures = "0.3.32"
 futures-util = "0.3.32"
 async-trait = "0.1.89"
-reqwest = { version = "0.13.3", features = ["json", "stream"] }
+reqwest = { version = "0.13.3", features = ["form", "json", "stream"] }
 regress = "0.11.1"
 tokio-stream = { version = "0.1.18", features = ["sync"] }
 tokio-util = "0.7.13"
 eventsource-stream = "0.2.3"
-jsonwebtoken = "10.4.0"
+jsonwebtoken = { version = "10.4.0", features = ["rust_crypto"] }
 redis = { version = "0.27.6", default-features = false, features = ["tokio-comp", "connection-manager"], optional = true }
 
 [[example]]

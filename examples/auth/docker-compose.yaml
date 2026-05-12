@@ -1,0 +1,80 @@
+---
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.6.1
+    command:
+      - start-dev
+      - --import-realm
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HEALTH_ENABLED: "true"
+      KC_HTTP_PORT: "8080"
+    volumes:
+      - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - |
+          [ -f /tmp/HealthCheck.java ] || echo 'public class HealthCheck { public static void main(String[] a) throws Throwable { System.exit(((java.net.HttpURLConnection) new java.net.URL(a[0]).openConnection()).getResponseCode() == 200 ? 0 : 1); } }' > /tmp/HealthCheck.java && java /tmp/HealthCheck.java http://localhost:8080/realms/inference-gateway-realm/.well-known/openid-configuration
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    networks:
+      - a2a-network
+
+  server:
+    build:
+      context: ../..
+      dockerfile: examples/Dockerfile.server
+      args:
+        BIN_NAME: auth-server
+        EXAMPLE_PATH: examples/auth
+    environment:
+      AUTH_ENABLE: "true"
+      AUTH_ISSUER_URL: http://keycloak:8080/realms/inference-gateway-realm
+      AUTH_CLIENT_ID: inference-gateway-client
+      PORT: "8081"
+    depends_on:
+      keycloak:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - --fail
+        - --silent
+        - http://localhost:8081/health
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    networks:
+      - a2a-network
+
+  client:
+    build:
+      context: ../..
+      dockerfile: examples/Dockerfile.client
+      args:
+        BIN_NAME: auth-client
+    environment:
+      AUTH_MODE: oidc
+      AUTH_TOKEN_URL: http://keycloak:8080/realms/inference-gateway-realm/protocol/openid-connect/token
+      AUTH_CLIENT_ID: inference-gateway-client
+      AUTH_CLIENT_SECRET: inference-gateway-client-secret
+      SERVER_URL: http://server:8081
+    depends_on:
+      server:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    networks:
+      - a2a-network
+
+networks:
+  a2a-network:
+    driver: bridge

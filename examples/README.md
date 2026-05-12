@@ -20,6 +20,7 @@ These scenarios do not need an Inference Gateway or any provider keys.
 | [`static-agent-card/`](./static-agent-card) | Load agent metadata from JSON, override fields at runtime |
 | [`streaming/`](./streaming) | Custom `StreamableTaskHandler` emits a sentence word-by-word over SSE |
 | [`input-required/`](./input-required) | Handler chooses `TaskStateInputRequired` when the user message is incomplete |
+| [`auth/`](./auth) | Bearer-token auth on `POST /a2a`: static-token quick path or Keycloak OIDC via compose |
 
 ### With AI
 
@@ -78,6 +79,10 @@ Notes per scenario:
 - **Without-AI examples** (`minimal`, `static-agent-card`, `streaming`,
   `input-required`) ship a `docker-compose.yaml` with just the server and
   client. No provider keys, no `.env` required.
+- **`auth/`** also belongs to the without-AI group but additionally
+  starts a **Keycloak 26.6.1** container with a pre-imported realm so
+  the server validates a real JWT via OIDC discovery + JWKS. No
+  provider key required.
 - **With-AI examples** (`default-handlers`, `ai-powered`,
   `ai-powered-streaming`) include an `inference-gateway` container and
   expect a provider key in `.env`.
@@ -109,11 +114,15 @@ and the `INFERENCE_GATEWAY_URL` environment variable. See the top-level
    SSE events without an LLM.
 5. **`input-required/`** — use `TaskStateInputRequired` to pause work
    when the handler needs more information from the user.
-6. **`ai-powered/`** — register custom function tools and drive an LLM
+6. **`auth/`** — gate `POST /a2a` behind a bearer token, either a
+   static-token verifier for a quick `cargo run` demo or an
+   `OidcJwtVerifier` doing OIDC discovery + JWKS validation against a
+   Keycloak realm spun up by docker compose.
+7. **`ai-powered/`** — register custom function tools and drive an LLM
    tool-loop via `message/send`.
-7. **`ai-powered-streaming/`** — the same LLM agent shape streamed over
+8. **`ai-powered-streaming/`** — the same LLM agent shape streamed over
    `message/stream`.
-8. **`queue-storage/`** — swap the in-memory storage backend for Redis
+9. **`queue-storage/`** — swap the in-memory storage backend for Redis
    and scale workers horizontally.
-9. **`a2a-methods/`** — every JSON-RPC method exposed by the A2A
-   specification, exercised one client at a time.
+10. **`a2a-methods/`** — every JSON-RPC method exposed by the A2A
+    specification, exercised one client at a time.

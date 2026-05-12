@@ -3,30 +3,29 @@
 //! Demonstrates how to gate `POST /a2a` behind a bearer-token verifier
 //! while keeping `GET /health` and `GET /.well-known/agent.json` public.
 //!
-//! The example uses a tiny in-process [`AuthVerifier`] that accepts one
-//! hard-coded token (set via `EXAMPLE_BEARER_TOKEN`) so the demo runs
-//! without spinning up an OIDC issuer. In production you would either:
+//! Two modes share this binary:
 //!
-//! 1. Set `AUTH_ENABLE=true` + `AUTH_ISSUER_URL=...` and let
-//!    [`OidcJwtVerifier`] do OIDC discovery + JWKS validation
-//!    automatically (no code changes needed - the builder picks it up
-//!    from `Config::from_env()`).
-//! 2. Or implement [`AuthVerifier`] yourself for a custom backend
-//!    (static keys, HMAC tokens, internal identity service, ...) and
-//!    plug it in via `with_auth_verifier(...)` as this example does.
+//! 1. **Static-token quick path** (default for `cargo run`): a tiny
+//!    in-process [`AuthVerifier`] accepts one hard-coded token (set
+//!    via `EXAMPLE_BEARER_TOKEN`). Zero external dependencies.
+//! 2. **OIDC mode** (used by `docker-compose.yaml` against a Keycloak
+//!    realm): set `AUTH_ENABLE=true`, `AUTH_ISSUER_URL=...`, and
+//!    `AUTH_CLIENT_ID=...`. The builder picks those up through
+//!    `Config::from_env()` and instantiates the bundled
+//!    [`OidcJwtVerifier`] which does OIDC discovery + JWKS validation.
+//!    No code changes needed - the env vars are enough.
 
 use std::collections::HashMap;
 use std::sync::Arc;
 
 use async_trait::async_trait;
 use inference_gateway_adk::{
-    A2AServerBuilder, AuthError, AuthVerifier, AuthenticatedPrincipal, a2a_types::AgentCard,
+    A2AServerBuilder, AuthError, AuthVerifier, AuthenticatedPrincipal, Config, a2a_types::AgentCard,
 };
 use serde_json::{Value, json};
 use tracing::{error, info};
 
-/// Static-token verifier - swap for `OidcJwtVerifier::from_config(&cfg)`
-/// in real deployments.
+/// Static-token verifier for the zero-deps `cargo run` demo.
 #[derive(Debug)]
 struct StaticTokenVerifier {
     expected: String,
@@ -54,19 +53,27 @@ impl AuthVerifier for StaticTokenVerifier {
     }
 }
 
+fn auth_enabled() -> bool {
+    std::env::var("AUTH_ENABLE")
+        .map(|v| v.to_lowercase() == "true")
+        .unwrap_or(false)
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt().init();
 
-    let bearer_token =
-        std::env::var("EXAMPLE_BEARER_TOKEN").unwrap_or_else(|_| "demo-token-123".to_string());
+    let port: u16 = std::env::var("PORT")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(8081);
 
     let agent_card: AgentCard = serde_json::from_value(json!({
         "name": "Auth-Gated Rust A2A Agent",
         "description": "Example showing AuthConfig + bearer token enforcement",
         "version": "0.1.0",
         "protocolVersion": "0.2.6",
-        "url": "http://localhost:8081/a2a",
+        "url": format!("http://localhost:{port}/a2a"),
         "preferredTransport": "JSONRPC",
         "capabilities": {
             "streaming": true,
@@ -88,27 +95,48 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "supportsExtendedAgentCard": true
     }))?;
 
-    let verifier: Arc<dyn AuthVerifier> = Arc::new(StaticTokenVerifier {
-        expected: bearer_token.clone(),
-    });
-
-    let server = A2AServerBuilder::new()
+    let mut builder = A2AServerBuilder::new()
         .with_agent_card(agent_card)
         .with_gateway_url("http://localhost:8080/v1")
-        .with_default_task_handlers()
-        .with_auth_verifier(verifier)
-        .build()
-        .await?;
+        .with_default_task_handlers();
 
-    let addr = "0.0.0.0:8081".parse()?;
-    info!("Auth-gated A2A server listening on port 8081");
-    info!("Expected bearer token: {bearer_token}");
+    if auth_enabled() {
+        // OIDC mode: hand the builder a Config and let it construct
+        // OidcJwtVerifier from AUTH_ISSUER_URL / AUTH_CLIENT_ID.
+        let config = Config::from_env()?;
+        let issuer = config
+            .auth_config
+            .as_ref()
+            .map(|c| c.issuer_url.clone())
+            .unwrap_or_default();
+        info!("AUTH_ENABLE=true → using OidcJwtVerifier (issuer={issuer})");
+        builder = builder.with_config(config);
+    } else {
+        let bearer_token =
+            std::env::var("EXAMPLE_BEARER_TOKEN").unwrap_or_else(|_| "demo-token-123".to_string());
+        info!("AUTH_ENABLE not set → using StaticTokenVerifier (expected token: {bearer_token})");
+        let verifier: Arc<dyn AuthVerifier> = Arc::new(StaticTokenVerifier {
+            expected: bearer_token,
+        });
+        builder = builder.with_auth_verifier(verifier);
+    }
+
+    let server = builder.build().await?;
+
+    let addr = format!("0.0.0.0:{port}").parse()?;
+    info!("Auth-gated A2A server listening on port {port}");
     info!("Try:");
-    info!("  curl http://localhost:8081/health                               # public");
-    info!("  curl http://localhost:8081/.well-known/agent.json               # public");
-    info!(
-        "  curl -H 'Authorization: Bearer {bearer_token}' http://localhost:8081/a2a -d '...'  # protected"
-    );
+    info!("  curl http://localhost:{port}/health                               # public");
+    info!("  curl http://localhost:{port}/.well-known/agent.json               # public");
+    if auth_enabled() {
+        info!(
+            "  curl -H 'Authorization: Bearer <jwt>' http://localhost:{port}/a2a -d '...'  # protected (JWT from Keycloak)"
+        );
+    } else {
+        info!(
+            "  curl -H 'Authorization: Bearer <token>' http://localhost:{port}/a2a -d '...'  # protected (static token)"
+        );
+    }
 
     if let Err(e) = server.serve(addr).await {
         error!("Server failed to start: {}", e);
