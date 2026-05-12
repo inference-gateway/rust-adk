@@ -19,7 +19,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         config.agent_config.base_url = Some(gateway_url.clone());
     }
 
-    info!("Starting A2A server with toolbox functionality...");
+    info!("Starting AI-powered A2A server (toolbox + tools)...");
     info!("Gateway URL: {}", gateway_url);
     info!("Agent provider: {}", config.agent_config.provider);
     info!("Agent model: {}", config.agent_config.model);
@@ -210,7 +210,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build()
         .await?;
 
-    info!("Agent built with toolbox and handlers");
+    info!("Agent built with toolbox and default handlers");
 
     let server = A2AServerBuilder::new()
         .with_config(config)
@@ -222,7 +222,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await?;
 
     let addr = "0.0.0.0:8082".parse()?;
-    info!("A2A server with toolbox running on port 8082");
+    info!("AI-powered A2A server running on port 8082");
 
     if let Err(e) = server.serve(addr).await {
         error!("Server failed to start: {}", e);

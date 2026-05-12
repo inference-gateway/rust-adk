@@ -1,0 +1,27 @@
+{
+  "name": "Rust A2A Input-Required Agent",
+  "description": "A2A server demonstrating the TaskStateInputRequired state flow with a non-LLM handler",
+  "version": "0.1.0",
+  "protocolVersion": "0.2.6",
+  "url": "http://localhost:8087",
+  "preferredTransport": "JSONRPC",
+  "capabilities": {
+    "streaming": true,
+    "pushNotifications": false,
+    "stateTransitionHistory": false
+  },
+  "provider": {
+    "organization": "Inference Gateway",
+    "url": "https://github.com/inference-gateway/rust-adk"
+  },
+  "skills": [
+    {
+      "id": "weather-lookup",
+      "name": "weather-lookup",
+      "description": "Mock weather lookup that pauses when no city is provided",
+      "tags": ["weather", "input-required", "demo"]
+    }
+  ],
+  "defaultInputModes": ["text/plain"],
+  "defaultOutputModes": ["text/plain"]
+}

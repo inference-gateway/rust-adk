@@ -80,14 +80,62 @@ tasks:
     cmds:
       - cargo run --example static-agent-card-client
 
-  examples:server-with-toolbox-server:
-    desc: Run the A2A server example with tools (requires Inference Gateway at localhost:8080)
-    dir: examples/server-with-toolbox
+  examples:ai-powered-server:
+    desc: Run the AI-powered A2A server example with tools (requires Inference Gateway at localhost:8080)
+    dir: examples/ai-powered
     cmds:
-      - cargo run --example server-with-toolbox-server
+      - cargo run --example ai-powered-server
 
-  examples:server-with-toolbox-client:
-    desc: Run the toolbox A2A client example (requires the toolbox server at localhost:8082)
-    dir: examples/server-with-toolbox
+  examples:ai-powered-client:
+    desc: Run the AI-powered A2A client example (requires the server at localhost:8082)
+    dir: examples/ai-powered
     cmds:
-      - cargo run --example server-with-toolbox-client
+      - cargo run --example ai-powered-client
+
+  examples:ai-powered-streaming-server:
+    desc: Run the AI-powered streaming server example (requires Inference Gateway at localhost:8080)
+    dir: examples/ai-powered-streaming
+    cmds:
+      - cargo run --example ai-powered-streaming-server
+
+  examples:ai-powered-streaming-client:
+    desc: Run the AI-powered streaming client example (requires the server at localhost:8084)
+    dir: examples/ai-powered-streaming
+    cmds:
+      - cargo run --example ai-powered-streaming-client
+
+  examples:default-handlers-server:
+    desc: Run the default-handlers server example (requires Inference Gateway at localhost:8080)
+    dir: examples/default-handlers
+    cmds:
+      - cargo run --example default-handlers-server
+
+  examples:default-handlers-client:
+    desc: Run the default-handlers client example (requires the server at localhost:8085)
+    dir: examples/default-handlers
+    cmds:
+      - cargo run --example default-handlers-client
+
+  examples:streaming-server:
+    desc: Run the streaming server example (no AI required)
+    dir: examples/streaming
+    cmds:
+      - cargo run --example streaming-server
+
+  examples:streaming-client:
+    desc: Run the streaming client example (requires the server at localhost:8086)
+    dir: examples/streaming
+    cmds:
+      - cargo run --example streaming-client
+
+  examples:input-required-server:
+    desc: Run the input-required server example (no AI required)
+    dir: examples/input-required
+    cmds:
+      - cargo run --example input-required-server
+
+  examples:input-required-client:
+    desc: Run the input-required client example (requires the server at localhost:8087)
+    dir: examples/input-required
+    cmds:
+      - cargo run --example input-required-client

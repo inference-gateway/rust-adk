@@ -1,0 +1,27 @@
+{
+  "name": "Rust A2A Streaming Agent",
+  "description": "A2A server demonstrating message/stream with a non-LLM custom StreamableTaskHandler",
+  "version": "0.1.0",
+  "protocolVersion": "0.2.6",
+  "url": "http://localhost:8086",
+  "preferredTransport": "JSONRPC",
+  "capabilities": {
+    "streaming": true,
+    "pushNotifications": false,
+    "stateTransitionHistory": false
+  },
+  "provider": {
+    "organization": "Inference Gateway",
+    "url": "https://github.com/inference-gateway/rust-adk"
+  },
+  "skills": [
+    {
+      "id": "word-by-word",
+      "name": "word-by-word",
+      "description": "Streams a fixed sentence one word at a time",
+      "tags": ["stream", "demo"]
+    }
+  ],
+  "defaultInputModes": ["text/plain"],
+  "defaultOutputModes": ["text/plain"]
+}

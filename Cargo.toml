@@ -56,12 +56,44 @@ name = "static-agent-card-client"
 path = "examples/static-agent-card/client/main.rs"
 
 [[example]]
-name = "server-with-toolbox-server"
-path = "examples/server-with-toolbox/server/main.rs"
+name = "ai-powered-server"
+path = "examples/ai-powered/server/main.rs"
 
 [[example]]
-name = "server-with-toolbox-client"
-path = "examples/server-with-toolbox/client/main.rs"
+name = "ai-powered-client"
+path = "examples/ai-powered/client/main.rs"
+
+[[example]]
+name = "ai-powered-streaming-server"
+path = "examples/ai-powered-streaming/server/main.rs"
+
+[[example]]
+name = "ai-powered-streaming-client"
+path = "examples/ai-powered-streaming/client/main.rs"
+
+[[example]]
+name = "default-handlers-server"
+path = "examples/default-handlers/server/main.rs"
+
+[[example]]
+name = "default-handlers-client"
+path = "examples/default-handlers/client/main.rs"
+
+[[example]]
+name = "streaming-server"
+path = "examples/streaming/server/main.rs"
+
+[[example]]
+name = "streaming-client"
+path = "examples/streaming/client/main.rs"
+
+[[example]]
+name = "input-required-server"
+path = "examples/input-required/server/main.rs"
+
+[[example]]
+name = "input-required-client"
+path = "examples/input-required/client/main.rs"
 
 # a2a-methods/ - one client binary per JSON-RPC method exposed by the spec.
 [[example]]
