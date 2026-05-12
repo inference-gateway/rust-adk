@@ -70,6 +70,7 @@
   - [Agent Metadata](#agent-metadata)
     - [Build-Time Metadata (Recommended)](#build-time-metadata-recommended)
     - [Runtime Metadata Configuration](#runtime-metadata-configuration)
+  - [TLS and mTLS](#tls-and-mtls)
   - [Environment Configuration](#environment-configuration)
 - [A2A Ecosystem](#a2a-ecosystem)
   - [Related Projects](#related-projects)
@@ -297,6 +298,7 @@ suggested learning path.
 - **[Queue Storage](./examples/queue-storage/)** - Queue-driven `message/send` with in-memory or Redis storage (Compose profiles)
 - **[A2A Methods](./examples/a2a-methods/)** - One client binary per JSON-RPC method exposed by the A2A spec
 - **[Auth](./examples/auth/)** - Bearer-token authentication on `POST /a2a` with public `/health` and `/.well-known/agent.json`
+- **[TLS / mTLS](./examples/tls/)** - TLS termination via `axum-server` + `rustls`, optional mTLS with client-cert subject as principal
 - **[Health Check Example](#health-check-example)** - Monitor agent health status
 
 ## Key Features
@@ -1321,6 +1323,52 @@ that case.
 
 See [`examples/auth/`](./examples/auth/) for a runnable end-to-end demo.
 
+### TLS and mTLS
+
+When `SERVER_TLS_ENABLE=true`, `A2AServer::serve` swaps its plaintext
+Axum listener for `axum-server` backed by `rustls` (with the `ring`
+crypto provider) and serves the same Axum router over HTTPS. The
+configuration is loaded from the environment via `Config::from_env()`:
+
+| Variable | Purpose |
+| --- | --- |
+| `SERVER_TLS_ENABLE` | Set to `true` to flip `A2AServer::serve` onto the TLS listener. |
+| `SERVER_TLS_CERT_PATH` | PEM file with the server certificate chain. |
+| `SERVER_TLS_KEY_PATH` | PEM file with the server private key (PKCS#1, PKCS#8, or SEC1). |
+| `SERVER_TLS_CLIENT_CA_PATH` | Optional. When set, the server requires every TLS client to present a certificate signed by one of the CAs in this PEM bundle — i.e. mutual TLS, the `MutualTlsSecurityScheme` the A2A spec describes. |
+
+The rustls stack was chosen over native-tls because (1) it is pure Rust
+and avoids the OpenSSL toolchain on container builds, and (2) it gives
+us programmatic access to the negotiated `ServerConnection`, which is
+what makes the mTLS subject extraction below tractable.
+
+When mTLS is enabled, the server's TLS acceptor parses the peer's leaf
+certificate and exposes it to handlers as an `axum::Extension<PeerCert>`
+extension — the same plumbing pattern the bearer-token auth middleware
+uses for `AuthenticatedPrincipal`. The wrapped `ClientCertPrincipal`
+carries the subject DN, the Common Name (when present), the issuer DN,
+and the raw DER bytes of the leaf:
+
+```rust
+use axum::Extension;
+use inference_gateway_adk::PeerCert;
+
+async fn my_handler(Extension(peer): Extension<PeerCert>) {
+    if let Some(p) = peer.0 {
+        tracing::info!("authenticated client: {} (issued by {})", p.subject, p.issuer);
+    }
+}
+```
+
+For plain HTTPS (no `SERVER_TLS_CLIENT_CA_PATH`) the `PeerCert` is still
+injected, but its inner `Option` is `None` because the client did not
+present a certificate.
+
+See [`examples/tls/`](./examples/tls/) for a runnable end-to-end demo
+with a `make-certs.sh` script that mints a self-signed CA, a server
+cert, and a client cert under `examples/tls/certs/`. The example
+exercises both modes via the `tls` and `mtls` Compose profiles.
+
 ### Environment Configuration
 
 Key environment variables for configuring your agent:
@@ -1356,9 +1404,10 @@ AUTH_CLIENT_ID="inference-gateway-client"                            # validated
 AUTH_CLIENT_SECRET="your-secret"                                     # currently unused server-side (reserved for client-side OAuth2)
 
 # TLS (optional)
-SERVER_TLS_ENABLE="false"
-SERVER_TLS_CERT_PATH="/path/to/cert.pem"
-SERVER_TLS_KEY_PATH="/path/to/key.pem"
+SERVER_TLS_ENABLE="false"                   # when true, A2AServer::serve binds an HTTPS listener via axum-server + rustls
+SERVER_TLS_CERT_PATH="/path/to/cert.pem"    # PEM-encoded server certificate chain
+SERVER_TLS_KEY_PATH="/path/to/key.pem"      # PEM-encoded private key (PKCS#1, PKCS#8, or SEC1)
+SERVER_TLS_CLIENT_CA_PATH=""                # optional: when set, the server requires mTLS and trusts client certs signed by the CAs in this PEM bundle
 ```
 
 ## A2A Ecosystem

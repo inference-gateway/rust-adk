@@ -42,6 +42,12 @@ pub struct TlsConfig {
     pub enable: bool,
     pub cert_path: String,
     pub key_path: String,
+    /// Path to a PEM file containing trusted client CA certificates.
+    /// When `Some(_)`, the server requires every TLS client to present a
+    /// certificate signed by one of these CAs (mTLS). When `None`, client
+    /// authentication is not requested and `TlsConfig` simply terminates
+    /// TLS for the A2A endpoint.
+    pub client_ca_path: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -85,6 +91,10 @@ pub struct ServerConfig {
     pub tls_enable: bool,
     pub tls_cert_path: Option<String>,
     pub tls_key_path: Option<String>,
+    /// Path to a PEM file containing trusted client CA certificates. When
+    /// set, the server requires mutual TLS on `POST /a2a` (and any other
+    /// route served on the TLS listener).
+    pub tls_client_ca_path: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -159,6 +169,7 @@ impl Default for ServerConfig {
             tls_enable: false,
             tls_cert_path: None,
             tls_key_path: None,
+            tls_client_ca_path: None,
         }
     }
 }
@@ -252,16 +263,21 @@ impl Config {
         #[allow(clippy::collapsible_if)]
         if let Ok(tls_enable) = std::env::var("SERVER_TLS_ENABLE") {
             if tls_enable.to_lowercase() == "true" {
+                let client_ca_path = std::env::var("SERVER_TLS_CLIENT_CA_PATH")
+                    .ok()
+                    .filter(|s| !s.is_empty());
                 config.tls_config = Some(TlsConfig {
                     enable: true,
                     cert_path: std::env::var("SERVER_TLS_CERT_PATH").unwrap_or_default(),
                     key_path: std::env::var("SERVER_TLS_KEY_PATH").unwrap_or_default(),
+                    client_ca_path: client_ca_path.clone(),
                 });
                 config.server_config.tls_enable = true;
                 config.server_config.tls_cert_path =
                     Some(config.tls_config.as_ref().unwrap().cert_path.clone());
                 config.server_config.tls_key_path =
                     Some(config.tls_config.as_ref().unwrap().key_path.clone());
+                config.server_config.tls_client_ca_path = client_ca_path;
             }
         }
 

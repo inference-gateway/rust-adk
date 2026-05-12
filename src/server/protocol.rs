@@ -5,6 +5,7 @@ use super::errors::{
 use super::server_core::A2AServer;
 use super::storage::{TaskFilter, parse_task_name};
 use super::task_handler::StreamEmitter;
+use super::tls::PeerCert;
 use crate::a2a_types::{
     CancelTaskRequest, DeleteTaskPushNotificationConfigRequest, GetExtendedAgentCardRequest,
     GetTaskPushNotificationConfigRequest, GetTaskRequest, ListTaskPushNotificationConfigRequest,
@@ -62,6 +63,7 @@ impl AppState {
 pub(crate) async fn a2a_handler(
     State(state): State<Arc<AppState>>,
     principal: Option<axum::Extension<AuthenticatedPrincipal>>,
+    peer_cert: Option<axum::Extension<PeerCert>>,
     Json(payload): Json<Value>,
 ) -> Response {
     // Principal is plumbed in by the auth middleware. We log it for
@@ -74,6 +76,17 @@ pub(crate) async fn a2a_handler(
             tenant = %p.tenant,
             issuer = %p.issuer,
             "authenticated A2A request",
+        );
+    }
+
+    if let Some(axum::Extension(cert)) = peer_cert.as_ref()
+        && let Some(p) = cert.0.as_ref()
+    {
+        debug!(
+            cert_subject = %p.subject,
+            cert_common_name = ?p.common_name,
+            cert_issuer = %p.issuer,
+            "mTLS A2A request",
         );
     }
     debug!("A2A request received: {payload:?}");

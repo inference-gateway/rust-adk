@@ -1,0 +1,98 @@
+---
+# Compose scenarios for the TLS / mTLS example.
+#
+# Generate the example PKI on the host before running `docker compose up`:
+#
+#     ./examples/tls/make-certs.sh
+#
+# The certs directory is mounted read-only into the server and client
+# containers; rerun the script to rotate.
+#
+# Two profiles are exposed:
+#
+#   docker compose --profile tls   up --build   # TLS only
+#   docker compose --profile mtls  up --build   # mutual TLS
+#
+# Each profile starts a matching client container that pings the server.
+
+services:
+  tls-server:
+    profiles:
+      - tls
+    build:
+      context: ../..
+      dockerfile: examples/Dockerfile.server
+      args:
+        BIN_NAME: tls-server
+        EXAMPLE_PATH: examples/tls
+    environment:
+      SERVER_TLS_ENABLE: "true"
+      SERVER_TLS_CERT_PATH: /certs/server.crt
+      SERVER_TLS_KEY_PATH: /certs/server.key
+      PORT: "8443"
+    volumes:
+      - ./certs:/certs:ro
+    networks:
+      - tls-network
+
+  tls-client:
+    profiles:
+      - tls
+    build:
+      context: ../..
+      dockerfile: examples/Dockerfile.client
+      args:
+        BIN_NAME: tls-client
+    environment:
+      SERVER_URL: https://tls-server:8443
+      TLS_CA_PATH: /certs/ca.crt
+    volumes:
+      - ./certs:/certs:ro
+    depends_on:
+      - tls-server
+    networks:
+      - tls-network
+
+  mtls-server:
+    profiles:
+      - mtls
+    build:
+      context: ../..
+      dockerfile: examples/Dockerfile.server
+      args:
+        BIN_NAME: tls-server
+        EXAMPLE_PATH: examples/tls
+    environment:
+      SERVER_TLS_ENABLE: "true"
+      SERVER_TLS_CERT_PATH: /certs/server.crt
+      SERVER_TLS_KEY_PATH: /certs/server.key
+      SERVER_TLS_CLIENT_CA_PATH: /certs/ca.crt
+      PORT: "8443"
+    volumes:
+      - ./certs:/certs:ro
+    networks:
+      - tls-network
+
+  mtls-client:
+    profiles:
+      - mtls
+    build:
+      context: ../..
+      dockerfile: examples/Dockerfile.client
+      args:
+        BIN_NAME: tls-client
+    environment:
+      SERVER_URL: https://mtls-server:8443
+      TLS_CA_PATH: /certs/ca.crt
+      TLS_CLIENT_CERT_PATH: /certs/client.crt
+      TLS_CLIENT_KEY_PATH: /certs/client.key
+    volumes:
+      - ./certs:/certs:ro
+    depends_on:
+      - mtls-server
+    networks:
+      - tls-network
+
+networks:
+  tls-network:
+    driver: bridge
