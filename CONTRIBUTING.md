@@ -182,13 +182,10 @@ mod tests {
 
 - PRs require review from maintainers
 - Address all feedback before merge
-- Use `@claude /review` in PR comments to trigger automated code review
-- Automated reviews will check for:
-  - Code quality and best practices
-  - Potential bugs or issues
-  - Performance considerations
-  - Security concerns
-  - Test coverage
+- Mention `@claude` in a PR or review comment to invoke an interactive
+  Claude Code agent (see `.github/workflows/claude.yml`). It can answer
+  questions, follow up on review feedback, and push fixes on a
+  `claude/*` branch.
 
 ## Issue Reporting
 
@@ -246,17 +243,28 @@ Our project uses [Task](https://taskfile.dev/) for development workflows:
 
 ### Examples
 
-- `task examples:minimal-server` - Run minimal server example
-- `task examples:configured-server` - Run configured server example
-- `task examples:server-with-toolbox` - Run server with tools example
-- `task examples:client` - Run client example
+Each example exposes a `-server` and `-client` task target. Run
+`task --list` for the full set; the available scenarios are:
+
+- `minimal` - Bare A2A server + client, no agent
+- `static-agent-card` - Load agent metadata from a JSON file
+- `streaming` - Custom `StreamableTaskHandler` over SSE (no LLM)
+- `input-required` - `TaskStateInputRequired` flow (no LLM)
+- `default-handlers` - LLM agent with `with_default_task_handlers()`
+- `ai-powered` - LLM agent with custom function tools
+- `ai-powered-streaming` - LLM agent streamed over `message/stream`
+
+For example: `task examples:minimal-server`, `task examples:minimal-client`.
+
+The `queue-storage/` and `a2a-methods/` scenarios are exercised via
+Docker Compose - see the per-example READMEs.
 
 ## Tools and MCPs
 
 This project leverages several tools for enhanced development:
 
 - **context7**: Helps find the latest updates, features, or best practices of libraries relevant to tasks
-- **Claude Code Review**: Automated code review triggered by `@claude /review` in PR comments
+- **Claude Code**: Tag `@claude` in an issue or PR comment to invoke an interactive Claude Code agent (config in `.github/workflows/claude.yml`)
 
 ## Related Repositories
 

@@ -274,11 +274,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ### Examples
 
-For complete working examples, see the [examples](./examples/) directory:
+For complete working examples, see the [examples](./examples/) directory.
+The catalogue is grouped by whether a scenario needs an LLM provider; see
+[`examples/README.md`](./examples/README.md) for the full table and a
+suggested learning path.
 
-- **[Minimal](./examples/minimal/)** - Bare-bones A2A server and client without an agent or agent card
-- **[Static Agent Card](./examples/static-agent-card/)** - Loading agent metadata from a JSON file with `AgentCardOverrides`
-- **[Server With Toolbox](./examples/server-with-toolbox/)** - LLM agent registering custom sync and async function tools
+**Without AI** (no Inference Gateway, no provider keys):
+
+- **[Minimal](./examples/minimal/)** - Bare A2A server + client, no agent (built-in default echo reply)
+- **[Static Agent Card](./examples/static-agent-card/)** - Load agent metadata from JSON with `AgentCardOverrides`
+- **[Streaming](./examples/streaming/)** - Custom `StreamableTaskHandler` emits a sentence word-by-word over SSE
+- **[Input Required](./examples/input-required/)** - Handler chooses `TaskStateInputRequired` when the user message is incomplete
+
+**With AI** (Inference Gateway container + provider key):
+
+- **[Default Handlers](./examples/default-handlers/)** - LLM agent + `with_default_task_handlers()`, no custom handler code
+- **[AI Powered](./examples/ai-powered/)** - LLM agent with custom function tools (weather, math, search)
+- **[AI Powered Streaming](./examples/ai-powered-streaming/)** - LLM agent streamed over `message/stream`
+
+**Storage & protocol coverage:**
+
+- **[Queue Storage](./examples/queue-storage/)** - Queue-driven `message/send` with in-memory or Redis storage (Compose profiles)
+- **[A2A Methods](./examples/a2a-methods/)** - One client binary per JSON-RPC method exposed by the A2A spec
 - **[Health Check Example](#health-check-example)** - Monitor agent health status
 
 ## ✨ Key Features
