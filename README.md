@@ -75,7 +75,7 @@
   - [Related Projects](#related-projects)
   - [A2A Agents](#a2a-agents)
 - [📋 Requirements](#-requirements)
-- [🐳 Docker Support](#-docker-support)
+- [📦 OCI Compliant](#-oci-compliant)
 - [🧪 Testing](#-testing)
 - [📄 License](#-license)
 - [🤝 Contributing](#-contributing)
@@ -1291,15 +1291,15 @@ This ADK is part of the broader Inference Gateway ecosystem:
 
 ## 📋 Requirements
 
-- **Rust**: 1.70 or later
+- **Rust**: 1.88 or later
 - **Dependencies**: See [Cargo.toml](./Cargo.toml) for full dependency list
 
-## 🐳 Docker Support
+## 📦 OCI Compliant
 
-Build and run your A2A agent application in a container. Here's an example Dockerfile for an application using the ADK:
+Build and run your A2A agent application in any OCI-compliant container runtime (Docker, Podman, containerd, etc.). Here's an example Containerfile for an application using the ADK:
 
 ```dockerfile
-FROM rust:1.70 AS builder
+FROM rust:1.94 AS builder
 
 # Build arguments for agent metadata
 ARG AGENT_NAME="My A2A Agent"
