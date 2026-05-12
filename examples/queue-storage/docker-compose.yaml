@@ -1,10 +1,14 @@
 ---
 services:
   redis:
-    image: redis:7-alpine
-    profiles: [redis]
+    image: redis:8-alpine
+    profiles:
+      - redis
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test:
+        - CMD
+        - redis-cli
+        - ping
       interval: 2s
       timeout: 2s
       retries: 10

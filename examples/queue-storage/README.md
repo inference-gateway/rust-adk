@@ -54,7 +54,7 @@ done — total wall time 10.50s for 5 tasks
 docker compose --env-file .env.redis --profile redis up --build
 ```
 
-The `--profile redis` flag pulls in a `redis:7-alpine` sidecar; the
+The `--profile redis` flag pulls in a `redis:8-alpine` sidecar; the
 `.env.redis` file sets `A2A_QUEUE_PROVIDER=redis`,
 `A2A_QUEUE_URL=redis://redis:6379`, `A2A_QUEUE_WORKERS=4`.
 
