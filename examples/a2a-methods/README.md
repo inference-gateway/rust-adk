@@ -9,6 +9,7 @@ JSON envelopes.
 
 ```text
 a2a-methods/
+├── docker-compose.yaml                  # Server + one Compose profile per client
 ├── server/main.rs                       # shared offline server (echo fallback)
 └── client/
     ├── message_send.rs                  # message/send
@@ -22,7 +23,38 @@ a2a-methods/
     └── push_config_delete.rs            # tasks/pushNotificationConfig/delete
 ```
 
-## Running
+## Running with Docker Compose
+
+The compose manifest builds one long-running `server` container plus nine
+per-method client containers, each parked behind its own
+[Compose profile][compose-profiles] so a bare `docker compose up` doesn't
+fan out into nine parallel runs.
+
+```bash
+cd examples/a2a-methods
+
+# Pick a single method to exercise:
+docker compose --profile message-send       up --build
+docker compose --profile message-stream     up --build
+docker compose --profile tasks-get          up --build
+docker compose --profile tasks-list         up --build
+docker compose --profile tasks-cancel       up --build
+docker compose --profile push-config-set    up --build
+docker compose --profile push-config-get    up --build
+docker compose --profile push-config-list   up --build
+docker compose --profile push-config-delete up --build
+
+# Or run every client in sequence against the same server:
+docker compose --profile all-clients up --build
+```
+
+The selected profile pulls the `server` service in as a dependency, so you
+never need to start it by hand. No `.env` file is required — the server is
+offline (no Inference Gateway, no LLM credentials).
+
+[compose-profiles]: https://docs.docker.com/compose/profiles/
+
+## Running locally
 
 In one terminal, start the server:
 

@@ -60,6 +60,11 @@ docker compose up --build
   Defaults target DeepSeek (`AGENT_CLIENT_PROVIDER=deepseek`,
   `AGENT_CLIENT_MODEL=deepseek-v4-flash`); override via `.env` to use any
   other provider supported by the gateway.
+- `a2a-methods/` ships one server plus nine clients (one per JSON-RPC method)
+  wired into per-method Compose profiles. Use
+  `docker compose --profile <method> up --build` to exercise a single method,
+  or `--profile all-clients` to run every client back-to-back against the
+  shared server. No provider keys required — the server is offline.
 
 ## Available Examples
 
