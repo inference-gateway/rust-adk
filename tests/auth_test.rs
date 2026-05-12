@@ -202,7 +202,6 @@ async fn auth_on_with_valid_token_returns_extended_card() {
 
 #[tokio::test]
 async fn auth_on_with_missing_token_returns_401() {
-    // (c1) auth on + missing token → HTTP 401 from the middleware.
     let verifier: Arc<dyn AuthVerifier> = Arc::new(AcceptOneToken { token: "good" });
     let addr = spawn_server(Some(verifier), true);
     let url = format!("http://{addr}/a2a");
