@@ -30,24 +30,24 @@
 - [Table of Contents](#table-of-contents)
 - [Overview](#overview)
   - [What is A2A?](#what-is-a2a)
-- [🚀 Quick Start](#-quick-start)
+- [Quick Start](#quick-start)
   - [Installation](#installation)
   - [Basic Usage (Minimal Server)](#basic-usage-minimal-server)
   - [AI-Powered Server](#ai-powered-server)
   - [Health Check Example](#health-check-example)
   - [Examples](#examples)
-- [✨ Key Features](#-key-features)
+- [Key Features](#key-features)
   - [Core Capabilities](#core-capabilities)
   - [Developer Experience](#developer-experience)
   - [Production Ready](#production-ready)
-- [🛠️ Development](#️-development)
+- [Development](#development)
   - [Prerequisites](#prerequisites)
   - [Development Workflow](#development-workflow)
   - [Available Tasks](#available-tasks)
   - [Build-Time Agent Metadata](#build-time-agent-metadata)
     - [Available Build-Time Variables](#available-build-time-variables)
     - [Usage Examples](#usage-examples)
-- [📖 API Reference](#-api-reference)
+- [API Reference](#api-reference)
   - [Core Components](#core-components)
     - [A2AServer](#a2aserver)
     - [A2AServerBuilder](#a2aserverbuilder)
@@ -57,7 +57,7 @@
     - [Agent Health Monitoring](#agent-health-monitoring)
     - [LLM Client](#llm-client)
   - [Configuration](#configuration)
-- [🔧 Advanced Usage](#-advanced-usage)
+- [Advanced Usage](#advanced-usage)
   - [Building Custom Agents with AgentBuilder](#building-custom-agents-with-agentbuilder)
     - [Basic Agent Creation](#basic-agent-creation)
     - [Agent with Custom Configuration](#agent-with-custom-configuration)
@@ -71,21 +71,21 @@
     - [Build-Time Metadata (Recommended)](#build-time-metadata-recommended)
     - [Runtime Metadata Configuration](#runtime-metadata-configuration)
   - [Environment Configuration](#environment-configuration)
-- [🌐 A2A Ecosystem](#-a2a-ecosystem)
+- [A2A Ecosystem](#a2a-ecosystem)
   - [Related Projects](#related-projects)
   - [A2A Agents](#a2a-agents)
-- [📋 Requirements](#-requirements)
-- [📦 OCI Compliant](#-oci-compliant)
-- [🧪 Testing](#-testing)
-- [📄 License](#-license)
-- [🤝 Contributing](#-contributing)
+- [Requirements](#requirements)
+- [OCI Compliant](#oci-compliant)
+- [Testing](#testing)
+- [License](#license)
+- [Contributing](#contributing)
   - [Getting Started](#getting-started)
   - [Development Guidelines](#development-guidelines)
   - [Before Submitting](#before-submitting)
   - [Pull Request Process](#pull-request-process)
-- [📞 Support](#-support)
+- [Support](#support)
   - [Issues \& Questions](#issues--questions)
-- [🔗 Resources](#-resources)
+- [Resources](#resources)
   - [Documentation](#documentation)
 
 ---
@@ -104,7 +104,7 @@ Agent-to-Agent (A2A) is a standardized protocol that enables AI agents to:
 - **Authenticate** securely using OIDC/OAuth2
 - **Discover capabilities** through standardized agent cards
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Installation
 
@@ -298,7 +298,7 @@ suggested learning path.
 - **[A2A Methods](./examples/a2a-methods/)** - One client binary per JSON-RPC method exposed by the A2A spec
 - **[Health Check Example](#health-check-example)** - Monitor agent health status
 
-## ✨ Key Features
+## Key Features
 
 ### Core Capabilities
 
@@ -325,7 +325,7 @@ suggested learning path.
 - ☸️ **Kubernetes Native**: Ready for cloud-native deployments
 - 📊 **Observability**: OpenTelemetry integration for monitoring and tracing
 
-## 🛠️ Development
+## Development
 
 ### Prerequisites
 
@@ -419,7 +419,7 @@ COPY --from=builder /app/target/release/rust-adk .
 CMD ["./rust-adk"]
 ```
 
-## 📖 API Reference
+## API Reference
 
 ### Core Components
 
@@ -809,7 +809,7 @@ pub struct AgentConfig {
 }
 ```
 
-## 🔧 Advanced Usage
+## Advanced Usage
 
 ### Building Custom Agents with AgentBuilder
 
@@ -1272,7 +1272,7 @@ SERVER_TLS_CERT_PATH="/path/to/cert.pem"
 SERVER_TLS_KEY_PATH="/path/to/key.pem"
 ```
 
-## 🌐 A2A Ecosystem
+## A2A Ecosystem
 
 This ADK is part of the broader Inference Gateway ecosystem:
 
@@ -1289,12 +1289,12 @@ This ADK is part of the broader Inference Gateway ecosystem:
 - **[Awesome A2A](https://github.com/inference-gateway/awesome-a2a)** - Curated list of A2A-compatible agents
 - **[Google Calendar Agent](https://github.com/inference-gateway/google-calendar-agent)** - Google Calendar integration agent
 
-## 📋 Requirements
+## Requirements
 
 - **Rust**: 1.88 or later
 - **Dependencies**: See [Cargo.toml](./Cargo.toml) for full dependency list
 
-## 📦 OCI Compliant
+## OCI Compliant
 
 Build and run your A2A agent application in any OCI-compliant container runtime (Docker, Podman, containerd, etc.). Here's an example Containerfile for an application using the ADK:
 
@@ -1335,7 +1335,7 @@ docker build \
   -t my-a2a-agent .
 ```
 
-## 🧪 Testing
+## Testing
 
 The ADK follows table-driven testing patterns and provides comprehensive test coverage:
 
@@ -1400,11 +1400,11 @@ Or directly with cargo:
 cargo test
 ```
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License. See the [LICENSE](./LICENSE) file for details.
 
-## 🤝 Contributing
+## Contributing
 
 We welcome contributions! Here's how you can help:
 
@@ -1448,14 +1448,14 @@ We welcome contributions! Here's how you can help:
 
 For more details, see [CONTRIBUTING.md](./CONTRIBUTING.md).
 
-## 📞 Support
+## Support
 
 ### Issues & Questions
 
 - **Bug Reports**: [GitHub Issues](https://github.com/inference-gateway/rust-adk/issues)
 - **Documentation**: [Official Docs](https://docs.inference-gateway.com)
 
-## 🔗 Resources
+## Resources
 
 ### Documentation
 
