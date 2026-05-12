@@ -2,7 +2,7 @@ use super::errors::{
     invalid_params, invalid_params_message, json_rpc_error, json_rpc_success, jsonrpc_errors,
 };
 use super::server_core::A2AServer;
-use super::storage::parse_task_name;
+use super::storage::{TaskFilter, parse_task_name};
 use super::task_handler::StreamEmitter;
 use crate::a2a_types::{
     CancelTaskRequest, DeleteTaskPushNotificationConfigRequest,
@@ -344,7 +344,7 @@ async fn handle_tasks_list(state: &Arc<AppState>, id: Value, params: Value) -> J
         Err(e) => return invalid_params(id, e),
     };
 
-    let mut tasks = state.server.storage.list_tasks().await;
+    let mut tasks = state.server.storage.list_tasks(TaskFilter::default()).await;
 
     if !request.context_id.is_empty() {
         tasks.retain(|t| t.context_id == request.context_id);

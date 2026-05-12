@@ -8,8 +8,8 @@ pub use config::{AgentConfig, ClientConfig, Config};
 pub use server::{
     A2AServer, A2AServerBuilder, Agent, AgentBuilder, AgentCardOverrides, AsyncFunctionToolHandler,
     DefaultBackgroundTaskHandler, DefaultStreamingTaskHandler, FunctionToolHandler,
-    InMemoryStorage, LLMClient, OpenAICompatibleLLMClient, Storage, StreamEmitter,
-    StreamableTaskHandler, TaskHandler, ToolHandler,
+    InMemoryStorage, LLMClient, OpenAICompatibleLLMClient, QueuedTask, Storage, StorageStats,
+    StreamEmitter, StreamableTaskHandler, TaskFilter, TaskHandler, ToolHandler,
 };
 
 #[cfg(test)]
