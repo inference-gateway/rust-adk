@@ -4,6 +4,7 @@ use super::protocol::{AppState, a2a_handler};
 use super::storage::Storage;
 use super::task_handler::{StreamableTaskHandler, TaskHandler};
 use super::task_manager::DefaultTaskManager;
+use super::tls::{MtlsAcceptor, build_server_config};
 use crate::a2a_types::AgentCard;
 use crate::client::HealthStatus;
 use crate::config::Config;
@@ -16,6 +17,7 @@ use axum::{
     response::Json,
     routing::{get, post},
 };
+use axum_server::Handle;
 use inference_gateway_sdk::{InferenceGatewayAPI, InferenceGatewayClient};
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -51,6 +53,7 @@ impl A2AServer {
     pub async fn serve(mut self, addr: SocketAddr) -> Result<()> {
         let runner = self.task_manager.take().map(|m| m.start());
         let auth_verifier = self.auth_verifier.clone();
+        let tls_config = self.config.tls_config.clone();
 
         let state = Arc::new(match auth_verifier {
             Some(v) => AppState::with_auth(self, v),
@@ -82,20 +85,9 @@ impl A2AServer {
                 .layer(CorsLayer::permissive()),
         );
 
-        info!("A2A Server starting on {}", addr);
-
-        let listener = TcpListener::bind(addr)
-            .await
-            .map_err(|e| anyhow!("Failed to bind to address {}: {}", addr, e))?;
-
-        let serve = axum::serve(listener, app);
-
-        let result = tokio::select! {
-            res = serve => res.map_err(|e| anyhow!("Server error: {}", e)),
-            _ = tokio::signal::ctrl_c() => {
-                info!("SIGINT received, draining workers");
-                Ok(())
-            }
+        let result = match tls_config.as_ref() {
+            Some(tls) if tls.enable => serve_tls(app, addr, tls).await,
+            _ => serve_plain(app, addr).await,
         };
 
         if let Some(runner) = runner {
@@ -103,6 +95,62 @@ impl A2AServer {
         }
 
         result
+    }
+}
+
+async fn serve_plain(app: Router, addr: SocketAddr) -> Result<()> {
+    info!("A2A Server starting on http://{}", addr);
+
+    let listener = TcpListener::bind(addr)
+        .await
+        .map_err(|e| anyhow!("Failed to bind to address {}: {}", addr, e))?;
+
+    let serve = axum::serve(listener, app);
+
+    tokio::select! {
+        res = serve => res.map_err(|e| anyhow!("Server error: {}", e)),
+        _ = tokio::signal::ctrl_c() => {
+            info!("SIGINT received, draining workers");
+            Ok(())
+        }
+    }
+}
+
+async fn serve_tls(app: Router, addr: SocketAddr, tls: &crate::config::TlsConfig) -> Result<()> {
+    let server_config =
+        build_server_config(tls).map_err(|e| anyhow!("TLS configuration is invalid: {}", e))?;
+
+    let mtls_enabled = tls.client_ca_path.is_some();
+    if mtls_enabled {
+        info!(
+            cert = %tls.cert_path,
+            client_ca = ?tls.client_ca_path,
+            "A2A Server starting on https://{} (mTLS required)",
+            addr,
+        );
+    } else {
+        info!(
+            cert = %tls.cert_path,
+            "A2A Server starting on https://{} (TLS, no client auth)",
+            addr,
+        );
+    }
+
+    let acceptor = MtlsAcceptor::new(server_config);
+    let handle = Handle::new();
+
+    let server = axum_server::bind(addr)
+        .acceptor(acceptor)
+        .handle(handle.clone())
+        .serve(app.into_make_service());
+
+    tokio::select! {
+        res = server => res.map_err(|e| anyhow!("TLS server error: {}", e)),
+        _ = tokio::signal::ctrl_c() => {
+            info!("SIGINT received, draining workers");
+            handle.graceful_shutdown(Some(std::time::Duration::from_secs(5)));
+            Ok(())
+        }
     }
 }
 

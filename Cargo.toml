@@ -21,6 +21,7 @@ serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
 tokio = { version = "1.52.3", features = ["full"] }
 axum = { version = "0.8.9", features = ["json", "http2"] }
+axum-server = { version = "0.7.2", features = ["tls-rustls-no-provider"] }
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 chrono = { version = "0.4.44", features = ["serde"] }
@@ -28,7 +29,7 @@ uuid = { version = "1.23.1", features = ["v4", "serde"] }
 anyhow = "1.0.102"
 thiserror = "2.0.18"
 tower = "0.5.3"
-tower-http = { version = "0.6.10", features = ["cors", "trace"] }
+tower-http = { version = "0.6.10", features = ["cors", "trace", "add-extension"] }
 futures = "0.3.32"
 futures-util = "0.3.32"
 async-trait = "0.1.89"
@@ -38,7 +39,14 @@ tokio-stream = { version = "0.1.18", features = ["sync"] }
 tokio-util = "0.7.13"
 eventsource-stream = "0.2.3"
 jsonwebtoken = { version = "10.4.0", features = ["rust_crypto"] }
+rustls = { version = "0.23.20", default-features = false, features = ["ring", "std", "tls12", "logging"] }
+rustls-pemfile = "2.2.0"
+tokio-rustls = { version = "0.26.1", default-features = false, features = ["ring", "tls12", "logging"] }
+x509-parser = "0.16.0"
 redis = { version = "0.27.6", default-features = false, features = ["tokio-comp", "connection-manager"], optional = true }
+
+[dev-dependencies]
+rcgen = { version = "0.13.2", default-features = false, features = ["pem", "ring"] }
 
 [[example]]
 name = "minimal-server"
@@ -160,3 +168,11 @@ path = "examples/auth/server/main.rs"
 [[example]]
 name = "auth-client"
 path = "examples/auth/client/main.rs"
+
+[[example]]
+name = "tls-server"
+path = "examples/tls/server/main.rs"
+
+[[example]]
+name = "tls-client"
+path = "examples/tls/client/main.rs"
