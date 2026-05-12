@@ -631,7 +631,6 @@ async fn handle_tasks_resubscribe(state: Arc<AppState>, id: Value, params: Value
 
     let (tx, rx) = mpsc::channel::<StreamResponse>(32);
 
-    // First event - the current task snapshot (mirrors `message/stream`).
     let initial = StreamResponse {
         artifact_update: None,
         message: None,

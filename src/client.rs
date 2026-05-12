@@ -328,12 +328,6 @@ impl A2AClient {
             return Err(anyhow!("{method} failed: HTTP {status}: {body}"));
         }
 
-        // If the server responded with a JSON-RPC error envelope (which it
-        // does for validation / not-found errors that happen before the SSE
-        // stream begins), the content type will be JSON rather than
-        // `text/event-stream`. Inspect the content type and unwrap the
-        // error eagerly so callers don't have to fish it out of the SSE
-        // stream.
         let content_type = response
             .headers()
             .get(reqwest::header::CONTENT_TYPE)

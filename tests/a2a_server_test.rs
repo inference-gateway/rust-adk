@@ -636,7 +636,6 @@ async fn tasks_resubscribe_returns_snapshot_and_final_event() {
             .expect("resubscribe_task ok"),
     );
 
-    // The first event must carry the task snapshot.
     let first = timeout(suite.timeout_duration, stream.next())
         .await
         .expect("first event arrives")
@@ -645,9 +644,6 @@ async fn tasks_resubscribe_returns_snapshot_and_final_event() {
     let snapshot = first.task.expect("first event carries task snapshot");
     assert_eq!(snapshot.id, task.id);
 
-    // Background handler is `SubmittedTaskHandler`, so the task stays in
-    // `Submitted` indefinitely; just drop the stream after reading the
-    // snapshot - that closes the SSE response channel cleanly.
     drop(stream);
 }
 
@@ -677,8 +673,6 @@ async fn tasks_resubscribe_unknown_task_returns_task_not_found() {
 
 #[tokio::test]
 async fn get_authenticated_extended_card_rejects_when_not_supported() {
-    // The shared test agent card does not opt in to extended card
-    // retrieval, so the server should respond with METHOD_NOT_FOUND.
     let suite = ensure_suite();
     let request = json!({
         "jsonrpc": "2.0",
