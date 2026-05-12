@@ -1231,8 +1231,6 @@ mod tests {
         let task_id_for_driver = task_id.clone();
         let context_id_for_driver = context_id.clone();
         tokio::spawn(async move {
-            // Give the resubscribe handler time to send the snapshot and
-            // start polling before we move the task to a terminal state.
             tokio::time::sleep(std::time::Duration::from_millis(250)).await;
             let completed = Task {
                 artifacts: vec![],
