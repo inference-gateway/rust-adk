@@ -278,12 +278,14 @@ async fn run_tool_loop(agent: &Agent, mut messages: Vec<Message>) -> Result<Tool
 
         let assistant_text = message_content_to_string(&choice.message.content);
         let tool_calls = choice.message.tool_calls.clone();
+        let reasoning = choice.message.reasoning.clone();
+        let reasoning_content = choice.message.reasoning_content.clone();
 
         messages.push(Message {
             role: MessageRole::Assistant,
             content: MessageContent::String(assistant_text.clone()),
-            reasoning: None,
-            reasoning_content: None,
+            reasoning,
+            reasoning_content,
             tool_call_id: None,
             tool_calls: tool_calls.clone(),
         });
