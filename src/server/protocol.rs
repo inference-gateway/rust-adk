@@ -78,11 +78,7 @@ pub(crate) async fn a2a_handler(
             "authenticated A2A request",
         );
     }
-    // PeerCert is injected by the TLS acceptor when the server is
-    // running on a TLS listener. The inner Option is None when the
-    // client did not present a certificate (i.e. plain TLS without
-    // mTLS); when Some, the certificate has already been validated
-    // against the configured trust roots by rustls.
+
     if let Some(axum::Extension(cert)) = peer_cert.as_ref()
         && let Some(p) = cert.0.as_ref()
     {
