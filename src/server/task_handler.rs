@@ -1007,7 +1007,8 @@ mod tests {
             axum::serve(gateway_listener, gateway_app).await.ok();
         });
 
-        let (agent, recorded) = build_echo_agent_with_recorder(format!("http://{gateway_addr}")).await;
+        let (agent, recorded) =
+            build_echo_agent_with_recorder(format!("http://{gateway_addr}")).await;
         let card = agent_card_with_streaming(false);
 
         let server = A2AServerBuilder::new()
@@ -1096,7 +1097,8 @@ mod tests {
             axum::serve(gateway_listener, gateway_app).await.ok();
         });
 
-        let (agent, recorded) = build_echo_agent_with_recorder(format!("http://{gateway_addr}")).await;
+        let (agent, recorded) =
+            build_echo_agent_with_recorder(format!("http://{gateway_addr}")).await;
         let card = agent_card_with_streaming(true);
 
         let server = A2AServerBuilder::new()

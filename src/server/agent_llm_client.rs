@@ -126,10 +126,7 @@ impl LLMClient for OpenAICompatibleLLMClient {
 
         for attempt in 0..=max_retries {
             if attempt > 0 {
-                debug!(
-                    "retrying llm request (attempt {}/{})",
-                    attempt, max_retries
-                );
+                debug!("retrying llm request (attempt {}/{})", attempt, max_retries);
                 sleep(Duration::from_secs(attempt as u64)).await;
             }
 
@@ -177,7 +174,8 @@ impl LLMClient for OpenAICompatibleLLMClient {
                 Some(t) if !t.is_empty() => client.with_tools(Some(t)),
                 _ => client,
             };
-            let mut sdk_stream = Box::pin(client.generate_content_stream(provider, &model, messages));
+            let mut sdk_stream =
+                Box::pin(client.generate_content_stream(provider, &model, messages));
             while let Some(item) = sdk_stream.next().await {
                 let mapped = item.map_err(|e| anyhow!("{e}"));
                 if tx.send(mapped).await.is_err() {

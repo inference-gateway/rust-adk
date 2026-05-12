@@ -565,7 +565,9 @@ mod tests {
     use super::*;
     use crate::a2a_types::{AgentCard, Message as A2AMessage, Part, Role};
     use crate::server::server_builder::A2AServerBuilder;
-    use crate::server::task_handler::{StreamEmitter, StreamableTaskHandler, build_agent_text_message};
+    use crate::server::task_handler::{
+        StreamEmitter, StreamableTaskHandler, build_agent_text_message,
+    };
     use anyhow::Result;
     use axum::Router;
     use axum::routing::post;
