@@ -2,6 +2,7 @@ use super::agent::Agent;
 use super::protocol::{AppState, a2a_handler};
 use super::storage::Storage;
 use super::task_handler::{StreamableTaskHandler, TaskHandler};
+use super::task_manager::DefaultTaskManager;
 use crate::a2a_types::AgentCard;
 use crate::client::HealthStatus;
 use crate::config::Config;
@@ -31,6 +32,7 @@ pub struct A2AServer {
     pub(super) storage: Arc<dyn Storage>,
     pub(super) background_task_handler: Option<Arc<dyn TaskHandler>>,
     pub(super) streaming_task_handler: Option<Arc<dyn StreamableTaskHandler>>,
+    pub(super) task_manager: Option<DefaultTaskManager>,
 }
 
 impl A2AServer {
@@ -40,7 +42,11 @@ impl A2AServer {
         Arc::clone(&self.storage)
     }
 
-    pub async fn serve(self, addr: SocketAddr) -> Result<()> {
+    pub async fn serve(mut self, addr: SocketAddr) -> Result<()> {
+        // Hand the task manager its own JoinSet via `start()` so workers
+        // begin draining the queue alongside the HTTP listener.
+        let runner = self.task_manager.take().map(|m| m.start());
+
         let state = AppState { server: self };
 
         let app = Router::new()
@@ -60,11 +66,23 @@ impl A2AServer {
             .await
             .map_err(|e| anyhow!("Failed to bind to address {}: {}", addr, e))?;
 
-        axum::serve(listener, app)
-            .await
-            .map_err(|e| anyhow!("Server error: {}", e))?;
+        let serve = axum::serve(listener, app);
 
-        Ok(())
+        // Race the HTTP server against SIGINT so the task manager can be
+        // shut down cleanly when the operator stops the process.
+        let result = tokio::select! {
+            res = serve => res.map_err(|e| anyhow!("Server error: {}", e)),
+            _ = tokio::signal::ctrl_c() => {
+                info!("SIGINT received, draining workers");
+                Ok(())
+            }
+        };
+
+        if let Some(runner) = runner {
+            runner.shutdown().await;
+        }
+
+        result
     }
 }
 

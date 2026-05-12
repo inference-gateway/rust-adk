@@ -1,10 +1,41 @@
 use futures::StreamExt;
 use inference_gateway_adk::A2AClient;
-use inference_gateway_adk::a2a_types::{Message, Part, Role, SendMessageRequest};
+use inference_gateway_adk::a2a_types::{
+    GetTaskRequest, Message, Part, Role, SendMessageRequest, Task, TaskState,
+};
 use std::env;
 use tokio::time::{Duration, sleep};
 use tracing::{error, info};
 use uuid::Uuid;
+
+/// Poll `tasks/get` until the task reaches a terminal state, mirroring
+/// the Go ADK pattern: `message/send` is async, so the client must poll
+/// (or use `message/stream`) to observe the agent's reply.
+async fn poll_until_terminal(
+    client: &A2AClient,
+    task_id: &str,
+) -> Result<Task, Box<dyn std::error::Error>> {
+    for _ in 0..150 {
+        let task = client
+            .get_task(GetTaskRequest {
+                history_length: None,
+                name: format!("tasks/{task_id}"),
+                tenant: Some("server-with-toolbox".to_string()),
+            })
+            .await?;
+        if matches!(
+            task.status.state,
+            TaskState::TaskStateCompleted
+                | TaskState::TaskStateFailed
+                | TaskState::TaskStateCancelled
+                | TaskState::TaskStateRejected
+        ) {
+            return Ok(task);
+        }
+        sleep(Duration::from_millis(200)).await;
+    }
+    Err(format!("task {task_id} did not reach a terminal state in time").into())
+}
 
 fn user_message(text: &str) -> SendMessageRequest {
     SendMessageRequest {
@@ -66,7 +97,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    // message/send — dispatch a single tool-use prompt and print the reply.
+    // message/send — enqueues the task and returns Submitted immediately
+    // (matches the Go ADK's async semantics). Poll tasks/get until the
+    // background worker drives the task to a terminal state.
     match client
         .send_message(user_message(
             "What's the weather in San Francisco, and what is 12 * 7?",
@@ -76,15 +109,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Ok(response) => {
             info!("message/send dispatched");
             if let Some(task) = response.task {
-                info!("→ task {} in state {:?}", task.id, task.status.state);
-                if let Some(msg) = task.status.message {
-                    let text = msg
-                        .parts
-                        .iter()
-                        .filter_map(|p| p.text.clone())
-                        .collect::<Vec<_>>()
-                        .join("");
-                    info!("→ agent reply: {}", text);
+                info!(
+                    "→ task {} accepted in state {:?}",
+                    task.id, task.status.state
+                );
+                match poll_until_terminal(&client, &task.id).await {
+                    Ok(final_task) => {
+                        info!(
+                            "→ task {} reached state {:?}",
+                            final_task.id, final_task.status.state
+                        );
+                        if let Some(msg) = final_task.status.message {
+                            let text = msg
+                                .parts
+                                .iter()
+                                .filter_map(|p| p.text.clone())
+                                .collect::<Vec<_>>()
+                                .join("");
+                            info!("→ agent reply: {}", text);
+                        }
+                    }
+                    Err(e) => error!("Failed to poll task to terminal state: {}", e),
                 }
             }
         }

@@ -5,6 +5,7 @@ use super::storage::{InMemoryStorage, Storage};
 use super::task_handler::{
     DefaultBackgroundTaskHandler, DefaultStreamingTaskHandler, StreamableTaskHandler, TaskHandler,
 };
+use super::task_manager::DefaultTaskManager;
 use crate::a2a_types::AgentCard;
 use crate::config::Config;
 use anyhow::{Result, anyhow};
@@ -23,6 +24,7 @@ pub struct A2AServerBuilder {
     streaming_task_handler: Option<Arc<dyn StreamableTaskHandler>>,
     use_default_background_task_handler: bool,
     use_default_streaming_task_handler: bool,
+    worker_count: Option<usize>,
 }
 
 impl A2AServerBuilder {
@@ -39,6 +41,7 @@ impl A2AServerBuilder {
             streaming_task_handler: None,
             use_default_background_task_handler: false,
             use_default_streaming_task_handler: false,
+            worker_count: None,
         }
     }
 
@@ -125,6 +128,16 @@ impl A2AServerBuilder {
     pub fn with_default_task_handlers(self) -> Self {
         self.with_default_background_task_handler()
             .with_default_streaming_task_handler()
+    }
+
+    /// Number of background workers that drain the storage queue for
+    /// `message/send`. Defaults to 1 if unset. Clamped to a minimum of
+    /// 1 by [`DefaultTaskManager`]. Only meaningful when a background
+    /// task handler is configured — without one the manager is not
+    /// spawned.
+    pub fn with_workers(mut self, count: usize) -> Self {
+        self.worker_count = Some(count);
+        self
     }
 
     pub async fn build(self) -> Result<A2AServer> {
@@ -238,16 +251,27 @@ impl A2AServerBuilder {
             _ => {}
         }
 
+        let storage = self
+            .storage
+            .unwrap_or_else(|| Arc::new(InMemoryStorage::new()) as Arc<dyn Storage>);
+
+        let task_manager = background_task_handler.as_ref().map(|handler| {
+            DefaultTaskManager::new(
+                Arc::clone(&storage),
+                Arc::clone(handler),
+                self.worker_count.unwrap_or(1),
+            )
+        });
+
         Ok(A2AServer {
             config,
             agent_card,
             agent: self.agent,
             gateway_url,
-            storage: self
-                .storage
-                .unwrap_or_else(|| Arc::new(InMemoryStorage::new()) as Arc<dyn Storage>),
+            storage,
             background_task_handler,
             streaming_task_handler,
+            task_manager,
         })
     }
 }

@@ -1013,13 +1013,22 @@ mod tests {
             build_echo_agent_with_recorder(format!("http://{gateway_addr}")).await;
         let card = agent_card_with_streaming(false);
 
-        let server = A2AServerBuilder::new()
+        let mut server = A2AServerBuilder::new()
             .with_agent_card(card)
             .with_agent(agent)
             .with_default_background_task_handler()
             .build()
             .await
             .expect("server builds");
+
+        // `message/send` is queue-driven (matches the Go ADK): start the
+        // task manager so a worker drains the enqueue and runs the
+        // background handler.
+        let runner = server
+            .task_manager
+            .take()
+            .expect("task manager configured for background handler")
+            .start();
 
         let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind a2a");
         let addr = listener.local_addr().expect("a2a addr");
@@ -1055,9 +1064,14 @@ mod tests {
             .await
             .expect("message/send");
 
-        let task = response.task.expect("task in response");
-        assert_eq!(task.status.state, TaskState::TaskStateCompleted);
-        let final_text = task
+        let submitted = response.task.expect("task in response");
+        assert_eq!(submitted.status.state, TaskState::TaskStateSubmitted);
+
+        // Poll tasks/get until the worker has driven the task to a
+        // terminal state and routed it to the dead-letter store.
+        let final_task = poll_until_terminal(&client, &submitted.id).await;
+        assert_eq!(final_task.status.state, TaskState::TaskStateCompleted);
+        let final_text = final_task
             .status
             .message
             .expect("final agent message")
@@ -1081,6 +1095,35 @@ mod tests {
             vec!["echoed: hi".to_string()],
             "second gateway call should include the tool result as a Tool-role message",
         );
+
+        runner.shutdown().await;
+    }
+
+    /// Poll `tasks/get` until the task reaches a terminal state, with a
+    /// per-test timeout. Used by the queue-driven `message/send` tests
+    /// that need to wait for the background worker to complete.
+    async fn poll_until_terminal(client: &crate::A2AClient, task_id: &str) -> Task {
+        for _ in 0..100 {
+            let fetched = client
+                .get_task(crate::a2a_types::GetTaskRequest {
+                    history_length: None,
+                    name: format!("tasks/{task_id}"),
+                    tenant: Some("tests".to_string()),
+                })
+                .await
+                .expect("tasks/get");
+            if matches!(
+                fetched.status.state,
+                TaskState::TaskStateCompleted
+                    | TaskState::TaskStateFailed
+                    | TaskState::TaskStateCancelled
+                    | TaskState::TaskStateRejected
+            ) {
+                return fetched;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        }
+        panic!("task {task_id} never reached terminal state within 2s");
     }
 
     #[tokio::test]

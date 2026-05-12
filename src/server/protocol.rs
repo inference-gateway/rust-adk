@@ -165,7 +165,7 @@ async fn handle_message_send(state: &Arc<AppState>, id: Value, params: Value) ->
         return invalid_params_message(id, detail);
     }
 
-    let Some(handler) = state.server.background_task_handler.as_ref().cloned() else {
+    if state.server.background_task_handler.is_none() {
         return json_rpc_error(
             id,
             jsonrpc_errors::METHOD_NOT_FOUND,
@@ -175,30 +175,38 @@ async fn handle_message_send(state: &Arc<AppState>, id: Value, params: Value) ->
                     .to_string(),
             )),
         );
-    };
+    }
 
     let initial_task = build_task_from_request(&request);
-    state.server.storage.put_task(initial_task.clone()).await;
 
-    let task = match handler.handle_task(initial_task, request.message).await {
-        Ok(t) => t,
-        Err(e) => {
-            error!("background task handler failed: {e}");
-            return json_rpc_error(
-                id,
-                jsonrpc_errors::INTERNAL_ERROR,
-                "Internal error",
-                Some(Value::String(e.to_string())),
-            );
-        }
-    };
+    if let Err(e) = state.server.storage.create_active_task(&initial_task).await {
+        error!("create_active_task failed: {e}");
+        return json_rpc_error(
+            id,
+            jsonrpc_errors::INTERNAL_ERROR,
+            "Internal error",
+            Some(Value::String(e.to_string())),
+        );
+    }
 
-    state.server.storage.put_task(task.clone()).await;
+    if let Err(e) = state
+        .server
+        .storage
+        .enqueue_task(initial_task.clone(), id.clone())
+        .await
+    {
+        error!("enqueue_task failed: {e}");
+        return json_rpc_error(
+            id,
+            jsonrpc_errors::INTERNAL_ERROR,
+            "Internal error",
+            Some(Value::String(e.to_string())),
+        );
+    }
 
-    let reply = task.status.message.clone();
     let response = SendMessageResponse {
-        message: reply,
-        task: Some(task),
+        message: None,
+        task: Some(initial_task),
     };
 
     match serde_json::to_value(response) {
@@ -434,7 +442,14 @@ async fn handle_tasks_cancel(state: &Arc<AppState>, id: Value, params: Value) ->
         state: TaskState::TaskStateCancelled,
         timestamp: Some(Timestamp(chrono::Utc::now())),
     };
-    state.server.storage.put_task(updated.clone()).await;
+    if let Err(e) = state.server.storage.store_dead_letter_task(&updated).await {
+        return json_rpc_error(
+            id,
+            jsonrpc_errors::INTERNAL_ERROR,
+            "Internal error",
+            Some(Value::String(e.to_string())),
+        );
+    }
 
     match serde_json::to_value(updated) {
         Ok(v) => json_rpc_success(id, v),

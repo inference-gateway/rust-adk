@@ -1,8 +1,38 @@
 use inference_gateway_adk::A2AClient;
-use inference_gateway_adk::a2a_types::{Message, Part, Role, SendMessageRequest};
+use inference_gateway_adk::a2a_types::{
+    GetTaskRequest, Message, Part, Role, SendMessageRequest, Task, TaskState,
+};
 use std::env;
+use std::time::Duration;
+use tokio::time::sleep;
 use tracing::{error, info};
 use uuid::Uuid;
+
+async fn poll_until_terminal(
+    client: &A2AClient,
+    task_id: &str,
+) -> Result<Task, Box<dyn std::error::Error>> {
+    for _ in 0..150 {
+        let task = client
+            .get_task(GetTaskRequest {
+                history_length: None,
+                name: format!("tasks/{task_id}"),
+                tenant: Some("minimal".to_string()),
+            })
+            .await?;
+        if matches!(
+            task.status.state,
+            TaskState::TaskStateCompleted
+                | TaskState::TaskStateFailed
+                | TaskState::TaskStateCancelled
+                | TaskState::TaskStateRejected
+        ) {
+            return Ok(task);
+        }
+        sleep(Duration::from_millis(200)).await;
+    }
+    Err(format!("task {task_id} did not reach a terminal state in time").into())
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -59,15 +89,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Ok(response) => {
             info!("message/send dispatched");
             if let Some(task) = response.task {
-                info!("→ task {} in state {:?}", task.id, task.status.state);
-                if let Some(msg) = task.status.message {
-                    let text = msg
-                        .parts
-                        .iter()
-                        .filter_map(|p| p.text.clone())
-                        .collect::<Vec<_>>()
-                        .join("");
-                    info!("→ agent reply: {}", text);
+                info!(
+                    "→ task {} accepted in state {:?}",
+                    task.id, task.status.state
+                );
+                match poll_until_terminal(&client, &task.id).await {
+                    Ok(final_task) => {
+                        info!(
+                            "→ task {} reached state {:?}",
+                            final_task.id, final_task.status.state
+                        );
+                        if let Some(msg) = final_task.status.message {
+                            let text = msg
+                                .parts
+                                .iter()
+                                .filter_map(|p| p.text.clone())
+                                .collect::<Vec<_>>()
+                                .join("");
+                            info!("→ agent reply: {}", text);
+                        }
+                    }
+                    Err(e) => error!("Failed to poll task to terminal state: {}", e),
                 }
             }
         }
