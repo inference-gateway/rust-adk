@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.1](https://github.com/inference-gateway/rust-adk/compare/0.3.0...0.3.1) (2026-05-12)
+
+### ♻️ Improvements
+
+* **server:** Drop hardcoded sdk_version from health response ([2481af3](https://github.com/inference-gateway/rust-adk/commit/2481af3384fcac1fd5ac06e37b575339c5cfbbcb))
+
+### 🐛 Bug Fixes
+
+* **docs:** Remove emojis to fix links on crates.io ([9ca3508](https://github.com/inference-gateway/rust-adk/commit/9ca350838a8465d3cd134529bcfb21473c6bbb3d))
+
+### 📚 Documentation
+
+* Use better wording instead of just Docker support call it OCI compliant ([e3ed821](https://github.com/inference-gateway/rust-adk/commit/e3ed8212d90439acab46f0afe017674e85f7cba6))
+
 ## [0.3.0](https://github.com/inference-gateway/rust-adk/compare/0.2.5...0.3.0) (2026-05-12)
 
 ### ✨ Features
