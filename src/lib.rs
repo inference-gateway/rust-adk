@@ -6,7 +6,11 @@ pub mod storage;
 
 pub use client::{A2AClient, HealthStatus};
 pub use config::{AgentConfig, ClientConfig, Config};
-pub use server::{A2AServer, A2AServerBuilder, Agent, AgentBuilder, AgentCardOverrides};
+pub use server::{
+    A2AServer, A2AServerBuilder, Agent, AgentBuilder, AgentCardOverrides,
+    DefaultBackgroundTaskHandler, DefaultStreamingTaskHandler, StreamEmitter,
+    StreamableTaskHandler, TaskHandler,
+};
 pub use storage::InMemoryStorage;
 
 #[cfg(test)]

@@ -1,9 +1,10 @@
 use crate::a2a_types::{
-    AgentCard, CancelTaskRequest, DeleteTaskPushNotificationConfigRequest,
+    AgentCard, Artifact, CancelTaskRequest, DeleteTaskPushNotificationConfigRequest,
     GetTaskPushNotificationConfigRequest, GetTaskRequest, ListTaskPushNotificationConfigRequest,
     ListTaskPushNotificationConfigResponse, ListTasksRequest, ListTasksResponse,
     Message as A2AMessage, Part, Role, SendMessageRequest, SendMessageResponse,
-    SetTaskPushNotificationConfigRequest, Task, TaskState, TaskStatus, Timestamp,
+    SetTaskPushNotificationConfigRequest, StreamResponse, Task, TaskArtifactUpdateEvent, TaskState,
+    TaskStatus, TaskStatusUpdateEvent, Timestamp,
 };
 use crate::client::HealthStatus;
 use crate::config::{AgentConfig, Config};
@@ -13,18 +14,25 @@ use axum::{
     Router,
     extract::State,
     http::StatusCode,
-    response::Json,
+    response::{
+        IntoResponse, Json, Response,
+        sse::{Event, KeepAlive, Sse},
+    },
     routing::{get, post},
 };
+use futures_util::stream::{Stream, StreamExt};
 use inference_gateway_sdk::{
     ChatCompletionTool, InferenceGatewayAPI, InferenceGatewayClient, Message, MessageContent,
     MessageRole, Provider,
 };
 use serde_json::Value;
 use std::collections::HashMap;
+use std::convert::Infallible;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::TcpListener;
+use tokio::sync::mpsc;
+use tokio_stream::wrappers::ReceiverStream;
 use tower::ServiceBuilder;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing::{debug, error, info, warn};
@@ -128,11 +136,490 @@ where
     }
 }
 
+/// Handler invoked by the server for `message/send` requests.
+///
+/// Implementations receive a freshly-built task (already in
+/// `TaskStateSubmitted`) plus the incoming user message, run the business
+/// logic, and return the final task — typically with `state == Completed`
+/// and an agent reply attached to `status.message`.
+#[async_trait::async_trait]
+pub trait TaskHandler: Send + Sync + std::fmt::Debug {
+    async fn handle_task(&self, task: Task, message: Option<A2AMessage>) -> Result<Task>;
+}
+
+/// Handler invoked by the server for `message/stream` requests.
+///
+/// The server is responsible for parsing the request, persisting the initial
+/// `Submitted` task, and emitting the first event (the `Task` wrapper). The
+/// handler then drives the task to a terminal state by emitting
+/// `StreamResponse` events via [`StreamEmitter`]. The last emitted event
+/// **must** carry a `TaskStatusUpdateEvent` with `final: true`; otherwise
+/// callers will treat the stream as unterminated.
+#[async_trait::async_trait]
+pub trait StreamableTaskHandler: Send + Sync + std::fmt::Debug {
+    /// Drive a `message/stream` interaction.
+    ///
+    /// `task` is the freshly-built task already persisted in storage at
+    /// `TaskStateSubmitted`. The handler should emit subsequent events
+    /// (typically `Working` → optional artifact(s) → `Completed`).
+    async fn handle_streaming_task(
+        &self,
+        task: Task,
+        message: Option<A2AMessage>,
+        emitter: StreamEmitter,
+    ) -> Result<()>;
+}
+
+/// Emits `StreamResponse` events into an active `message/stream` response and
+/// keeps the stored task in sync with the latest status.
+#[derive(Clone)]
+pub struct StreamEmitter {
+    tx: mpsc::Sender<StreamResponse>,
+    storage: Arc<InMemoryStorage>,
+}
+
+impl std::fmt::Debug for StreamEmitter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("StreamEmitter").finish_non_exhaustive()
+    }
+}
+
+impl StreamEmitter {
+    fn new(tx: mpsc::Sender<StreamResponse>, storage: Arc<InMemoryStorage>) -> Self {
+        Self { tx, storage }
+    }
+
+    /// Send a raw `StreamResponse` to the connected client.
+    pub async fn emit(&self, response: StreamResponse) -> Result<()> {
+        self.tx
+            .send(response)
+            .await
+            .map_err(|_| anyhow!("stream receiver dropped before handler finished"))
+    }
+
+    /// Convenience helper that updates the stored task to `state` (attaching
+    /// `message` to the task status if provided), then emits a
+    /// `TaskStatusUpdateEvent` describing the new state.
+    pub async fn emit_status(
+        &self,
+        task_id: &str,
+        context_id: &str,
+        state: TaskState,
+        message: Option<A2AMessage>,
+        final_: bool,
+    ) -> Result<()> {
+        let now = Timestamp(chrono::Utc::now());
+        let new_status = TaskStatus {
+            message: message.clone(),
+            state,
+            timestamp: Some(now),
+        };
+
+        self.storage.update_task(task_id, |task| {
+            task.status = new_status.clone();
+            if let Some(ref msg) = message {
+                task.history.push(msg.clone());
+            }
+        });
+
+        let event = TaskStatusUpdateEvent {
+            context_id: context_id.to_string(),
+            final_,
+            metadata: None,
+            status: new_status,
+            task_id: task_id.to_string(),
+        };
+
+        self.emit(StreamResponse {
+            artifact_update: None,
+            message: None,
+            status_update: Some(event),
+            task: None,
+        })
+        .await
+    }
+
+    /// Convenience helper that appends a text artifact to the stored task and
+    /// emits a `TaskArtifactUpdateEvent` describing it.
+    pub async fn emit_text_artifact(
+        &self,
+        task_id: &str,
+        context_id: &str,
+        text: impl Into<String>,
+        last_chunk: bool,
+    ) -> Result<()> {
+        let artifact_id = uuid::Uuid::new_v4().to_string();
+        let text = text.into();
+        let artifact = Artifact {
+            artifact_id: artifact_id.clone(),
+            description: None,
+            extensions: vec![],
+            metadata: None,
+            name: None,
+            parts: vec![Part {
+                data: None,
+                file: None,
+                metadata: None,
+                text: Some(text),
+            }],
+        };
+
+        self.storage.update_task(task_id, |task| {
+            task.artifacts.push(artifact.clone());
+        });
+
+        let event = TaskArtifactUpdateEvent {
+            append: None,
+            artifact,
+            context_id: context_id.to_string(),
+            last_chunk: Some(last_chunk),
+            metadata: None,
+            task_id: task_id.to_string(),
+        };
+
+        self.emit(StreamResponse {
+            artifact_update: Some(event),
+            message: None,
+            status_update: None,
+            task: None,
+        })
+        .await
+    }
+}
+
+fn build_agent_text_message(task: &Task, text: &str) -> A2AMessage {
+    A2AMessage {
+        context_id: Some(task.context_id.clone()),
+        extensions: vec![],
+        message_id: uuid::Uuid::new_v4().to_string(),
+        metadata: None,
+        parts: vec![Part {
+            data: None,
+            file: None,
+            metadata: None,
+            text: Some(text.to_string()),
+        }],
+        reference_task_ids: vec![],
+        role: Role::RoleAgent,
+        task_id: Some(task.id.clone()),
+    }
+}
+
 fn message_content_to_string(content: &MessageContent) -> String {
     match content {
         MessageContent::String(s) => s.clone(),
         MessageContent::Array(parts) => serde_json::to_string(parts).unwrap_or_default(),
     }
+}
+
+/// Translate the task history into the SDK message format expected by
+/// [`InferenceGatewayClient`]. Optionally prepends the agent's system
+/// prompt.
+fn build_sdk_messages(agent: &Agent, task: &Task) -> Vec<Message> {
+    let mut messages: Vec<Message> = Vec::new();
+    if let Some(prompt) = agent.system_prompt.clone() {
+        messages.push(Message {
+            role: MessageRole::System,
+            content: MessageContent::String(prompt),
+            reasoning: None,
+            reasoning_content: None,
+            tool_call_id: None,
+            tool_calls: Vec::new(),
+        });
+    }
+    for a2a_msg in &task.history {
+        let text = a2a_msg
+            .parts
+            .iter()
+            .filter_map(|p| p.text.clone())
+            .collect::<Vec<_>>()
+            .join("");
+        if text.is_empty() {
+            continue;
+        }
+        let role = match a2a_msg.role {
+            Role::RoleAgent => MessageRole::Assistant,
+            _ => MessageRole::User,
+        };
+        messages.push(Message {
+            role,
+            content: MessageContent::String(text),
+            reasoning: None,
+            reasoning_content: None,
+            tool_call_id: None,
+            tool_calls: Vec::new(),
+        });
+    }
+    messages
+}
+
+/// Construct an [`InferenceGatewayClient`] preconfigured with any tools the
+/// agent advertises.
+fn agent_gateway_client(agent: &Agent, gateway_url: &str) -> InferenceGatewayClient {
+    let client = InferenceGatewayClient::new(gateway_url);
+    match agent.toolbox.clone() {
+        Some(tools) => client.with_tools(Some(tools)),
+        None => client,
+    }
+}
+
+/// Static message returned by the default handlers when no agent is
+/// configured. Mirrors the Go ADK's instructional fallback.
+const NO_AGENT_REPLY: &str = "I received your message. I'm a default task handler without AI capabilities. \
+     To enable AI responses, configure an OpenAI-compatible agent via \
+     `A2AServerBuilder::with_agent(...)`.";
+
+/// Opt-in default `message/send` handler wired up by
+/// [`A2AServerBuilder::with_default_background_task_handler`] /
+/// [`A2AServerBuilder::with_default_task_handlers`].
+///
+/// When an [`Agent`] is configured, delegates to the inference gateway via a
+/// single non-streaming `generate_content` call and returns the resulting
+/// task with `state == Completed` and the reply attached. Without an agent,
+/// returns the static [`NO_AGENT_REPLY`] message — mirroring the Go ADK's
+/// `processWithoutAgentBackground`.
+#[derive(Debug)]
+pub struct DefaultBackgroundTaskHandler {
+    agent: Option<Arc<Agent>>,
+    gateway_url: String,
+}
+
+impl DefaultBackgroundTaskHandler {
+    pub fn new(agent: Option<Arc<Agent>>, gateway_url: String) -> Self {
+        Self { agent, gateway_url }
+    }
+}
+
+#[async_trait::async_trait]
+impl TaskHandler for DefaultBackgroundTaskHandler {
+    async fn handle_task(&self, mut task: Task, _message: Option<A2AMessage>) -> Result<Task> {
+        let (reply_text, terminal_state) = match self.agent.as_ref() {
+            Some(agent) => {
+                let messages = build_sdk_messages(agent, &task);
+                let client = agent_gateway_client(agent, &self.gateway_url);
+                match client
+                    .generate_content(agent.provider, &agent.model, messages)
+                    .await
+                {
+                    Ok(response) => {
+                        let text = response
+                            .choices
+                            .first()
+                            .map(|c| message_content_to_string(&c.message.content))
+                            .unwrap_or_default();
+                        let text = if text.is_empty() {
+                            "Task completed".to_string()
+                        } else {
+                            text
+                        };
+                        (text, TaskState::TaskStateCompleted)
+                    }
+                    Err(e) => {
+                        warn!("default background handler: agent call failed: {e}");
+                        (
+                            format!("Agent call failed: {e}"),
+                            TaskState::TaskStateFailed,
+                        )
+                    }
+                }
+            }
+            None => (NO_AGENT_REPLY.to_string(), TaskState::TaskStateCompleted),
+        };
+
+        let reply = build_agent_text_message(&task, &reply_text);
+        task.history.push(reply.clone());
+        task.status = TaskStatus {
+            message: Some(reply),
+            state: terminal_state,
+            timestamp: Some(Timestamp(chrono::Utc::now())),
+        };
+        Ok(task)
+    }
+}
+
+/// Opt-in default `message/stream` handler wired up by
+/// [`A2AServerBuilder::with_default_streaming_task_handler`] /
+/// [`A2AServerBuilder::with_default_task_handlers`].
+///
+/// When an [`Agent`] is configured, the handler iterates `generate_content_stream`
+/// from the inference gateway, parses each OpenAI-style delta, and emits a
+/// [`TaskArtifactUpdateEvent`] per non-empty content chunk (`append: true`,
+/// shared `artifact_id`) — clients see the reply build up in real time. The
+/// stream terminates with a final `last_chunk: true` artifact + a
+/// `Completed` status update.
+///
+/// Without an agent, emits a single instructional artifact + `Completed`
+/// so the bundled defaults remain usable for examples and tests.
+#[derive(Debug)]
+pub struct DefaultStreamingTaskHandler {
+    agent: Option<Arc<Agent>>,
+    gateway_url: String,
+}
+
+impl DefaultStreamingTaskHandler {
+    pub fn new(agent: Option<Arc<Agent>>, gateway_url: String) -> Self {
+        Self { agent, gateway_url }
+    }
+}
+
+#[async_trait::async_trait]
+impl StreamableTaskHandler for DefaultStreamingTaskHandler {
+    async fn handle_streaming_task(
+        &self,
+        task: Task,
+        _message: Option<A2AMessage>,
+        emitter: StreamEmitter,
+    ) -> Result<()> {
+        emitter
+            .emit_status(
+                &task.id,
+                &task.context_id,
+                TaskState::TaskStateWorking,
+                None,
+                false,
+            )
+            .await?;
+
+        let final_text = match self.agent.as_ref() {
+            Some(agent) => stream_agent_deltas(agent, &self.gateway_url, &task, &emitter).await?,
+            None => {
+                emitter
+                    .emit_text_artifact(&task.id, &task.context_id, NO_AGENT_REPLY, true)
+                    .await?;
+                NO_AGENT_REPLY.to_string()
+            }
+        };
+
+        let reply_message = build_agent_text_message(&task, &final_text);
+        emitter
+            .emit_status(
+                &task.id,
+                &task.context_id,
+                TaskState::TaskStateCompleted,
+                Some(reply_message),
+                true,
+            )
+            .await
+    }
+}
+
+/// Drive `generate_content_stream` and forward each delta chunk to
+/// `emitter` as an incremental [`TaskArtifactUpdateEvent`] sharing a single
+/// `artifact_id`. Returns the accumulated reply text on success. On gateway
+/// failure, the helper falls back to a one-shot error artifact so the
+/// stream still terminates cleanly.
+async fn stream_agent_deltas(
+    agent: &Agent,
+    gateway_url: &str,
+    task: &Task,
+    emitter: &StreamEmitter,
+) -> Result<String> {
+    let messages = build_sdk_messages(agent, task);
+    let client = agent_gateway_client(agent, gateway_url);
+    let stream = client.generate_content_stream(agent.provider, &agent.model, messages);
+    let mut stream = Box::pin(stream);
+
+    let artifact_id = uuid::Uuid::new_v4().to_string();
+    let mut buffer = String::new();
+
+    while let Some(item) = stream.next().await {
+        let event = match item {
+            Ok(e) => e,
+            Err(e) => {
+                warn!("default streaming handler: gateway error: {e}");
+                let msg = format!("Agent stream failed: {e}");
+                emitter
+                    .emit_text_artifact(&task.id, &task.context_id, &msg, true)
+                    .await?;
+                return Ok(msg);
+            }
+        };
+
+        let data = event.data.trim();
+        if data.is_empty() || data == "[DONE]" {
+            if data == "[DONE]" {
+                break;
+            }
+            continue;
+        }
+
+        // OpenAI streaming chunk: {"choices":[{"delta":{"content":"..."},...}],...}
+        let parsed: serde_json::Value = match serde_json::from_str(data) {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+        let Some(text) = parsed
+            .get("choices")
+            .and_then(|c| c.as_array())
+            .and_then(|arr| arr.first())
+            .and_then(|c| c.get("delta"))
+            .and_then(|d| d.get("content"))
+            .and_then(|t| t.as_str())
+        else {
+            continue;
+        };
+        if text.is_empty() {
+            continue;
+        }
+        buffer.push_str(text);
+
+        let chunk_event = TaskArtifactUpdateEvent {
+            append: Some(true),
+            artifact: Artifact {
+                artifact_id: artifact_id.clone(),
+                description: None,
+                extensions: vec![],
+                metadata: None,
+                name: None,
+                parts: vec![Part {
+                    data: None,
+                    file: None,
+                    metadata: None,
+                    text: Some(text.to_string()),
+                }],
+            },
+            context_id: task.context_id.clone(),
+            last_chunk: Some(false),
+            metadata: None,
+            task_id: task.id.clone(),
+        };
+        emitter
+            .emit(StreamResponse {
+                artifact_update: Some(chunk_event),
+                message: None,
+                status_update: None,
+                task: None,
+            })
+            .await?;
+    }
+
+    // Terminal chunk signals the artifact is complete; the buffered text is
+    // delivered as the final agent message via the Completed status event.
+    let final_event = TaskArtifactUpdateEvent {
+        append: Some(true),
+        artifact: Artifact {
+            artifact_id,
+            description: None,
+            extensions: vec![],
+            metadata: None,
+            name: None,
+            parts: vec![],
+        },
+        context_id: task.context_id.clone(),
+        last_chunk: Some(true),
+        metadata: None,
+        task_id: task.id.clone(),
+    };
+    emitter
+        .emit(StreamResponse {
+            artifact_update: Some(final_event),
+            message: None,
+            status_update: None,
+            task: None,
+        })
+        .await?;
+
+    Ok(buffer)
 }
 
 fn parse_provider(provider_str: &str) -> Result<Provider> {
@@ -157,9 +644,11 @@ pub struct A2AServer {
     #[allow(dead_code)]
     config: Config,
     agent_card: Option<AgentCard>,
-    agent: Option<Agent>,
+    agent: Option<Arc<Agent>>,
     gateway_url: String,
     storage: Arc<InMemoryStorage>,
+    background_task_handler: Option<Arc<dyn TaskHandler>>,
+    streaming_task_handler: Option<Arc<dyn StreamableTaskHandler>>,
 }
 
 pub struct Agent {
@@ -200,9 +689,13 @@ pub struct A2AServerBuilder {
     agent_card: Option<AgentCard>,
     agent_card_path: Option<String>,
     agent_card_overrides: Option<AgentCardOverrides>,
-    agent: Option<Agent>,
+    agent: Option<Arc<Agent>>,
     gateway_url: Option<String>,
     storage: Option<Arc<InMemoryStorage>>,
+    background_task_handler: Option<Arc<dyn TaskHandler>>,
+    streaming_task_handler: Option<Arc<dyn StreamableTaskHandler>>,
+    use_default_background_task_handler: bool,
+    use_default_streaming_task_handler: bool,
 }
 
 pub struct AgentBuilder {
@@ -229,6 +722,10 @@ impl A2AServerBuilder {
             agent: None,
             gateway_url: None,
             storage: None,
+            background_task_handler: None,
+            streaming_task_handler: None,
+            use_default_background_task_handler: false,
+            use_default_streaming_task_handler: false,
         }
     }
 
@@ -253,7 +750,7 @@ impl A2AServerBuilder {
     }
 
     pub fn with_agent(mut self, agent: Agent) -> Self {
-        self.agent = Some(agent);
+        self.agent = Some(Arc::new(agent));
         self
     }
 
@@ -267,6 +764,51 @@ impl A2AServerBuilder {
     pub fn with_storage(mut self, storage: Arc<InMemoryStorage>) -> Self {
         self.storage = Some(storage);
         self
+    }
+
+    /// Register a handler that drives `message/send` requests (the
+    /// background/HTTP path).
+    pub fn with_background_task_handler<H: TaskHandler + 'static>(mut self, handler: H) -> Self {
+        self.background_task_handler = Some(Arc::new(handler));
+        self
+    }
+
+    /// Register a handler that drives `message/stream` requests (the SSE
+    /// path).
+    pub fn with_streaming_task_handler<H: StreamableTaskHandler + 'static>(
+        mut self,
+        handler: H,
+    ) -> Self {
+        self.streaming_task_handler = Some(Arc::new(handler));
+        self
+    }
+
+    /// Opt in to the bundled [`DefaultBackgroundTaskHandler`] so
+    /// `message/send` works without custom code. If an [`Agent`] is also
+    /// registered via [`with_agent`], the default handler delegates to it
+    /// via the configured inference gateway; otherwise it returns an echo
+    /// reply. Default construction is deferred to [`build`] so this method
+    /// can be called before or after [`with_agent`].
+    pub fn with_default_background_task_handler(mut self) -> Self {
+        self.use_default_background_task_handler = true;
+        self
+    }
+
+    /// Opt in to the bundled [`DefaultStreamingTaskHandler`] so
+    /// `message/stream` works without custom code (Submitted → Working →
+    /// reply artifact → Completed). Uses the registered [`Agent`] when
+    /// present, otherwise falls back to echo. Default construction is
+    /// deferred to [`build`].
+    pub fn with_default_streaming_task_handler(mut self) -> Self {
+        self.use_default_streaming_task_handler = true;
+        self
+    }
+
+    /// Opt in to both [`DefaultBackgroundTaskHandler`] and
+    /// [`DefaultStreamingTaskHandler`].
+    pub fn with_default_task_handlers(self) -> Self {
+        self.with_default_background_task_handler()
+            .with_default_streaming_task_handler()
     }
 
     pub async fn build(self) -> Result<A2AServer> {
@@ -326,6 +868,60 @@ impl A2AServerBuilder {
             .gateway_url
             .unwrap_or_else(|| "http://localhost:8080/v1".to_string());
 
+        let streaming_enabled = agent_card
+            .as_ref()
+            .and_then(|c| c.capabilities.streaming)
+            .unwrap_or(false);
+
+        // Construct opt-in defaults now so the agent + gateway URL captured
+        // here are visible to the handlers, regardless of the order in which
+        // `with_agent` / `with_default_*` were called.
+        let background_task_handler = match self.background_task_handler {
+            Some(h) => Some(h),
+            None if self.use_default_background_task_handler => Some(Arc::new(
+                DefaultBackgroundTaskHandler::new(self.agent.clone(), gateway_url.clone()),
+            )
+                as Arc<dyn TaskHandler>),
+            None => None,
+        };
+        let streaming_task_handler = match self.streaming_task_handler {
+            Some(h) => Some(h),
+            None if self.use_default_streaming_task_handler => Some(Arc::new(
+                DefaultStreamingTaskHandler::new(self.agent.clone(), gateway_url.clone()),
+            )
+                as Arc<dyn StreamableTaskHandler>),
+            None => None,
+        };
+
+        match (
+            background_task_handler.is_some(),
+            streaming_task_handler.is_some(),
+        ) {
+            (false, false) => {
+                return Err(anyhow!(
+                    "at least one task handler must be configured — use \
+                     A2AServerBuilder::with_background_task_handler()/\
+                     with_streaming_task_handler(), or with_default_task_handlers() \
+                     for both"
+                ));
+            }
+            (false, _) if !streaming_enabled => {
+                return Err(anyhow!(
+                    "background task handler is required when streaming is not enabled \
+                     in the agent card — use with_background_task_handler() or \
+                     with_default_background_task_handler()"
+                ));
+            }
+            (_, false) if streaming_enabled => {
+                return Err(anyhow!(
+                    "streaming task handler is required when streaming is enabled in \
+                     the agent card — use with_streaming_task_handler() or \
+                     with_default_streaming_task_handler()"
+                ));
+            }
+            _ => {}
+        }
+
         Ok(A2AServer {
             config,
             agent_card,
@@ -334,6 +930,8 @@ impl A2AServerBuilder {
             storage: self
                 .storage
                 .unwrap_or_else(|| Arc::new(InMemoryStorage::new())),
+            background_task_handler,
+            streaming_task_handler,
         })
     }
 }
@@ -571,10 +1169,7 @@ fn json_rpc_error(id: Value, code: i64, message: &str, data: Option<Value>) -> J
     }))
 }
 
-async fn a2a_handler(
-    State(state): State<Arc<AppState>>,
-    Json(payload): Json<Value>,
-) -> Json<Value> {
+async fn a2a_handler(State(state): State<Arc<AppState>>, Json(payload): Json<Value>) -> Response {
     debug!("A2A request received: {payload:?}");
 
     let id = payload.get("id").cloned().unwrap_or(Value::Null);
@@ -588,7 +1183,8 @@ async fn a2a_handler(
             Some(Value::String(
                 "Missing or invalid \"jsonrpc\" field; must be \"2.0\"".to_string(),
             )),
-        );
+        )
+        .into_response();
     }
 
     let method = match payload.get("method").and_then(|v| v.as_str()) {
@@ -599,22 +1195,33 @@ async fn a2a_handler(
                 jsonrpc_errors::INVALID_REQUEST,
                 "Invalid Request",
                 Some(Value::String("Missing \"method\" field".to_string())),
-            );
+            )
+            .into_response();
         }
     };
 
     let params = payload.get("params").cloned().unwrap_or(Value::Null);
 
     match method.as_str() {
-        "message/send" => handle_message_send(&state, id, params).await,
-        "message/stream" => handle_message_stream(&state, id, params).await,
-        "tasks/get" => handle_tasks_get(&state, id, params),
-        "tasks/list" => handle_tasks_list(&state, id, params),
-        "tasks/cancel" => handle_tasks_cancel(&state, id, params),
-        "tasks/pushNotificationConfig/set" => handle_set_push_config(&state, id, params),
-        "tasks/pushNotificationConfig/get" => handle_get_push_config(&state, id, params),
-        "tasks/pushNotificationConfig/list" => handle_list_push_configs(&state, id, params),
-        "tasks/pushNotificationConfig/delete" => handle_delete_push_config(&state, id, params),
+        "message/send" => handle_message_send(&state, id, params)
+            .await
+            .into_response(),
+        "message/stream" => handle_message_stream(state.clone(), id, params).await,
+        "tasks/get" => handle_tasks_get(&state, id, params).into_response(),
+        "tasks/list" => handle_tasks_list(&state, id, params).into_response(),
+        "tasks/cancel" => handle_tasks_cancel(&state, id, params).into_response(),
+        "tasks/pushNotificationConfig/set" => {
+            handle_set_push_config(&state, id, params).into_response()
+        }
+        "tasks/pushNotificationConfig/get" => {
+            handle_get_push_config(&state, id, params).into_response()
+        }
+        "tasks/pushNotificationConfig/list" => {
+            handle_list_push_configs(&state, id, params).into_response()
+        }
+        "tasks/pushNotificationConfig/delete" => {
+            handle_delete_push_config(&state, id, params).into_response()
+        }
         other => {
             warn!("Unknown JSON-RPC method requested: {other}");
             json_rpc_error(
@@ -623,6 +1230,7 @@ async fn a2a_handler(
                 "Method not found",
                 Some(Value::String(other.to_string())),
             )
+            .into_response()
         }
     }
 }
@@ -636,6 +1244,35 @@ fn invalid_params(id: Value, e: serde_json::Error) -> Json<Value> {
     )
 }
 
+fn invalid_params_message(id: Value, detail: impl Into<String>) -> Json<Value> {
+    json_rpc_error(
+        id,
+        jsonrpc_errors::INVALID_PARAMS,
+        "Invalid params",
+        Some(Value::String(detail.into())),
+    )
+}
+
+/// Validate the A2A-spec-required content of a `message/send` /
+/// `message/stream` request. Returns an error suitable for surfacing as the
+/// `data` field of a JSON-RPC `-32602` response.
+fn validate_send_message_request(req: &SendMessageRequest) -> Result<(), String> {
+    let Some(msg) = req.message.as_ref() else {
+        return Err("`message` is required".to_string());
+    };
+    if msg.message_id.is_empty() {
+        return Err(
+            "`message.messageId` must be a non-empty string — per the A2A spec the message \
+             creator owns this identifier (used by the server for duplicate detection)"
+                .to_string(),
+        );
+    }
+    if msg.parts.is_empty() {
+        return Err("`message.parts` must contain at least one part".to_string());
+    }
+    Ok(())
+}
+
 fn build_task_from_request(req: &SendMessageRequest) -> Task {
     let task_id = uuid::Uuid::new_v4().to_string();
     let context_id = req
@@ -645,7 +1282,13 @@ fn build_task_from_request(req: &SendMessageRequest) -> Task {
         .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
 
     let mut history = Vec::new();
-    if let Some(msg) = req.message.clone() {
+    if let Some(mut msg) = req.message.clone() {
+        if msg.context_id.is_none() {
+            msg.context_id = Some(context_id.clone());
+        }
+        if msg.task_id.is_none() {
+            msg.task_id = Some(task_id.clone());
+        }
         history.push(msg);
     }
 
@@ -663,139 +1306,47 @@ fn build_task_from_request(req: &SendMessageRequest) -> Task {
     }
 }
 
-/// Generate a reply via the configured inference gateway. Only invoked when
-/// the caller asked for a blocking `message/send`; otherwise the task is
-/// returned in the `submitted` state so it can later be cancelled or polled
-/// via `tasks/get`. When no agent is configured (or the gateway is
-/// unreachable) the helper falls back to an echo so offline integration
-/// tests can still complete the path end-to-end.
-async fn synthesize_agent_reply(
-    server: &A2AServer,
-    incoming: &Option<A2AMessage>,
-) -> Option<A2AMessage> {
-    let context_id = incoming.as_ref().and_then(|m| m.context_id.clone());
-
-    let user_text = incoming
-        .as_ref()
-        .map(|m| {
-            m.parts
-                .iter()
-                .filter_map(|p| p.text.clone())
-                .collect::<Vec<_>>()
-                .join("\n")
-        })
-        .unwrap_or_default();
-
-    let echo_reply = || A2AMessage {
-        context_id: context_id.clone(),
-        extensions: vec![],
-        message_id: uuid::Uuid::new_v4().to_string(),
-        metadata: None,
-        parts: vec![Part {
-            data: None,
-            file: None,
-            metadata: None,
-            text: Some(format!("Echo: {user_text}")),
-        }],
-        reference_task_ids: vec![],
-        role: Role::RoleAgent,
-        task_id: None,
-    };
-
-    let Some(agent) = server.agent.as_ref() else {
-        return Some(echo_reply());
-    };
-
-    let mut messages = Vec::new();
-    if let Some(prompt) = agent.system_prompt.clone() {
-        messages.push(Message {
-            role: MessageRole::System,
-            content: MessageContent::String(prompt),
-            reasoning: None,
-            reasoning_content: None,
-            tool_call_id: None,
-            tool_calls: Vec::new(),
-        });
-    }
-    if !user_text.is_empty() {
-        messages.push(Message {
-            role: MessageRole::User,
-            content: MessageContent::String(user_text.clone()),
-            reasoning: None,
-            reasoning_content: None,
-            tool_call_id: None,
-            tool_calls: Vec::new(),
-        });
-    }
-
-    let gateway_client = InferenceGatewayClient::new(&server.gateway_url);
-    let gateway_client = if let Some(tools) = agent.toolbox.clone() {
-        gateway_client.with_tools(Some(tools))
-    } else {
-        gateway_client
-    };
-
-    match gateway_client
-        .generate_content(agent.provider, &agent.model, messages)
-        .await
-    {
-        Ok(response) => response
-            .choices
-            .first()
-            .map(|choice| A2AMessage {
-                context_id: context_id.clone(),
-                extensions: vec![],
-                message_id: uuid::Uuid::new_v4().to_string(),
-                metadata: None,
-                parts: vec![Part {
-                    data: None,
-                    file: None,
-                    metadata: None,
-                    text: Some(message_content_to_string(&choice.message.content)),
-                }],
-                reference_task_ids: vec![],
-                role: Role::RoleAgent,
-                task_id: None,
-            })
-            .or_else(|| Some(echo_reply())),
-        Err(e) => {
-            warn!("Inference gateway unavailable, returning echo reply: {e}");
-            Some(echo_reply())
-        }
-    }
-}
-
 async fn handle_message_send(state: &Arc<AppState>, id: Value, params: Value) -> Json<Value> {
     let request: SendMessageRequest = match serde_json::from_value(params) {
         Ok(r) => r,
         Err(e) => return invalid_params(id, e),
     };
 
-    let blocking = request
-        .configuration
-        .as_ref()
-        .map(|c| c.blocking)
-        .unwrap_or(false);
+    if let Err(detail) = validate_send_message_request(&request) {
+        return invalid_params_message(id, detail);
+    }
 
-    let mut task = build_task_from_request(&request);
+    let Some(handler) = state.server.background_task_handler.as_ref().cloned() else {
+        return json_rpc_error(
+            id,
+            jsonrpc_errors::METHOD_NOT_FOUND,
+            "Method not found",
+            Some(Value::String(
+                "message/send is not supported: no background task handler is configured"
+                    .to_string(),
+            )),
+        );
+    };
 
-    let reply = if blocking {
-        let reply = synthesize_agent_reply(&state.server, &request.message).await;
-        if let Some(ref msg) = reply {
-            task.history.push(msg.clone());
-            task.status = TaskStatus {
-                message: Some(msg.clone()),
-                state: TaskState::TaskStateCompleted,
-                timestamp: Some(Timestamp(chrono::Utc::now())),
-            };
+    let initial_task = build_task_from_request(&request);
+    state.server.storage.put_task(initial_task.clone());
+
+    let task = match handler.handle_task(initial_task, request.message).await {
+        Ok(t) => t,
+        Err(e) => {
+            error!("background task handler failed: {e}");
+            return json_rpc_error(
+                id,
+                jsonrpc_errors::INTERNAL_ERROR,
+                "Internal error",
+                Some(Value::String(e.to_string())),
+            );
         }
-        reply
-    } else {
-        None
     };
 
     state.server.storage.put_task(task.clone());
 
+    let reply = task.status.message.clone();
     let response = SendMessageResponse {
         message: reply,
         task: Some(task),
@@ -812,12 +1363,84 @@ async fn handle_message_send(state: &Arc<AppState>, id: Value, params: Value) ->
     }
 }
 
-async fn handle_message_stream(state: &Arc<AppState>, id: Value, params: Value) -> Json<Value> {
-    // True SSE streaming is tracked separately; here we surface a synchronous
-    // SendMessageResponse so callers can dispatch the method without
-    // failing. The response payload mirrors `message/send` so the wire shape
-    // is parity-compatible with the Go ADK's first stream chunk.
-    handle_message_send(state, id, params).await
+async fn handle_message_stream(state: Arc<AppState>, id: Value, params: Value) -> Response {
+    let request: SendMessageRequest = match serde_json::from_value(params) {
+        Ok(r) => r,
+        Err(e) => return invalid_params(id, e).into_response(),
+    };
+
+    if let Err(detail) = validate_send_message_request(&request) {
+        return invalid_params_message(id, detail).into_response();
+    }
+
+    let Some(handler) = state.server.streaming_task_handler.as_ref().cloned() else {
+        return json_rpc_error(
+            id,
+            jsonrpc_errors::METHOD_NOT_FOUND,
+            "Method not found",
+            Some(Value::String(
+                "message/stream is not supported: no streaming task handler is configured"
+                    .to_string(),
+            )),
+        )
+        .into_response();
+    };
+
+    let task = build_task_from_request(&request);
+    state.server.storage.put_task(task.clone());
+
+    let (tx, rx) = mpsc::channel::<StreamResponse>(32);
+
+    // Initial event: the freshly-created task in `Submitted`.
+    let initial = StreamResponse {
+        artifact_update: None,
+        message: None,
+        status_update: None,
+        task: Some(task.clone()),
+    };
+    if tx.send(initial).await.is_err() {
+        // Receiver dropped before we could send — return an internal error
+        // synchronously rather than an empty stream.
+        return json_rpc_error(
+            id,
+            jsonrpc_errors::INTERNAL_ERROR,
+            "Internal error",
+            Some(Value::String(
+                "stream receiver closed before initial event".to_string(),
+            )),
+        )
+        .into_response();
+    }
+
+    let emitter = StreamEmitter::new(tx, Arc::clone(&state.server.storage));
+    let task_id = task.id.clone();
+    let message = request.message;
+    tokio::spawn(async move {
+        if let Err(e) = handler.handle_streaming_task(task, message, emitter).await {
+            error!("streaming task handler for task {task_id} failed: {e}");
+        }
+    });
+
+    let envelope_id = id.clone();
+    let stream = ReceiverStream::new(rx).map(move |response| {
+        let envelope = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": envelope_id.clone(),
+            "result": response,
+        });
+        Ok::<_, Infallible>(
+            Event::default()
+                .json_data(envelope)
+                .unwrap_or_else(|e| Event::default().data(format!("serialization error: {e}"))),
+        )
+    });
+
+    let stream: Box<dyn Stream<Item = Result<Event, Infallible>> + Send + Unpin> =
+        Box::new(Box::pin(stream));
+
+    Sse::new(stream)
+        .keep_alive(KeepAlive::default())
+        .into_response()
 }
 
 fn handle_tasks_get(state: &Arc<AppState>, id: Value, params: Value) -> Json<Value> {
@@ -1150,6 +1773,7 @@ mod tests {
 
                     let server = A2AServerBuilder::new()
                         .with_agent_card(agent_card)
+                        .with_default_task_handlers()
                         .build()
                         .await;
                     assert!(server.is_ok(), "Default builder should succeed");
@@ -1184,6 +1808,7 @@ mod tests {
                     let server = A2AServerBuilder::new()
                         .with_config(config)
                         .with_agent_card(agent_card)
+                        .with_default_task_handlers()
                         .build()
                         .await;
                     assert!(server.is_ok(), "Builder with config should succeed");
@@ -1364,5 +1989,539 @@ mod tests {
                 _ => {}
             }
         }
+    }
+
+    #[tokio::test]
+    async fn message_stream_emits_state_transitions_end_to_end() {
+        use crate::A2AClient;
+        use crate::a2a_types::{Message as A2AMessage, Role, SendMessageRequest};
+        use futures_util::StreamExt;
+
+        #[derive(Debug)]
+        struct EchoStream;
+
+        #[async_trait::async_trait]
+        impl StreamableTaskHandler for EchoStream {
+            async fn handle_streaming_task(
+                &self,
+                task: Task,
+                message: Option<A2AMessage>,
+                emitter: StreamEmitter,
+            ) -> Result<()> {
+                emitter
+                    .emit_status(
+                        &task.id,
+                        &task.context_id,
+                        TaskState::TaskStateWorking,
+                        None,
+                        false,
+                    )
+                    .await?;
+                let user_text = message
+                    .as_ref()
+                    .map(|m| {
+                        m.parts
+                            .iter()
+                            .filter_map(|p| p.text.clone())
+                            .collect::<Vec<_>>()
+                            .join("")
+                    })
+                    .unwrap_or_default();
+                let reply_text = format!("Echo: {user_text}");
+                emitter
+                    .emit_text_artifact(&task.id, &task.context_id, reply_text.clone(), true)
+                    .await?;
+                let reply_message = build_agent_text_message(&task, &reply_text);
+                emitter
+                    .emit_status(
+                        &task.id,
+                        &task.context_id,
+                        TaskState::TaskStateCompleted,
+                        Some(reply_message),
+                        true,
+                    )
+                    .await
+            }
+        }
+
+        let agent_card: AgentCard = serde_json::from_value(serde_json::json!({
+            "name": "Test Stream Agent",
+            "description": "Streaming SSE end-to-end test",
+            "version": "0.0.0",
+            "protocolVersion": "0.2.6",
+            "url": "http://localhost/a2a",
+            "preferredTransport": "JSONRPC",
+            "capabilities": {
+                "streaming": true,
+                "pushNotifications": false,
+                "stateTransitionHistory": false
+            },
+            "defaultInputModes": ["text/plain"],
+            "defaultOutputModes": ["text/plain"],
+            "skills": [
+                {
+                    "id": "echo",
+                    "name": "echo",
+                    "description": "echo",
+                    "tags": ["echo"]
+                }
+            ]
+        }))
+        .unwrap();
+
+        let server = A2AServerBuilder::new()
+            .with_agent_card(agent_card)
+            .with_streaming_task_handler(EchoStream)
+            .build()
+            .await
+            .expect("server builds");
+
+        let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+        let addr = listener.local_addr().expect("local addr");
+        let app = Router::new()
+            .route("/a2a", post(a2a_handler))
+            .with_state(Arc::new(AppState { server }));
+        tokio::spawn(async move {
+            axum::serve(listener, app).await.ok();
+        });
+
+        let client = A2AClient::new(format!("http://{addr}")).expect("client");
+
+        let request = SendMessageRequest {
+            configuration: None,
+            message: Some(A2AMessage {
+                context_id: None,
+                extensions: vec![],
+                message_id: "msg-1".to_string(),
+                metadata: None,
+                parts: vec![Part {
+                    data: None,
+                    file: None,
+                    metadata: None,
+                    text: Some("ping".to_string()),
+                }],
+                reference_task_ids: vec![],
+                role: Role::RoleUser,
+                task_id: None,
+            }),
+            metadata: None,
+            tenant: "tests".to_string(),
+        };
+
+        let mut stream = Box::pin(client.stream_message(request).await.expect("stream"));
+        let mut events: Vec<StreamResponse> = Vec::new();
+        while let Some(item) = stream.next().await {
+            events.push(item.expect("event"));
+        }
+
+        // Expect exactly four events in order:
+        // 1) task wrapper (Submitted)
+        // 2) status update → Working (final=false)
+        // 3) artifact update with echo text
+        // 4) status update → Completed (final=true)
+        assert_eq!(
+            events.len(),
+            4,
+            "expected 4 events, got {}: {:?}",
+            events.len(),
+            events
+        );
+
+        let initial_task = events[0]
+            .task
+            .as_ref()
+            .expect("first event carries the task");
+        assert_eq!(initial_task.status.state, TaskState::TaskStateSubmitted);
+
+        let working = events[1]
+            .status_update
+            .as_ref()
+            .expect("second event is a status update");
+        assert_eq!(working.status.state, TaskState::TaskStateWorking);
+        assert!(!working.final_);
+
+        let artifact = events[2]
+            .artifact_update
+            .as_ref()
+            .expect("third event is an artifact update");
+        let text = artifact
+            .artifact
+            .parts
+            .iter()
+            .filter_map(|p| p.text.clone())
+            .collect::<String>();
+        assert_eq!(text, "Echo: ping");
+
+        let completed = events[3]
+            .status_update
+            .as_ref()
+            .expect("fourth event is a status update");
+        assert_eq!(completed.status.state, TaskState::TaskStateCompleted);
+        assert!(completed.final_);
+        let final_message_text = completed
+            .status
+            .message
+            .as_ref()
+            .expect("completed status carries the final agent message")
+            .parts
+            .iter()
+            .filter_map(|p| p.text.clone())
+            .collect::<String>();
+        assert_eq!(final_message_text, "Echo: ping");
+    }
+
+    #[tokio::test]
+    async fn message_stream_uses_custom_handler() {
+        use crate::A2AClient;
+        use crate::a2a_types::{Message as A2AMessage, Role, SendMessageRequest};
+        use futures_util::StreamExt;
+
+        #[derive(Debug)]
+        struct TwoStateHandler;
+
+        #[async_trait::async_trait]
+        impl StreamableTaskHandler for TwoStateHandler {
+            async fn handle_streaming_task(
+                &self,
+                task: Task,
+                _message: Option<A2AMessage>,
+                emitter: StreamEmitter,
+            ) -> anyhow::Result<()> {
+                emitter
+                    .emit_status(
+                        &task.id,
+                        &task.context_id,
+                        TaskState::TaskStateFailed,
+                        None,
+                        true,
+                    )
+                    .await
+            }
+        }
+
+        let agent_card: AgentCard = serde_json::from_value(serde_json::json!({
+            "name": "Custom Handler Test",
+            "description": "Verifies with_streaming_task_handler is used",
+            "version": "0.0.0",
+            "protocolVersion": "0.2.6",
+            "url": "http://localhost/a2a",
+            "preferredTransport": "JSONRPC",
+            "capabilities": {"streaming": true, "pushNotifications": false, "stateTransitionHistory": false},
+            "defaultInputModes": ["text/plain"],
+            "defaultOutputModes": ["text/plain"],
+            "skills": [{"id": "x", "name": "x", "description": "x", "tags": ["x"]}]
+        }))
+        .unwrap();
+
+        let server = A2AServerBuilder::new()
+            .with_agent_card(agent_card)
+            .with_streaming_task_handler(TwoStateHandler)
+            .build()
+            .await
+            .expect("server");
+
+        let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+        let addr = listener.local_addr().expect("addr");
+        let app = Router::new()
+            .route("/a2a", post(a2a_handler))
+            .with_state(Arc::new(AppState { server }));
+        tokio::spawn(async move {
+            axum::serve(listener, app).await.ok();
+        });
+
+        let client = A2AClient::new(format!("http://{addr}")).expect("client");
+
+        let request = SendMessageRequest {
+            configuration: None,
+            message: Some(A2AMessage {
+                context_id: None,
+                extensions: vec![],
+                message_id: "msg-2".to_string(),
+                metadata: None,
+                parts: vec![Part {
+                    data: None,
+                    file: None,
+                    metadata: None,
+                    text: Some("hi".to_string()),
+                }],
+                reference_task_ids: vec![],
+                role: Role::RoleUser,
+                task_id: None,
+            }),
+            metadata: None,
+            tenant: "tests".to_string(),
+        };
+
+        let mut stream = Box::pin(client.stream_message(request).await.expect("stream"));
+        let mut events: Vec<StreamResponse> = Vec::new();
+        while let Some(item) = stream.next().await {
+            events.push(item.expect("event"));
+        }
+
+        assert_eq!(events.len(), 2);
+        assert!(events[0].task.is_some());
+        let final_update = events[1].status_update.as_ref().expect("status update");
+        assert_eq!(final_update.status.state, TaskState::TaskStateFailed);
+        assert!(final_update.final_);
+    }
+
+    fn agent_card_with_streaming(streaming: bool) -> AgentCard {
+        serde_json::from_value(serde_json::json!({
+            "name": "Validation Agent",
+            "description": "Builder validation tests",
+            "version": "0.0.0",
+            "protocolVersion": "0.2.6",
+            "url": "http://localhost/a2a",
+            "preferredTransport": "JSONRPC",
+            "capabilities": {
+                "streaming": streaming,
+                "pushNotifications": false,
+                "stateTransitionHistory": false
+            },
+            "defaultInputModes": ["text/plain"],
+            "defaultOutputModes": ["text/plain"],
+            "skills": [
+                {"id": "x", "name": "x", "description": "x", "tags": ["x"]}
+            ]
+        }))
+        .unwrap()
+    }
+
+    #[tokio::test]
+    async fn build_fails_when_no_handler_configured() {
+        let err = A2AServerBuilder::new()
+            .with_agent_card(agent_card_with_streaming(true))
+            .build()
+            .await
+            .expect_err("build should reject empty handler configuration");
+        let message = err.to_string();
+        assert!(
+            message.contains("at least one task handler"),
+            "unexpected error: {message}"
+        );
+    }
+
+    #[tokio::test]
+    async fn build_requires_streaming_handler_when_streaming_enabled() {
+        let err = A2AServerBuilder::new()
+            .with_agent_card(agent_card_with_streaming(true))
+            .with_default_background_task_handler()
+            .build()
+            .await
+            .expect_err("streaming-enabled card without streaming handler should fail");
+        let message = err.to_string();
+        assert!(
+            message.contains("streaming task handler is required"),
+            "unexpected error: {message}"
+        );
+    }
+
+    #[tokio::test]
+    async fn build_requires_background_handler_when_streaming_disabled() {
+        let err = A2AServerBuilder::new()
+            .with_agent_card(agent_card_with_streaming(false))
+            .with_default_streaming_task_handler()
+            .build()
+            .await
+            .expect_err("streaming-disabled card without background handler should fail");
+        let message = err.to_string();
+        assert!(
+            message.contains("background task handler is required"),
+            "unexpected error: {message}"
+        );
+    }
+
+    #[tokio::test]
+    async fn build_succeeds_with_default_task_handlers() {
+        let server = A2AServerBuilder::new()
+            .with_agent_card(agent_card_with_streaming(true))
+            .with_default_task_handlers()
+            .build()
+            .await;
+        assert!(
+            server.is_ok(),
+            "with_default_task_handlers should satisfy validation"
+        );
+    }
+
+    /// Drive the `DefaultStreamingTaskHandler` against a mock OpenAI-compatible
+    /// gateway and verify the handler iterates the delta stream, emitting an
+    /// incremental artifact event per non-empty content chunk (all sharing a
+    /// single artifact_id with `append: true`), terminating with `last_chunk:
+    /// true` and a `Completed` status whose message carries the accumulated
+    /// reply.
+    #[tokio::test]
+    async fn default_streaming_handler_iterates_gateway_deltas() {
+        use crate::A2AClient;
+        use crate::a2a_types::{Message as A2AMessage, Role, SendMessageRequest};
+        use crate::config::AgentConfig;
+        use axum::response::sse::{Event as SseEvent, KeepAlive as SseKeepAlive, Sse as SseResp};
+        use futures_util::StreamExt as _;
+
+        // ----- Mock OpenAI-compatible gateway --------------------------------
+        async fn chat_completions() -> SseResp<
+            impl futures_util::Stream<Item = std::result::Result<SseEvent, std::convert::Infallible>>,
+        > {
+            let deltas = [
+                serde_json::json!({"choices":[{"delta":{"content":"Hel"}}]}).to_string(),
+                serde_json::json!({"choices":[{"delta":{"content":"lo "}}]}).to_string(),
+                serde_json::json!({"choices":[{"delta":{"content":"world"}}]}).to_string(),
+                "[DONE]".to_string(),
+            ];
+            let stream = futures_util::stream::iter(
+                deltas
+                    .into_iter()
+                    .map(|d| Ok::<_, std::convert::Infallible>(SseEvent::default().data(d))),
+            );
+            SseResp::new(stream).keep_alive(SseKeepAlive::default())
+        }
+
+        let gateway_listener = TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("bind gateway");
+        let gateway_addr = gateway_listener.local_addr().expect("addr");
+        let gateway_app = Router::new().route("/chat/completions", post(chat_completions));
+        tokio::spawn(async move {
+            axum::serve(gateway_listener, gateway_app).await.ok();
+        });
+
+        // ----- A2A server using DefaultStreamingTaskHandler ------------------
+        let agent_card = agent_card_with_streaming(true);
+        let agent_config = AgentConfig {
+            provider: "openai".to_string(),
+            model: "test-model".to_string(),
+            ..AgentConfig::default()
+        };
+        let agent = AgentBuilder::new()
+            .with_config(&agent_config)
+            .build()
+            .await
+            .expect("agent builds");
+
+        let server = A2AServerBuilder::new()
+            .with_agent_card(agent_card)
+            .with_gateway_url(format!("http://{gateway_addr}"))
+            .with_agent(agent)
+            .with_default_task_handlers()
+            .build()
+            .await
+            .expect("server builds");
+
+        let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind a2a");
+        let addr = listener.local_addr().expect("addr");
+        let app = Router::new()
+            .route("/a2a", post(a2a_handler))
+            .with_state(Arc::new(AppState { server }));
+        tokio::spawn(async move {
+            axum::serve(listener, app).await.ok();
+        });
+
+        let client = A2AClient::new(format!("http://{addr}")).expect("client");
+
+        let request = SendMessageRequest {
+            configuration: None,
+            message: Some(A2AMessage {
+                context_id: None,
+                extensions: vec![],
+                message_id: "msg-default-stream".to_string(),
+                metadata: None,
+                parts: vec![Part {
+                    data: None,
+                    file: None,
+                    metadata: None,
+                    text: Some("hi".to_string()),
+                }],
+                reference_task_ids: vec![],
+                role: Role::RoleUser,
+                task_id: None,
+            }),
+            metadata: None,
+            tenant: "tests".to_string(),
+        };
+
+        let mut stream = Box::pin(client.stream_message(request).await.expect("stream"));
+        let mut events: Vec<StreamResponse> = Vec::new();
+        while let Some(item) = stream.next().await {
+            events.push(item.expect("event"));
+        }
+
+        // Expected sequence:
+        //   [0] task wrapper (Submitted)
+        //   [1] status Working
+        //   [2..=4] three artifact deltas — texts "Hel", "lo ", "world"
+        //   [5] final artifact chunk (last_chunk=true, empty parts)
+        //   [6] status Completed (final=true) with accumulated message
+        assert_eq!(
+            events.len(),
+            7,
+            "unexpected event count {}: {:?}",
+            events.len(),
+            events
+        );
+
+        assert!(events[0].task.is_some(), "first event carries task");
+        let working = events[1]
+            .status_update
+            .as_ref()
+            .expect("second event is status update");
+        assert_eq!(working.status.state, TaskState::TaskStateWorking);
+        assert!(!working.final_);
+
+        // Deltas: collect artifact_ids and texts across events 2, 3, 4.
+        let mut artifact_ids = std::collections::HashSet::new();
+        let chunks: Vec<String> = (2..=4)
+            .map(|i| {
+                let upd = events[i]
+                    .artifact_update
+                    .as_ref()
+                    .unwrap_or_else(|| panic!("event[{i}] should be an artifact update"));
+                assert_eq!(upd.append, Some(true), "deltas must have append=true");
+                assert_eq!(upd.last_chunk, Some(false));
+                artifact_ids.insert(upd.artifact.artifact_id.clone());
+                upd.artifact
+                    .parts
+                    .iter()
+                    .filter_map(|p| p.text.clone())
+                    .collect::<String>()
+            })
+            .collect();
+        assert_eq!(chunks, vec!["Hel", "lo ", "world"]);
+        assert_eq!(
+            artifact_ids.len(),
+            1,
+            "all deltas must share a single artifact_id"
+        );
+
+        let terminal_artifact = events[5]
+            .artifact_update
+            .as_ref()
+            .expect("event[5] should be the terminal artifact chunk");
+        assert_eq!(terminal_artifact.last_chunk, Some(true));
+        assert!(
+            terminal_artifact.artifact.parts.is_empty(),
+            "terminal chunk should have empty parts"
+        );
+        assert_eq!(
+            artifact_ids.iter().next().unwrap(),
+            &terminal_artifact.artifact.artifact_id,
+            "terminal chunk must share artifact_id with deltas"
+        );
+
+        let completed = events[6]
+            .status_update
+            .as_ref()
+            .expect("event[6] should be the Completed status");
+        assert_eq!(completed.status.state, TaskState::TaskStateCompleted);
+        assert!(completed.final_);
+        let assembled = completed
+            .status
+            .message
+            .as_ref()
+            .expect("completed status carries the final message")
+            .parts
+            .iter()
+            .filter_map(|p| p.text.clone())
+            .collect::<String>();
+        assert_eq!(assembled, "Hello world");
     }
 }

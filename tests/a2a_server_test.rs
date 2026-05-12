@@ -2,12 +2,28 @@
 //! A2A specification. Each test asserts the success path of one (or more)
 //! methods end-to-end against a running `A2AServer`.
 
-use inference_gateway_adk::{A2AClient, A2AServerBuilder, a2a_types};
+use inference_gateway_adk::{A2AClient, A2AServerBuilder, TaskHandler, a2a_types};
 use serde_json::{Value, json};
 use std::net::{SocketAddr, TcpListener as StdTcpListener};
 use std::sync::OnceLock;
 use std::time::Duration;
 use tokio::time::timeout;
+
+/// Background handler used by the integration test server. Leaves the task
+/// in `Submitted` so the cancel/get tests have a non-terminal task to act on.
+#[derive(Debug)]
+struct SubmittedTaskHandler;
+
+#[async_trait::async_trait]
+impl TaskHandler for SubmittedTaskHandler {
+    async fn handle_task(
+        &self,
+        task: a2a_types::Task,
+        _message: Option<a2a_types::Message>,
+    ) -> anyhow::Result<a2a_types::Task> {
+        Ok(task)
+    }
+}
 
 static SUITE: OnceLock<Suite> = OnceLock::new();
 
@@ -75,6 +91,8 @@ fn ensure_suite() -> &'static Suite {
                     let server = A2AServerBuilder::new()
                         .with_gateway_url("http://127.0.0.1:1/v1") // intentionally unreachable
                         .with_agent_card(agent_card)
+                        .with_background_task_handler(SubmittedTaskHandler)
+                        .with_default_streaming_task_handler()
                         .build()
                         .await
                         .expect("server builds");
@@ -193,25 +211,116 @@ async fn message_send_returns_task() {
 }
 
 #[tokio::test]
-async fn message_stream_returns_task() {
+async fn message_send_rejects_empty_message_id() {
     let suite = ensure_suite();
     let request = json!({
         "jsonrpc": "2.0",
-        "id": "test-message-stream-001",
-        "method": "message/stream",
-        "params": send_message_params("msg-stream-001", "Hello via message/stream"),
+        "id": "test-message-send-empty-id",
+        "method": "message/send",
+        "params": {
+            "tenant": "test",
+            "message": {
+                "messageId": "",
+                "role": "ROLE_USER",
+                "parts": [{ "text": "missing id" }],
+            },
+        },
     });
     let response = post_jsonrpc(suite, request).await;
+    let err = response
+        .get("error")
+        .unwrap_or_else(|| panic!("expected error, got: {response}"));
+    assert_eq!(err.get("code").and_then(|v| v.as_i64()), Some(-32602));
+    let data = err.get("data").and_then(|v| v.as_str()).unwrap_or_default();
     assert!(
-        response.get("error").is_none(),
-        "expected success but got error: {response}"
+        data.contains("messageId"),
+        "error data should mention messageId, got: {data}"
     );
-    let result = response
-        .get("result")
-        .unwrap_or_else(|| panic!("expected `result` in response: {response}"));
-    let typed: a2a_types::SendMessageResponse =
-        serde_json::from_value(result.clone()).expect("SendMessageResponse parses");
-    assert!(typed.task.is_some(), "task should be present in result");
+}
+
+#[tokio::test]
+async fn message_send_rejects_empty_parts() {
+    let suite = ensure_suite();
+    let request = json!({
+        "jsonrpc": "2.0",
+        "id": "test-message-send-empty-parts",
+        "method": "message/send",
+        "params": {
+            "tenant": "test",
+            "message": {
+                "messageId": "msg-no-parts",
+                "role": "ROLE_USER",
+                "parts": [],
+            },
+        },
+    });
+    let response = post_jsonrpc(suite, request).await;
+    let err = response
+        .get("error")
+        .unwrap_or_else(|| panic!("expected error, got: {response}"));
+    assert_eq!(err.get("code").and_then(|v| v.as_i64()), Some(-32602));
+    let data = err.get("data").and_then(|v| v.as_str()).unwrap_or_default();
+    assert!(
+        data.contains("parts"),
+        "error data should mention parts, got: {data}"
+    );
+}
+
+#[tokio::test]
+async fn message_stream_emits_sse_state_transitions() {
+    use futures::StreamExt;
+
+    let suite = ensure_suite();
+    let client = A2AClient::new(&suite.base_url).expect("client builds");
+
+    let request = a2a_types::SendMessageRequest {
+        configuration: None,
+        message: Some(a2a_types::Message {
+            context_id: None,
+            extensions: vec![],
+            message_id: "msg-stream-001".to_string(),
+            metadata: None,
+            parts: vec![a2a_types::Part {
+                data: None,
+                file: None,
+                metadata: None,
+                text: Some("Hello via message/stream".to_string()),
+            }],
+            reference_task_ids: vec![],
+            role: a2a_types::Role::RoleUser,
+            task_id: None,
+        }),
+        metadata: None,
+        tenant: "test".to_string(),
+    };
+
+    let mut stream = Box::pin(client.stream_message(request).await.expect("stream opens"));
+
+    let mut saw_task = false;
+    let mut saw_working = false;
+    let mut saw_completed_final = false;
+    while let Some(event) = stream.next().await {
+        let event = event.expect("event decodes");
+        if event.task.is_some() {
+            saw_task = true;
+        }
+        if let Some(update) = event.status_update {
+            match update.status.state {
+                a2a_types::TaskState::TaskStateWorking => saw_working = true,
+                a2a_types::TaskState::TaskStateCompleted if update.final_ => {
+                    saw_completed_final = true;
+                }
+                _ => {}
+            }
+        }
+    }
+
+    assert!(saw_task, "stream should carry the initial Task");
+    assert!(saw_working, "stream should emit TaskStateWorking");
+    assert!(
+        saw_completed_final,
+        "stream should terminate with TaskStateCompleted (final=true)"
+    );
 }
 
 #[tokio::test]

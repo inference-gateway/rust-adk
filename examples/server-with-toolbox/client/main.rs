@@ -1,8 +1,33 @@
+use futures::StreamExt;
 use inference_gateway_adk::A2AClient;
-use serde_json::json;
+use inference_gateway_adk::a2a_types::{Message, Part, Role, SendMessageRequest};
 use std::env;
 use tokio::time::{Duration, sleep};
 use tracing::{error, info};
+use uuid::Uuid;
+
+fn user_message(text: &str) -> SendMessageRequest {
+    SendMessageRequest {
+        configuration: None,
+        message: Some(Message {
+            context_id: None,
+            extensions: vec![],
+            message_id: Uuid::new_v4().to_string(),
+            metadata: None,
+            parts: vec![Part {
+                data: None,
+                file: None,
+                metadata: None,
+                text: Some(text.to_string()),
+            }],
+            reference_task_ids: vec![],
+            role: Role::RoleUser,
+            task_id: None,
+        }),
+        metadata: None,
+        tenant: "server-with-toolbox".to_string(),
+    }
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -41,59 +66,81 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    let task_params = json!({
-        "jsonrpc": "2.0",
-        "id": "toolbox-001",
-        "method": "generate_content",
-        "params": {
-            "messages": [
-                {
-                    "role": "user",
-                    "content": "What's the weather in San Francisco, and what is 12 * 7?"
-                }
-            ]
-        }
-    });
-
-    match client.send_task(task_params).await {
+    // message/send — dispatch a single tool-use prompt and print the reply.
+    match client
+        .send_message(user_message(
+            "What's the weather in San Francisco, and what is 12 * 7?",
+        ))
+        .await
+    {
         Ok(response) => {
-            info!("A2A task sent successfully");
-            info!("Response: {}", serde_json::to_string_pretty(&response)?);
+            info!("message/send dispatched");
+            if let Some(task) = response.task {
+                info!("→ task {} in state {:?}", task.id, task.status.state);
+                if let Some(msg) = task.status.message {
+                    let text = msg
+                        .parts
+                        .iter()
+                        .filter_map(|p| p.text.clone())
+                        .collect::<Vec<_>>()
+                        .join("");
+                    info!("→ agent reply: {}", text);
+                }
+            }
         }
         Err(e) => {
-            error!("Failed to send A2A task: {}", e);
+            error!("Failed to dispatch message/send: {}", e);
         }
     }
 
-    let streaming_params = json!({
-        "jsonrpc": "2.0",
-        "id": "toolbox-stream-001",
-        "method": "generate_content",
-        "params": {
-            "messages": [
-                {
-                    "role": "user",
-                    "content": "Search the web for 'Rust async programming' and summarise the top results."
-                }
-            ]
-        }
-    });
-
+    // message/stream — observe state transitions and incremental artifacts.
     match client
-        .send_task_streaming(streaming_params, |event| {
-            info!(
-                "Streaming event received: {}",
-                serde_json::to_string_pretty(&event)?
-            );
-            Ok(())
-        })
+        .stream_message(user_message(
+            "Search the web for 'Rust async programming' and summarise the top results.",
+        ))
         .await
     {
-        Ok(_) => {
-            info!("Streaming task completed successfully");
+        Ok(stream) => {
+            let mut stream = Box::pin(stream);
+            let mut event_index = 0usize;
+            while let Some(item) = stream.next().await {
+                event_index += 1;
+                match item {
+                    Ok(event) => {
+                        if let Some(task) = event.task {
+                            info!(
+                                "[{event_index}] message/stream → task {} created (state {:?})",
+                                task.id, task.status.state
+                            );
+                        }
+                        if let Some(update) = event.status_update {
+                            let suffix = if update.final_ { " (final)" } else { "" };
+                            info!(
+                                "[{event_index}] message/stream → status update: {:?}{suffix}",
+                                update.status.state
+                            );
+                        }
+                        if let Some(artifact) = event.artifact_update {
+                            let text = artifact
+                                .artifact
+                                .parts
+                                .iter()
+                                .filter_map(|p| p.text.clone())
+                                .collect::<Vec<_>>()
+                                .join("");
+                            info!("[{event_index}] message/stream → artifact: {:?}", text);
+                        }
+                    }
+                    Err(e) => {
+                        error!("[{event_index}] message/stream event failed: {}", e);
+                        break;
+                    }
+                }
+            }
+            info!("message/stream closed after {event_index} events");
         }
         Err(e) => {
-            error!("Streaming task failed: {}", e);
+            error!("Failed to open message/stream: {}", e);
         }
     }
 

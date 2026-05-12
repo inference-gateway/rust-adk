@@ -2,11 +2,13 @@ use crate::a2a_types::{
     AgentCard, CancelTaskRequest, DeleteTaskPushNotificationConfigRequest,
     GetTaskPushNotificationConfigRequest, GetTaskRequest, ListTaskPushNotificationConfigRequest,
     ListTaskPushNotificationConfigResponse, ListTasksRequest, ListTasksResponse,
-    SendMessageRequest, SendMessageResponse, SetTaskPushNotificationConfigRequest, Task,
-    TaskPushNotificationConfig,
+    SendMessageRequest, SendMessageResponse, SetTaskPushNotificationConfigRequest, StreamResponse,
+    Task, TaskPushNotificationConfig, TaskState,
 };
 use crate::config::ClientConfig;
 use anyhow::{Result, anyhow};
+use eventsource_stream::Eventsource;
+use futures::stream::{Stream, StreamExt};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::Value;
 use tracing::debug;
@@ -142,14 +144,125 @@ impl A2AClient {
         self.call_typed("message/send", params).await
     }
 
-    /// `message/stream` — same params as `message/send`; in this client the
-    /// response is delivered as a single payload (server-sent events will be
-    /// added in a follow-up).
+    /// `message/stream` — open an SSE stream and yield each
+    /// [`StreamResponse`] event as it arrives.
+    ///
+    /// The first event typically carries the freshly-created `Task` in
+    /// `Submitted`; subsequent events are `TaskStatusUpdateEvent` /
+    /// `TaskArtifactUpdateEvent` deltas. The stream terminates after the
+    /// server emits an event with `final: true` (or closes the connection).
+    pub async fn stream_message(
+        &self,
+        params: SendMessageRequest,
+    ) -> Result<impl Stream<Item = Result<StreamResponse>> + Send + 'static> {
+        let envelope = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": Uuid::new_v4().to_string(),
+            "method": "message/stream",
+            "params": serde_json::to_value(params)
+                .map_err(|e| anyhow!("failed to serialize stream params: {e}"))?,
+        });
+
+        let url = format!("{}/a2a", self.base_url);
+        let response = self
+            .http_client
+            .post(&url)
+            .header("Accept", "text/event-stream")
+            .json(&envelope)
+            .send()
+            .await
+            .map_err(|e| anyhow!("message/stream request failed: {e}"))?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(anyhow!("message/stream failed: HTTP {status}: {body}"));
+        }
+
+        let event_stream = response.bytes_stream().eventsource();
+
+        let stream = event_stream.filter_map(|event| async move {
+            match event {
+                Ok(event) => {
+                    if event.data.is_empty() {
+                        return None;
+                    }
+                    let parsed: Value = match serde_json::from_str(&event.data) {
+                        Ok(v) => v,
+                        Err(e) => {
+                            return Some(Err(anyhow!(
+                                "failed to parse SSE event as JSON: {e}: {data}",
+                                data = event.data
+                            )));
+                        }
+                    };
+                    if let Some(err) = parsed.get("error") {
+                        return Some(Err(anyhow!("JSON-RPC error in stream: {err}")));
+                    }
+                    let result = match parsed.get("result").cloned() {
+                        Some(v) => v,
+                        None => {
+                            return Some(Err(anyhow!(
+                                "SSE event missing `result`: {data}",
+                                data = event.data
+                            )));
+                        }
+                    };
+                    match serde_json::from_value::<StreamResponse>(result) {
+                        Ok(r) => Some(Ok(r)),
+                        Err(e) => Some(Err(anyhow!("failed to decode StreamResponse: {e}"))),
+                    }
+                }
+                Err(e) => Some(Err(anyhow!("SSE transport error: {e}"))),
+            }
+        });
+
+        Ok(stream)
+    }
+
+    /// `message/stream` — drain the SSE stream and return a single
+    /// [`SendMessageResponse`] assembled from the last task seen and the
+    /// final agent message (if any). Kept for callers that prefer a
+    /// `message/send`-shaped response; use [`A2AClient::stream_message`]
+    /// when you want to observe state transitions as they happen.
     pub async fn send_streaming_message(
         &self,
         params: SendMessageRequest,
     ) -> Result<SendMessageResponse> {
-        self.call_typed("message/stream", params).await
+        let mut stream = Box::pin(self.stream_message(params).await?);
+
+        let mut latest_task: Option<Task> = None;
+        let mut final_message: Option<crate::a2a_types::Message> = None;
+
+        while let Some(event) = stream.next().await {
+            let response = event?;
+            if let Some(task) = response.task {
+                latest_task = Some(task);
+            }
+            if let Some(update) = response.status_update.as_ref() {
+                if let Some(ref mut task) = latest_task {
+                    task.status = update.status.clone();
+                }
+                if matches!(
+                    update.status.state,
+                    TaskState::TaskStateCompleted
+                        | TaskState::TaskStateFailed
+                        | TaskState::TaskStateCancelled
+                        | TaskState::TaskStateRejected
+                ) && let Some(msg) = update.status.message.clone()
+                {
+                    final_message = Some(msg);
+                }
+            }
+            if let Some(msg) = response.message {
+                final_message = Some(msg);
+            }
+        }
+
+        Ok(SendMessageResponse {
+            message: final_message,
+            task: latest_task,
+        })
     }
 
     /// `tasks/get` — fetch a stored task by resource name (`tasks/{task_id}`).

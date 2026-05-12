@@ -34,6 +34,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let server = A2AServerBuilder::new()
         .with_agent_card(agent_card)
         .with_gateway_url("http://localhost:8080/v1")
+        .with_default_task_handlers()
         .build()
         .await?;
 

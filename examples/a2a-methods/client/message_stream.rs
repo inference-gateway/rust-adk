@@ -1,14 +1,16 @@
-//! `message/stream` — dispatch a streaming message request.
+//! `message/stream` — open the SSE stream and observe each event live.
 //!
-//! The current server implementation delivers the response as a single
-//! payload (server-sent events arrive in a follow-up ticket); the wire shape
-//! mirrors `message/send` so the same `SendMessageResponse` is returned.
+//! The example server registers an explicit
+//! [`EchoStreamHandler`](crate) that drives the task through
+//! `Submitted` → `Working` → echo artifact → `Completed`. This client
+//! prints each event as it arrives.
 //!
 //! ```bash
 //! cargo run --example a2a-methods-server
 //! cargo run --example a2a-methods-message-stream
 //! ```
 
+use futures::StreamExt;
 use inference_gateway_adk::A2AClient;
 use inference_gateway_adk::a2a_types::{Message, Part, Role, SendMessageRequest};
 use std::env;
@@ -43,14 +45,40 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         tenant: "example".to_string(),
     };
 
-    let response = client.send_streaming_message(request).await?;
+    let mut stream = Box::pin(client.stream_message(request).await?);
 
-    if let Some(task) = response.task {
-        info!(
-            "message/stream → task {} in state {:?}",
-            task.id, task.status.state
-        );
+    let mut event_index = 0usize;
+    while let Some(event) = stream.next().await {
+        let response = event?;
+        event_index += 1;
+
+        if let Some(task) = response.task {
+            info!(
+                "[{event_index}] message/stream → task {} created (state {:?})",
+                task.id, task.status.state
+            );
+        }
+
+        if let Some(update) = response.status_update {
+            let suffix = if update.final_ { " (final)" } else { "" };
+            info!(
+                "[{event_index}] message/stream → status update: {:?}{suffix}",
+                update.status.state
+            );
+        }
+
+        if let Some(artifact_event) = response.artifact_update {
+            let text = artifact_event
+                .artifact
+                .parts
+                .iter()
+                .filter_map(|p| p.text.clone())
+                .collect::<Vec<_>>()
+                .join("");
+            info!("[{event_index}] message/stream → artifact: {:?}", text);
+        }
     }
 
+    info!("message/stream → stream closed after {event_index} events");
     Ok(())
 }
