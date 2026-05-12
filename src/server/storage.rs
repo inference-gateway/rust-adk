@@ -25,8 +25,9 @@ use tokio::sync::Notify;
 /// A task pulled off the queue, plus the JSON-RPC `request_id` that
 /// originally enqueued it. The `request_id` is preserved for
 /// correlation/tracing — it is not consumed by the worker today, mirroring
-/// the Go ADK's behavior.
-#[derive(Debug, Clone)]
+/// the Go ADK's behavior. `Serialize`/`Deserialize` so the Redis backend
+/// can JSON-encode the value into a Redis LIST entry.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct QueuedTask {
     pub task: Task,
     pub request_id: Value,
@@ -465,6 +466,38 @@ impl Storage for InMemoryStorage {
 pub fn parse_task_name(name: &str) -> Option<&str> {
     name.strip_prefix("tasks/")
         .filter(|rest| !rest.is_empty() && !rest.contains('/'))
+}
+
+/// Construct a `Storage` backend from a [`QueueConfig`]. The default
+/// (`provider = Memory`) returns an [`InMemoryStorage`]; with the
+/// `redis` cargo feature enabled and `provider = Redis`, this connects
+/// to the configured URL and returns a `RedisStorage`. Without the
+/// `redis` feature, selecting Redis errors at construction time.
+pub async fn create_storage(
+    cfg: &crate::config::QueueConfig,
+) -> Result<std::sync::Arc<dyn Storage>> {
+    use crate::config::QueueProvider;
+    match cfg.provider {
+        QueueProvider::Memory => Ok(std::sync::Arc::new(InMemoryStorage::new())),
+        QueueProvider::Redis => {
+            #[cfg(feature = "redis")]
+            {
+                let url = cfg.url.as_deref().ok_or_else(|| {
+                    anyhow!("A2A_QUEUE_URL is required when A2A_QUEUE_PROVIDER=redis")
+                })?;
+                let storage =
+                    super::storage_redis::RedisStorage::connect(url, &cfg.namespace).await?;
+                Ok(std::sync::Arc::new(storage))
+            }
+            #[cfg(not(feature = "redis"))]
+            {
+                Err(anyhow!(
+                    "A2A_QUEUE_PROVIDER=redis requires the `redis` cargo feature. \
+                     Rebuild with `--features redis`."
+                ))
+            }
+        }
+    }
 }
 
 #[cfg(test)]

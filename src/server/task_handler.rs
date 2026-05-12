@@ -769,12 +769,6 @@ mod tests {
             events.push(item.expect("event"));
         }
 
-        // Expected sequence:
-        //   [0] task wrapper (Submitted)
-        //   [1] status Working
-        //   [2..=4] three artifact deltas — texts "Hel", "lo ", "world"
-        //   [5] final artifact chunk (last_chunk=true, empty parts)
-        //   [6] status Completed (final=true) with accumulated message
         assert_eq!(
             events.len(),
             7,

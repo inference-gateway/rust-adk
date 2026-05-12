@@ -4,13 +4,15 @@ pub mod config;
 pub mod server;
 
 pub use client::{A2AClient, HealthStatus};
-pub use config::{AgentConfig, ClientConfig, Config};
+pub use config::{AgentConfig, ClientConfig, Config, QueueConfig, QueueProvider};
+#[cfg(feature = "redis")]
+pub use server::RedisStorage;
 pub use server::{
     A2AServer, A2AServerBuilder, Agent, AgentBuilder, AgentCardOverrides, AsyncFunctionToolHandler,
     DefaultBackgroundTaskHandler, DefaultStreamingTaskHandler, DefaultTaskManager,
     FunctionToolHandler, InMemoryStorage, LLMClient, OpenAICompatibleLLMClient, QueuedTask,
     Storage, StorageStats, StreamEmitter, StreamableTaskHandler, TaskFilter, TaskHandler,
-    TaskManagerRunner, ToolHandler,
+    TaskManagerRunner, ToolHandler, create_storage,
 };
 
 #[cfg(test)]

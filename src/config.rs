@@ -52,9 +52,29 @@ pub struct AuthConfig {
     pub client_secret: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum QueueProvider {
+    #[default]
+    Memory,
+    Redis,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QueueConfig {
+    /// Selects which `Storage` backend the server factory wires up.
+    pub provider: QueueProvider,
+    /// Connection URL for the provider (e.g. `redis://host:6379`).
+    /// Required when `provider == Redis`.
+    pub url: Option<String>,
+    /// Key prefix / namespace for backend keys.
+    pub namespace: String,
+    /// Number of `DefaultTaskManager` workers draining the queue.
+    pub workers: usize,
+    /// Max number of in-flight queue entries the in-memory backend will
+    /// accept (advisory; current impl does not enforce).
     pub max_size: usize,
+    /// Per-operation timeout for backend calls that support timeouts.
     pub timeout: Duration,
 }
 
@@ -121,6 +141,10 @@ impl Default for CapabilitiesConfig {
 impl Default for QueueConfig {
     fn default() -> Self {
         Self {
+            provider: QueueProvider::Memory,
+            url: None,
+            namespace: "a2a".to_string(),
+            workers: 1,
             max_size: 1000,
             timeout: Duration::from_secs(30),
         }
@@ -251,6 +275,36 @@ impl Config {
                     client_secret: std::env::var("AUTH_CLIENT_SECRET").unwrap_or_default(),
                 });
             }
+        }
+
+        // Queue / storage backend (matches the Go ADK's A2A_QUEUE_* prefix).
+        if let Ok(provider) = std::env::var("A2A_QUEUE_PROVIDER") {
+            config.queue_config.provider = match provider.to_lowercase().as_str() {
+                "redis" => QueueProvider::Redis,
+                "memory" | "" => QueueProvider::Memory,
+                other => {
+                    return Err(format!(
+                        "A2A_QUEUE_PROVIDER must be one of `memory` or `redis` (got {other:?})"
+                    )
+                    .into());
+                }
+            };
+        }
+        if let Ok(url) = std::env::var("A2A_QUEUE_URL") {
+            config.queue_config.url = Some(url);
+        }
+        if let Ok(ns) = std::env::var("A2A_QUEUE_NAMESPACE") {
+            config.queue_config.namespace = ns;
+        }
+        if let Ok(workers) = std::env::var("A2A_QUEUE_WORKERS")
+            && let Ok(n) = workers.parse::<usize>()
+        {
+            config.queue_config.workers = n.max(1);
+        }
+        if let Ok(max) = std::env::var("A2A_QUEUE_MAX_SIZE")
+            && let Ok(n) = max.parse::<usize>()
+        {
+            config.queue_config.max_size = n;
         }
 
         Ok(config)

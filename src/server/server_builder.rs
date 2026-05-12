@@ -1,7 +1,7 @@
 use super::agent::Agent;
 use super::agent_card::AgentCardOverrides;
 use super::server_core::A2AServer;
-use super::storage::{InMemoryStorage, Storage};
+use super::storage::{Storage, create_storage};
 use super::task_handler::{
     DefaultBackgroundTaskHandler, DefaultStreamingTaskHandler, StreamableTaskHandler, TaskHandler,
 };
@@ -251,16 +251,19 @@ impl A2AServerBuilder {
             _ => {}
         }
 
-        let storage = self
-            .storage
-            .unwrap_or_else(|| Arc::new(InMemoryStorage::new()) as Arc<dyn Storage>);
+        // Resolve the storage backend. If the caller injected one
+        // explicitly via `with_storage`, use it. Otherwise build one
+        // from `config.queue_config` (driven by A2A_QUEUE_* env vars
+        // when `Config::from_env()` was used).
+        let storage = if let Some(s) = self.storage {
+            s
+        } else {
+            create_storage(&config.queue_config).await?
+        };
 
+        let worker_count = self.worker_count.unwrap_or(config.queue_config.workers);
         let task_manager = background_task_handler.as_ref().map(|handler| {
-            DefaultTaskManager::new(
-                Arc::clone(&storage),
-                Arc::clone(handler),
-                self.worker_count.unwrap_or(1),
-            )
+            DefaultTaskManager::new(Arc::clone(&storage), Arc::clone(handler), worker_count)
         });
 
         Ok(A2AServer {

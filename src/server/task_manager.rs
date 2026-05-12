@@ -139,9 +139,6 @@ async fn run_worker(
         let task_id = task.id.clone();
 
         if let Err(e) = storage.create_active_task(&task).await {
-            // `create_active_task` errors if the task already exists,
-            // which is expected on re-dequeue after a server restart.
-            // Log and continue with the handler regardless.
             debug!(worker_id, task_id = %task_id, error = %e, "create_active_task: continuing");
         }
 
@@ -336,8 +333,6 @@ mod tests {
             .await
             .expect("enqueue");
 
-        // Poll until the worker has finished writing back. Not terminal,
-        // so it should land in the active store.
         for _ in 0..50 {
             let active = storage.get_active_task("t2").await.expect("ok");
             if matches!(
@@ -393,8 +388,7 @@ mod tests {
             2,
         );
         let runner = manager.start();
-        // Workers are parked on the empty queue. Cancelling should still
-        // make them exit cleanly without ever seeing a task.
+
         runner.shutdown().await;
         assert_eq!(storage.get_stats().await.dead_letter_tasks, 0);
     }

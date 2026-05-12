@@ -11,6 +11,13 @@ homepage = "https://github.com/inference-gateway/rust-adk"
 keywords = ["agent", "ai", "inference", "gateway", "a2a"]
 categories = ["api-bindings", "development-tools"]
 
+[features]
+default = []
+# Enable the Redis-backed `Storage` implementation. Use
+# `cargo build --features redis` (or add `inference-gateway-adk = { ...,
+# features = ["redis"] }` in downstream Cargo.toml) to pull it in.
+redis = ["dep:redis"]
+
 [dependencies]
 inference-gateway-sdk = "0.13.3"
 serde = { version = "1.0.228", features = ["derive"] }
@@ -33,6 +40,7 @@ regress = "0.11.1"
 tokio-stream = { version = "0.1.18", features = ["sync"] }
 tokio-util = "0.7.13"
 eventsource-stream = "0.2.3"
+redis = { version = "0.27.6", default-features = false, features = ["tokio-comp", "connection-manager"], optional = true }
 
 [[example]]
 name = "minimal-server"
