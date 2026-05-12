@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0](https://github.com/inference-gateway/rust-adk/compare/0.2.5...0.3.0) (2026-05-12)
+
+### ✨ Features
+
+* **server:** Implement A2A JSON-RPC method dispatch ([#20](https://github.com/inference-gateway/rust-adk/issues/20)) ([67c5fcf](https://github.com/inference-gateway/rust-adk/commit/67c5fcf76d3d0eb3102b5cfeeee07424626f11af))
+* Streaming, queue + Redis storage, and per-method A2A examples ([#21](https://github.com/inference-gateway/rust-adk/issues/21)) ([9b94bbe](https://github.com/inference-gateway/rust-adk/commit/9b94bbeaa660567cff3da6ecfc791eb058deab3d)), closes [#15](https://github.com/inference-gateway/rust-adk/issues/15)
+
+### 👷 CI
+
+* Bump the version of actions/create-github-app-token ([32c9f49](https://github.com/inference-gateway/rust-adk/commit/32c9f492ee7fa5f3f56084793a80585b6ddc4434))
+
 ## [0.2.5](https://github.com/inference-gateway/rust-adk/compare/0.2.4...0.2.5) (2026-05-11)
 
 ### 👷 CI
