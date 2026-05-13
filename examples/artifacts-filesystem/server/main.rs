@@ -76,9 +76,6 @@ impl StreamableTaskHandler for ReportHandler {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt().init();
 
-    // Wire the artifacts subsystem in code so the example is
-    // self-contained. Production deployments would typically populate
-    // these knobs via the `ARTIFACTS_*` env vars instead.
     let config = Config {
         artifacts_config: ArtifactsConfig {
             enable: true,
