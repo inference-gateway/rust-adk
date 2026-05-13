@@ -43,7 +43,7 @@ rustls = { version = "0.23.40", default-features = false, features = ["ring", "s
 rustls-pemfile = "2.2.0"
 tokio-rustls = { version = "0.26.4", default-features = false, features = ["ring", "tls12", "logging"] }
 x509-parser = "0.16.0"
-redis = { version = "0.27.6", default-features = false, features = ["tokio-comp", "connection-manager"], optional = true }
+redis = { version = "1.2.1", default-features = false, features = ["tokio-comp", "connection-manager"], optional = true }
 
 [dev-dependencies]
 rcgen = { version = "0.13.2", default-features = false, features = ["pem", "ring"] }
