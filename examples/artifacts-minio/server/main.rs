@@ -1,28 +1,33 @@
-//! Filesystem-backed artifacts example server.
+//! MinIO-backed artifacts example server.
 //!
-//! Spawns the A2A server on `:8087` and the artifacts server on `:8088`.
+//! Spawns the A2A server on `:8089` and the artifacts server on `:8090`.
 //! The streaming task handler produces a small text report as a file
-//! artifact (`report.txt`) whose URI clients can fetch directly over
-//! HTTP from the artifacts server.
+//! artifact (`report.txt`) whose URI clients can fetch directly from
+//! MinIO over HTTP (the bucket is configured with anonymous read in the
+//! compose `createbucket` init step).
 //!
 //! Run with:
 //!
 //! ```bash
-//! cd examples/artifacts-filesystem/server
-//! cargo run --example artifacts-filesystem-server
+//! cd examples/artifacts-minio/server
+//! cargo run --features minio --example artifacts-minio-server
 //! ```
+//!
+//! Requires a running MinIO instance — see `docker-compose.yaml` in the
+//! example root.
 
 use inference_gateway_adk::a2a_types::{Message as A2AMessage, Task, TaskState};
 use inference_gateway_adk::{
-    A2AServerBuilder, ArtifactsConfig, ArtifactsServerConfig, ArtifactsStorageConfig, Config,
-    StreamEmitter, StreamableTaskHandler,
+    A2AServerBuilder, ArtifactsConfig, ArtifactsServerConfig, ArtifactsStorageConfig,
+    ArtifactsStorageProvider, Config, StreamEmitter, StreamableTaskHandler,
 };
 use std::env;
 use std::time::Duration;
 use tracing::{error, info};
 
 /// Streaming handler that emits a fixed text report as a downloadable
-/// file artifact. Demonstrates the `emit_file_artifact` helper.
+/// file artifact. Demonstrates the `emit_file_artifact` helper backed by
+/// MinIO storage.
 #[derive(Debug)]
 struct ReportHandler;
 
@@ -45,7 +50,7 @@ impl StreamableTaskHandler for ReportHandler {
             .await?;
 
         let report = format!(
-            "# Generated Report\n\nTask id: {}\nContext id: {}\nGenerated at: {}\n",
+            "# Generated Report\n\nTask id: {}\nContext id: {}\nGenerated at: {}\nBackend: MinIO\n",
             task.id,
             task.context_id,
             chrono::Utc::now().to_rfc3339(),
@@ -77,31 +82,37 @@ impl StreamableTaskHandler for ReportHandler {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt().init();
 
-    let artifacts_host =
-        env::var("ARTIFACTS_SERVER_HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
-    let artifacts_port: u16 = env::var("ARTIFACTS_SERVER_PORT")
-        .ok()
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(8088);
-    let base_path =
-        env::var("ARTIFACTS_STORAGE_BASE_PATH").unwrap_or_else(|_| "./artifacts-data".to_string());
+    let endpoint = env::var("ARTIFACTS_STORAGE_ENDPOINT")
+        .unwrap_or_else(|_| "http://localhost:9000".to_string());
+    let access_key =
+        env::var("ARTIFACTS_STORAGE_ACCESS_KEY").unwrap_or_else(|_| "minioadmin".to_string());
+    let secret_key =
+        env::var("ARTIFACTS_STORAGE_SECRET_KEY").unwrap_or_else(|_| "minioadmin".to_string());
+    let bucket_name =
+        env::var("ARTIFACTS_STORAGE_BUCKET_NAME").unwrap_or_else(|_| "artifacts".to_string());
     let base_url = env::var("ARTIFACTS_STORAGE_BASE_URL")
-        .unwrap_or_else(|_| format!("http://localhost:{artifacts_port}"));
+        .unwrap_or_else(|_| "http://localhost:9000".to_string());
 
     let config = Config {
         artifacts_config: ArtifactsConfig {
             enable: true,
             server: ArtifactsServerConfig {
-                host: artifacts_host,
-                port: artifacts_port,
+                host: "0.0.0.0".to_string(),
+                port: 8090,
                 read_timeout: Duration::from_secs(30),
                 write_timeout: Duration::from_secs(30),
                 tls: None,
             },
             storage: ArtifactsStorageConfig {
-                base_path,
-                base_url: base_url.clone(),
-                ..ArtifactsStorageConfig::default()
+                provider: ArtifactsStorageProvider::Minio,
+                base_path: String::new(),
+                base_url,
+                endpoint: Some(endpoint.clone()),
+                access_key: Some(access_key),
+                secret_key: Some(secret_key),
+                bucket_name: Some(bucket_name.clone()),
+                region: Some("us-east-1".to_string()),
+                use_ssl: endpoint.starts_with("https://"),
             },
             retention: Default::default(),
         },
@@ -116,9 +127,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build()
         .await?;
 
-    let addr = "0.0.0.0:8087".parse()?;
-    info!("artifacts A2A server listening on {addr}");
-    info!("artifacts HTTP server listening on {base_url}");
+    let addr = "0.0.0.0:8089".parse()?;
+    info!("artifacts-minio A2A server listening on {addr}");
+    info!("artifacts-minio HTTP server listening on http://localhost:8090");
+    info!(
+        bucket = %bucket_name,
+        endpoint = %endpoint,
+        "MinIO storage configured",
+    );
 
     if let Err(e) = server.serve(addr).await {
         error!("server stopped: {e}");

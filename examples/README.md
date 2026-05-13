@@ -44,6 +44,13 @@ override via `.env` to use any other provider supported by the gateway
 | [`queue-storage/`](./queue-storage) | Queue-driven `message/send` with in-memory or Redis storage (compose profile) |
 | [`a2a-methods/`](./a2a-methods) | One client binary per JSON-RPC method exposed by the A2A spec |
 
+### Artifacts
+
+| Example | What it shows |
+|---|---|
+| [`artifacts-filesystem/`](./artifacts-filesystem) | Streaming handler emits a downloadable file artifact; standalone artifacts HTTP server backed by the filesystem provider |
+| [`artifacts-minio/`](./artifacts-minio) | Same shape, but with the `minio` Cargo feature wiring `MinioArtifactStorage` against a MinIO container; URIs go direct to MinIO |
+
 ## Running
 
 Every example exposes Cargo example binaries (`<name>-server` and
@@ -101,6 +108,21 @@ Notes per scenario:
 - **`queue-storage/`** uses Compose profiles to switch between in-memory
   and Redis backends within a single `docker-compose.yaml`. See the
   example's README for the exact invocation.
+- **`artifacts-filesystem/`** runs two HTTP servers in the same process
+  (A2A on `8087`, artifacts on `8088`). Compose sets
+  `ARTIFACTS_STORAGE_BASE_URL=http://server:8088` so the URIs baked into
+  `FilePart.fileWithUri` resolve from the client container; the
+  artifacts server is also published on host `:8088` for debugging.
+  Produced files are bind-mounted to `server/artifacts-data/`. No
+  provider keys required.
+- **`artifacts-minio/`** adds a `minio/minio` service plus a one-shot
+  `minio/mc` init container that creates an `artifacts` bucket with an
+  anonymous-download policy. The server is built with
+  `CARGO_FEATURES=minio` so the `minio` crate is compiled in, and
+  `ARTIFACTS_STORAGE_BASE_URL=http://minio:9000` makes
+  `FilePart.fileWithUri` point at MinIO directly — the client downloads
+  bypass the artifacts HTTP server entirely. No provider keys
+  required.
 
 ## Configuration
 
@@ -136,3 +158,8 @@ and the `INFERENCE_GATEWAY_URL` environment variable. See the top-level
     and scale workers horizontally.
 11. **`a2a-methods/`** — every JSON-RPC method exposed by the A2A
     specification, exercised one client at a time.
+12. **`artifacts-filesystem/`** — produce file artifacts via the
+    standalone artifacts HTTP server with a filesystem-backed store.
+13. **`artifacts-minio/`** — same shape with `MinioArtifactStorage`
+    against a MinIO container; demonstrates the `minio` Cargo feature
+    and direct-to-MinIO downloads.

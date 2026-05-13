@@ -9,6 +9,8 @@ pub use config::{
     ArtifactsStorageConfig, ArtifactsStorageProvider, AuthConfig, CapabilitiesConfig, ClientConfig,
     Config, QueueConfig, QueueProvider, ServerConfig, TelemetryConfig, TlsConfig,
 };
+#[cfg(feature = "minio")]
+pub use server::MinioArtifactStorage;
 #[cfg(feature = "redis")]
 pub use server::RedisStorage;
 pub use server::{

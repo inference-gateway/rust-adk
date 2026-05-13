@@ -140,12 +140,12 @@ pub struct ArtifactsServerConfig {
 pub enum ArtifactsStorageProvider {
     #[default]
     Filesystem,
-    S3,
+    Minio,
 }
 
-/// Storage backend configuration. The full S3 / MinIO surface is
-/// included here so callers can express the intent via env vars even
-/// when the `s3` feature is not compiled in.
+/// Storage backend configuration. The full MinIO surface is included
+/// here so callers can express the intent via env vars even when the
+/// `minio` feature is not compiled in.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ArtifactsStorageConfig {
     pub provider: ArtifactsStorageProvider,
@@ -154,7 +154,7 @@ pub struct ArtifactsStorageConfig {
     /// Public URL prefix the [`ArtifactsServer`](crate::server::ArtifactsServer)
     /// can be reached at - used to build the URI baked into file artifacts.
     pub base_url: String,
-    /// Endpoint URL for an S3-compatible service (e.g. MinIO).
+    /// Endpoint URL of the MinIO server.
     pub endpoint: Option<String>,
     pub access_key: Option<String>,
     pub secret_key: Option<String>,
@@ -457,11 +457,11 @@ impl Config {
 
         if let Ok(provider) = std::env::var("ARTIFACTS_STORAGE_PROVIDER") {
             config.artifacts_config.storage.provider = match provider.to_lowercase().as_str() {
-                "s3" | "minio" => ArtifactsStorageProvider::S3,
+                "minio" => ArtifactsStorageProvider::Minio,
                 "filesystem" | "fs" | "" => ArtifactsStorageProvider::Filesystem,
                 other => {
                     return Err(format!(
-                        "ARTIFACTS_STORAGE_PROVIDER must be one of `filesystem` or `s3` (got {other:?})"
+                        "ARTIFACTS_STORAGE_PROVIDER must be one of `filesystem` or `minio` (got {other:?})"
                     )
                     .into());
                 }

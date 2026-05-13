@@ -1,14 +1,15 @@
+---
 services:
   server:
     build:
-      context: ../../
+      context: ../..
       dockerfile: examples/Dockerfile.server
       args:
-        EXAMPLE_NAME: artifacts-filesystem-server
-        EXAMPLE_DIR: examples/artifacts-filesystem/server
+        BIN_NAME: artifacts-filesystem-server
+        EXAMPLE_PATH: examples/artifacts-filesystem
     ports:
       - "8087:8087"   # A2A JSON-RPC
-      - "8088:8088"   # Artifacts HTTP
+      - "8088:8088"   # Artifacts HTTP (exposed for host-side curl/debug)
     environment:
       RUST_LOG: info
       ARTIFACTS_ENABLE: "true"
@@ -16,25 +17,44 @@ services:
       ARTIFACTS_SERVER_PORT: "8088"
       ARTIFACTS_STORAGE_PROVIDER: filesystem
       ARTIFACTS_STORAGE_BASE_PATH: /data/artifacts
-      ARTIFACTS_STORAGE_BASE_URL: http://localhost:8088
+      # This URL is baked into FilePart.fileWithUri values. Use the
+      # Docker service name so the client container can resolve it;
+      # host-side curl still works via the published 8088 port.
+      ARTIFACTS_STORAGE_BASE_URL: http://server:8088
       ARTIFACTS_RETENTION_MAX_ARTIFACTS: "5"
       ARTIFACTS_RETENTION_MAX_AGE: "168h"
       ARTIFACTS_RETENTION_CLEANUP_INTERVAL: "24h"
     volumes:
-      - artifacts-data:/data/artifacts
+      - ./server/artifacts-data:/data/artifacts
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - --fail
+        - --silent
+        - http://localhost:8087/health
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    networks:
+      - a2a-network
 
   client:
     build:
-      context: ../../
+      context: ../..
       dockerfile: examples/Dockerfile.client
       args:
-        EXAMPLE_NAME: artifacts-filesystem-client
-        EXAMPLE_DIR: examples/artifacts-filesystem/client
+        BIN_NAME: artifacts-filesystem-client
+    depends_on:
+      server:
+        condition: service_healthy
     environment:
       RUST_LOG: info
       SERVER_URL: http://server:8087
-    depends_on:
-      - server
+    networks:
+      - a2a-network
 
-volumes:
-  artifacts-data:
+networks:
+  a2a-network:
+    driver: bridge

@@ -1414,15 +1414,15 @@ file directly from the artifacts server.
 | `ARTIFACTS_SERVER_PORT` | `8081` | Port of the artifacts HTTP server. |
 | `ARTIFACTS_SERVER_READ_TIMEOUT` | `30s` | Per-request read timeout. Accepts Go-style durations (`30s`, `5m`, `2h`, `7d`) or bare seconds. |
 | `ARTIFACTS_SERVER_WRITE_TIMEOUT` | `30s` | Per-response write timeout. |
-| `ARTIFACTS_STORAGE_PROVIDER` | `filesystem` | `filesystem` or `s3`. The `s3` provider env-var surface is parsed today but falls back to filesystem storage until the S3 backend lands. |
+| `ARTIFACTS_STORAGE_PROVIDER` | `filesystem` | `filesystem` or `minio`. The `minio` provider requires the crate to be built with the `minio` Cargo feature; without it, requests fall back to filesystem storage with a `warn!` log. |
 | `ARTIFACTS_STORAGE_BASE_PATH` | `./artifacts` | On-disk root for the `filesystem` provider. |
-| `ARTIFACTS_STORAGE_BASE_URL` | `http://localhost:8081` | Public URL prefix baked into file artifact URIs - point this at wherever the artifacts server is externally reachable. |
-| `ARTIFACTS_STORAGE_ENDPOINT` | unset | S3-compatible endpoint (MinIO, etc.). |
-| `ARTIFACTS_STORAGE_ACCESS_KEY` | unset | S3 access key. |
-| `ARTIFACTS_STORAGE_SECRET_KEY` | unset | S3 secret key. |
-| `ARTIFACTS_STORAGE_BUCKET_NAME` | unset | S3 bucket name. |
-| `ARTIFACTS_STORAGE_REGION` | unset | S3 region. |
-| `ARTIFACTS_STORAGE_USE_SSL` | `false` | Whether to use TLS when talking to the S3 endpoint. |
+| `ARTIFACTS_STORAGE_BASE_URL` | `http://localhost:8081` | Public URL prefix baked into file artifact URIs - point this at wherever the artifacts server (or MinIO endpoint) is externally reachable. |
+| `ARTIFACTS_STORAGE_ENDPOINT` | unset | MinIO endpoint URL. |
+| `ARTIFACTS_STORAGE_ACCESS_KEY` | unset | MinIO access key. |
+| `ARTIFACTS_STORAGE_SECRET_KEY` | unset | MinIO secret key. |
+| `ARTIFACTS_STORAGE_BUCKET_NAME` | unset | MinIO bucket name. |
+| `ARTIFACTS_STORAGE_REGION` | unset | MinIO region. |
+| `ARTIFACTS_STORAGE_USE_SSL` | `false` | Whether to use TLS when talking to the MinIO endpoint. |
 | `ARTIFACTS_RETENTION_MAX_ARTIFACTS` | `5` | Cap on the total number of artifacts kept by the backend. |
 | `ARTIFACTS_RETENTION_MAX_AGE` | `168h` | Maximum age before an artifact is pruned. |
 | `ARTIFACTS_RETENTION_CLEANUP_INTERVAL` | `24h` | Frequency of the retention loop. |

@@ -13,7 +13,9 @@ use crate::a2a_types::AgentCard;
 use crate::config::{ArtifactsStorageProvider, Config};
 use anyhow::{Result, anyhow};
 use std::sync::Arc;
-use tracing::{info, warn};
+use tracing::info;
+#[cfg(not(feature = "minio"))]
+use tracing::warn;
 
 pub struct A2AServerBuilder {
     config: Option<Config>,
@@ -321,17 +323,35 @@ impl A2AServerBuilder {
                             storage_cfg.base_url.clone(),
                         ))
                     }
-                    ArtifactsStorageProvider::S3 => {
-                        warn!(
-                            "ARTIFACTS_STORAGE_PROVIDER=s3 was requested but the S3 backend is \
-                             not yet implemented in this crate; falling back to filesystem \
-                             storage at `{}`",
-                            storage_cfg.base_path,
-                        );
-                        Arc::new(FilesystemArtifactStorage::new(
-                            storage_cfg.base_path.clone(),
-                            storage_cfg.base_url.clone(),
-                        ))
+                    ArtifactsStorageProvider::Minio => {
+                        #[cfg(feature = "minio")]
+                        {
+                            info!(
+                                endpoint = storage_cfg.endpoint.as_deref().unwrap_or(""),
+                                bucket = storage_cfg.bucket_name.as_deref().unwrap_or(""),
+                                base_url = %storage_cfg.base_url,
+                                "wiring minio artifact storage",
+                            );
+                            let minio =
+                                super::artifact_storage_minio::MinioArtifactStorage::from_config(
+                                    storage_cfg,
+                                )
+                                .await?;
+                            Arc::new(minio) as Arc<dyn ArtifactStorage>
+                        }
+                        #[cfg(not(feature = "minio"))]
+                        {
+                            warn!(
+                                "ARTIFACTS_STORAGE_PROVIDER=minio was requested but the crate was \
+                                 built without the `minio` feature; falling back to filesystem \
+                                 storage at `{}`",
+                                storage_cfg.base_path,
+                            );
+                            Arc::new(FilesystemArtifactStorage::new(
+                                storage_cfg.base_path.clone(),
+                                storage_cfg.base_url.clone(),
+                            )) as Arc<dyn ArtifactStorage>
+                        }
                     }
                 };
                 Some(Arc::new(DefaultArtifactService::new(backend)) as Arc<dyn ArtifactService>)
