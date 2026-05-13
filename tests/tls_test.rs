@@ -30,7 +30,8 @@ use inference_gateway_adk::{
     A2AServerBuilder, Config, ServerConfig, TaskHandler, TlsConfig, a2a_types,
 };
 use rcgen::{
-    BasicConstraints, CertificateParams, DistinguishedName, DnType, IsCa, KeyPair, KeyUsagePurpose,
+    BasicConstraints, CertificateParams, DistinguishedName, DnType, IsCa, Issuer, KeyPair,
+    KeyUsagePurpose,
 };
 use rustls::RootCertStore;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer, ServerName};
@@ -83,8 +84,7 @@ fn uuid_like() -> String {
 
 struct GeneratedCa {
     cert_pem: String,
-    keypair: KeyPair,
-    cert: rcgen::Certificate,
+    issuer: Issuer<'static, KeyPair>,
 }
 
 fn generate_ca(common_name: &str) -> GeneratedCa {
@@ -102,11 +102,8 @@ fn generate_ca(common_name: &str) -> GeneratedCa {
     let keypair = KeyPair::generate().expect("generate CA keypair");
     let cert = params.self_signed(&keypair).expect("self-sign CA");
     let cert_pem = cert.pem();
-    GeneratedCa {
-        cert_pem,
-        keypair,
-        cert,
-    }
+    let issuer = Issuer::new(params, keypair);
+    GeneratedCa { cert_pem, issuer }
 }
 
 struct GeneratedLeaf {
@@ -135,9 +132,7 @@ fn issue_leaf(
         vec![rcgen::ExtendedKeyUsagePurpose::ClientAuth]
     };
     let keypair = KeyPair::generate().expect("generate leaf keypair");
-    let signed = params
-        .signed_by(&keypair, &ca.cert, &ca.keypair)
-        .expect("sign leaf");
+    let signed = params.signed_by(&keypair, &ca.issuer).expect("sign leaf");
     GeneratedLeaf {
         cert_pem: signed.pem(),
         key_pem: keypair.serialize_pem(),
