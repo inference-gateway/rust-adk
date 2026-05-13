@@ -36,14 +36,14 @@ async-trait = "0.1.89"
 reqwest = { version = "0.13.3", features = ["form", "json", "stream"] }
 regress = "0.11.1"
 tokio-stream = { version = "0.1.18", features = ["sync"] }
-tokio-util = "0.7.13"
+tokio-util = "0.7.18"
 eventsource-stream = "0.2.3"
 jsonwebtoken = { version = "10.4.0", features = ["rust_crypto"] }
-rustls = { version = "0.23.20", default-features = false, features = ["ring", "std", "tls12", "logging"] }
+rustls = { version = "0.23.40", default-features = false, features = ["ring", "std", "tls12", "logging"] }
 rustls-pemfile = "2.2.0"
-tokio-rustls = { version = "0.26.1", default-features = false, features = ["ring", "tls12", "logging"] }
-x509-parser = "0.16.0"
-redis = { version = "0.27.6", default-features = false, features = ["tokio-comp", "connection-manager"], optional = true }
+tokio-rustls = { version = "0.26.4", default-features = false, features = ["ring", "tls12", "logging"] }
+x509-parser = "0.18.1"
+redis = { version = "1.2.1", default-features = false, features = ["tokio-comp", "connection-manager"], optional = true }
 
 [dev-dependencies]
 rcgen = { version = "0.13.2", default-features = false, features = ["pem", "ring"] }
