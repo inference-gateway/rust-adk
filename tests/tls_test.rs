@@ -132,9 +132,7 @@ fn issue_leaf(
         vec![rcgen::ExtendedKeyUsagePurpose::ClientAuth]
     };
     let keypair = KeyPair::generate().expect("generate leaf keypair");
-    let signed = params
-        .signed_by(&keypair, &ca.issuer)
-        .expect("sign leaf");
+    let signed = params.signed_by(&keypair, &ca.issuer).expect("sign leaf");
     GeneratedLeaf {
         cert_pem: signed.pem(),
         key_pem: keypair.serialize_pem(),
