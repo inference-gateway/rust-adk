@@ -7,34 +7,105 @@ use inference_gateway_sdk::ChatCompletionTool;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Duration;
 
+/// Builder for [`Agent`]. Accepts either an entire [`AgentConfig`] via
+/// [`with_config`](AgentBuilder::with_config) or per-field setters
+/// (`with_provider`, `with_model`, ...). Setters layered on top of a
+/// previously-set config override that field only.
 pub struct AgentBuilder {
     config: Option<AgentConfig>,
+    provider: Option<String>,
+    model: Option<String>,
+    api_key: Option<String>,
+    base_url: Option<String>,
+    timeout: Option<Duration>,
+    max_retries: Option<u32>,
+    max_chat_completion_iterations: Option<u32>,
+    max_tokens: Option<u32>,
+    temperature: Option<f32>,
     system_prompt: Option<String>,
     max_chat_completion: u32,
     max_conversation_history: u32,
     toolbox: Option<Vec<ChatCompletionTool>>,
     tool_handlers: HashMap<String, Box<dyn ToolHandler>>,
     llm_client: Option<Arc<dyn LLMClient>>,
-    base_url: Option<String>,
 }
 
 impl AgentBuilder {
     pub fn new() -> Self {
         Self {
             config: None,
+            provider: None,
+            model: None,
+            api_key: None,
+            base_url: None,
+            timeout: None,
+            max_retries: None,
+            max_chat_completion_iterations: None,
+            max_tokens: None,
+            temperature: None,
             system_prompt: None,
             max_chat_completion: 10,
             max_conversation_history: 20,
             toolbox: None,
             tool_handlers: HashMap::new(),
             llm_client: None,
-            base_url: None,
         }
     }
 
+    /// Seed the builder with an entire [`AgentConfig`]. Later per-field
+    /// setters take precedence over fields set via this method.
     pub fn with_config(mut self, config: &AgentConfig) -> Self {
         self.config = Some(config.clone());
+        self
+    }
+
+    pub fn with_provider(mut self, provider: impl Into<String>) -> Self {
+        self.provider = Some(provider.into());
+        self
+    }
+
+    pub fn with_model(mut self, model: impl Into<String>) -> Self {
+        self.model = Some(model.into());
+        self
+    }
+
+    pub fn with_api_key(mut self, api_key: impl Into<String>) -> Self {
+        self.api_key = Some(api_key.into());
+        self
+    }
+
+    /// Override the LLM gateway base URL used by the default
+    /// [`OpenAICompatibleLLMClient`]. Ignored when a custom LLM client has
+    /// been provided via [`with_llm_client`].
+    pub fn with_base_url(mut self, base_url: impl Into<String>) -> Self {
+        self.base_url = Some(base_url.into());
+        self
+    }
+
+    pub fn with_timeout(mut self, timeout: Duration) -> Self {
+        self.timeout = Some(timeout);
+        self
+    }
+
+    pub fn with_max_retries(mut self, max_retries: u32) -> Self {
+        self.max_retries = Some(max_retries);
+        self
+    }
+
+    pub fn with_max_chat_completion_iterations(mut self, n: u32) -> Self {
+        self.max_chat_completion_iterations = Some(n);
+        self
+    }
+
+    pub fn with_max_tokens(mut self, max_tokens: u32) -> Self {
+        self.max_tokens = Some(max_tokens);
+        self
+    }
+
+    pub fn with_temperature(mut self, temperature: f32) -> Self {
+        self.temperature = Some(temperature);
         self
     }
 
@@ -90,31 +161,46 @@ impl AgentBuilder {
         self
     }
 
-    /// Override the LLM gateway base URL used by the default
-    /// [`OpenAICompatibleLLMClient`]. Equivalent to setting
-    /// `AgentConfig::base_url`. Ignored when a custom LLM client has been
-    /// provided via [`with_llm_client`].
-    pub fn with_base_url(mut self, base_url: impl Into<String>) -> Self {
-        self.base_url = Some(base_url.into());
-        self
-    }
-
     pub async fn build(self) -> Result<Agent> {
-        let config = self.config.unwrap_or_default();
+        let mut effective = self.config.clone().unwrap_or_default();
+        if let Some(v) = self.provider.clone() {
+            effective.provider = v;
+        }
+        if let Some(v) = self.model.clone() {
+            effective.model = v;
+        }
+        if let Some(v) = self.api_key.clone() {
+            effective.api_key = Some(v);
+        }
+        if let Some(v) = self.base_url.clone() {
+            effective.base_url = Some(v);
+        }
+        if let Some(v) = self.timeout {
+            effective.timeout_secs = v.as_secs();
+        }
+        if let Some(v) = self.max_retries {
+            effective.max_retries = v;
+        }
+        if let Some(v) = self.max_chat_completion_iterations {
+            effective.max_chat_completion_iterations = v;
+        }
+        if let Some(v) = self.max_tokens {
+            effective.max_tokens = v;
+        }
+        if let Some(v) = self.temperature {
+            effective.temperature = v;
+        }
+        if let Some(v) = self.system_prompt.clone() {
+            effective.system_prompt = Some(v);
+        }
 
         let llm_client: Arc<dyn LLMClient> = match self.llm_client {
             Some(client) => client,
-            None => {
-                let mut effective = config.clone();
-                if let Some(url) = self.base_url.clone() {
-                    effective.base_url = Some(url);
-                }
-                Arc::new(OpenAICompatibleLLMClient::new(&effective)?)
-            }
+            None => Arc::new(OpenAICompatibleLLMClient::new(&effective)?),
         };
 
         Ok(Agent {
-            system_prompt: self.system_prompt.or(config.system_prompt.clone()),
+            system_prompt: effective.system_prompt.clone(),
             llm_client,
             max_chat_completion: self.max_chat_completion,
             max_conversation_history: self.max_conversation_history,
@@ -171,14 +257,30 @@ mod tests {
             },
         ];
 
+        let valid_config = || AgentConfig {
+            provider: "openai".to_string(),
+            model: "gpt-4".to_string(),
+            ..Default::default()
+        };
+
         for test_case in test_cases {
             match test_case.name {
                 "default_agent" => {
                     let agent = AgentBuilder::new().build().await;
-                    assert!(agent.is_ok(), "Default agent builder should succeed");
+                    assert!(
+                        agent.is_err(),
+                        "Default agent builder must fail when provider/model are unset"
+                    );
+                    assert!(
+                        agent
+                            .unwrap_err()
+                            .to_string()
+                            .contains("provider is required"),
+                    );
                 }
                 "with_system_prompt" => {
                     let agent = AgentBuilder::new()
+                        .with_config(&valid_config())
                         .with_system_prompt("You are a helpful assistant")
                         .build()
                         .await;
@@ -218,6 +320,7 @@ mod tests {
                     };
                     let tools = vec![tool];
                     let agent = AgentBuilder::new()
+                        .with_config(&valid_config())
                         .with_toolbox(tools.clone())
                         .build()
                         .await;
@@ -256,6 +359,7 @@ mod tests {
                     };
                     let tools = vec![tool];
                     let agent = AgentBuilder::new()
+                        .with_config(&valid_config())
                         .with_toolbox(tools.clone())
                         .with_function_tool("test_handler".to_string(), |args| {
                             let input = args["input"].as_str().unwrap_or("default");
@@ -281,7 +385,8 @@ mod tests {
                 }
                 "empty_model_error" => {
                     let config = AgentConfig {
-                        model: "".to_string(),
+                        provider: "openai".to_string(),
+                        model: String::new(),
                         ..Default::default()
                     };
                     let agent = AgentBuilder::new().with_config(&config).build().await;
@@ -291,6 +396,7 @@ mod tests {
                 "invalid_provider_error" => {
                     let config = AgentConfig {
                         provider: "invalid_provider".to_string(),
+                        model: "gpt-4".to_string(),
                         ..Default::default()
                     };
                     let agent = AgentBuilder::new().with_config(&config).build().await;

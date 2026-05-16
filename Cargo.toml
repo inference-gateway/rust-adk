@@ -23,7 +23,7 @@ tokio = { version = "1.52.3", features = ["full"] }
 axum = { version = "0.8.9", features = ["json", "http2"] }
 axum-server = { version = "0.8.0", features = ["tls-rustls-no-provider"] }
 tracing = "0.1.44"
-tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3.23", features = ["env-filter", "json"] }
 chrono = { version = "0.4.44", features = ["serde"] }
 uuid = { version = "1.23.1", features = ["v4", "serde"] }
 anyhow = "1.0.102"
@@ -47,6 +47,8 @@ redis = { version = "1.2.1", default-features = false, features = ["tokio-comp",
 
 [dev-dependencies]
 rcgen = { version = "0.14.8", default-features = false, features = ["pem", "ring"] }
+envy = "0.4.2"
+dotenvy = "0.15.7"
 
 [[example]]
 name = "minimal-server"

@@ -18,12 +18,12 @@
 //!    subject is plumbed through to handlers as a
 //!    [`PeerCert`] / [`ClientCertPrincipal`] extension.
 //!
-//! All TLS knobs are picked up via `Config::from_env()`:
+//! All TLS knobs are picked up via `envy::prefixed("A2A_").from_env::<Config>()`:
 //!
-//! - `SERVER_TLS_ENABLE=true`
-//! - `SERVER_TLS_CERT_PATH=/path/to/server.crt`
-//! - `SERVER_TLS_KEY_PATH=/path/to/server.key`
-//! - `SERVER_TLS_CLIENT_CA_PATH=/path/to/ca.crt` (optional, mTLS only)
+//! - `A2A_SERVER_TLS_ENABLE=true`
+//! - `A2A_SERVER_TLS_CERT_PATH=/path/to/server.crt`
+//! - `A2A_SERVER_TLS_KEY_PATH=/path/to/server.key`
+//! - `A2A_SERVER_TLS_CLIENT_CA_PATH=/path/to/ca.crt` (optional, mTLS only)
 //!
 //! Generate the example PKI by running `make-certs.sh` next to this
 //! file, which uses `openssl` to mint a CA, a server leaf with
@@ -39,12 +39,13 @@ use tracing::{error, info};
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt().init();
+    dotenvy::dotenv().ok();
 
-    let config = Config::from_env()?;
-    let tls = config
-        .tls_config
-        .as_ref()
-        .ok_or("SERVER_TLS_ENABLE=true is required to run the tls example")?;
+    let config: Config = envy::prefixed("A2A_").from_env()?;
+    if !config.tls_config.enable {
+        return Err("A2A_SERVER_TLS_ENABLE=true is required to run the tls example".into());
+    }
+    let tls = &config.tls_config;
 
     let port = config.server_config.port;
     let addr: SocketAddr = format!("0.0.0.0:{port}").parse()?;

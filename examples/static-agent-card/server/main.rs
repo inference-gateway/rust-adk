@@ -5,8 +5,9 @@ use tracing::{error, info};
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt().init();
+    dotenvy::dotenv().ok();
 
-    let mut config = Config::from_env()?;
+    let mut config: Config = envy::prefixed("A2A_").from_env()?;
 
     let gateway_url = env::var("INFERENCE_GATEWAY_URL")
         .unwrap_or_else(|_| "http://localhost:8080/v1".to_string());

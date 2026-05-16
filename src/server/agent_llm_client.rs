@@ -67,7 +67,8 @@ impl std::fmt::Debug for OpenAICompatibleLLMClient {
 impl OpenAICompatibleLLMClient {
     /// Build a client from an [`AgentConfig`]. Reads `provider`, `model`,
     /// and `base_url`. If `base_url` is `None`, defaults to
-    /// `http://localhost:8080/v1` (mirrors the Inference Gateway's default).
+    /// `http://gateway:8080/v1` (matches the typical docker-compose service
+    /// name for the Inference Gateway).
     pub fn new(config: &AgentConfig) -> Result<Self> {
         if config.provider.is_empty() {
             return Err(anyhow!("provider is required"));
@@ -80,7 +81,7 @@ impl OpenAICompatibleLLMClient {
         let base_url = config
             .base_url
             .clone()
-            .unwrap_or_else(|| "http://localhost:8080/v1".to_string());
+            .unwrap_or_else(|| "http://gateway:8080/v1".to_string());
 
         Ok(Self {
             base_url,

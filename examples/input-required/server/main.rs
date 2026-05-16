@@ -94,8 +94,9 @@ impl TaskHandler for WeatherHandler {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt().init();
+    dotenvy::dotenv().ok();
 
-    let config = Config::from_env()?;
+    let config: Config = envy::prefixed("A2A_").from_env()?;
 
     let server = A2AServerBuilder::new()
         .with_config(config)
