@@ -27,7 +27,6 @@
 
 ## Table of Contents
 
-- [Table of Contents](#table-of-contents)
 - [Overview](#overview)
   - [What is A2A?](#what-is-a2a)
 - [Quick Start](#quick-start)
