@@ -715,13 +715,13 @@ pub struct Config {
     pub agent_url: String,
     pub debug: bool,
     pub streaming_status_update_interval_secs: u64,
-    pub agent_config: AgentConfig,             // A2A_AGENT_CLIENT_*
+    pub agent_config: AgentConfig,               // A2A_AGENT_CLIENT_*
     pub capabilities_config: CapabilitiesConfig, // A2A_CAPABILITIES_*
-    pub tls_config: TlsConfig,                 // A2A_SERVER_TLS_*
-    pub auth_config: AuthConfig,               // A2A_AUTH_*
-    pub queue_config: QueueConfig,             // A2A_QUEUE_*
-    pub server_config: ServerConfig,           // A2A_SERVER_*
-    pub telemetry_config: TelemetryConfig,     // A2A_TELEMETRY_*
+    pub tls_config: TlsConfig,                   // A2A_SERVER_TLS_*
+    pub auth_config: AuthConfig,                 // A2A_AUTH_*
+    pub queue_config: QueueConfig,               // A2A_QUEUE_*
+    pub server_config: ServerConfig,             // A2A_SERVER_*
+    pub telemetry_config: TelemetryConfig,       // A2A_TELEMETRY_*
 }
 ```
 
@@ -1249,10 +1249,10 @@ A2A_QUEUE_NAMESPACE="a2a"
 A2A_QUEUE_WORKERS="1"
 
 # Authentication (optional, OIDC bearer-token JWT)
-A2A_AUTH_ENABLE="false"                                                  # when true, POST /a2a requires a valid bearer token
+A2A_AUTH_ENABLE="false"                                                   # when true, POST /a2a requires a valid bearer token
 A2A_AUTH_ISSUER_URL="http://keycloak:8080/realms/inference-gateway-realm" # OIDC issuer; the server performs discovery + JWKS lookup
-A2A_AUTH_CLIENT_ID="inference-gateway-client"                            # validated as the JWT audience when set
-A2A_AUTH_CLIENT_SECRET="your-secret"                                     # currently unused server-side (reserved for client-side OAuth2)
+A2A_AUTH_CLIENT_ID="inference-gateway-client"                             # validated as the JWT audience when set
+A2A_AUTH_CLIENT_SECRET="your-secret"                                      # currently unused server-side (reserved for client-side OAuth2)
 
 # TLS (optional)
 A2A_SERVER_TLS_ENABLE="false"                   # when true, A2AServer::serve binds an HTTPS listener via axum-server + rustls
