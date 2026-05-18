@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.2](https://github.com/inference-gateway/rust-adk/compare/0.4.1...0.4.2) (2026-05-18)
+
+### ♻️ Improvements
+
+* **docs:** Re-word production-ready with enterprise-ready ([8df2150](https://github.com/inference-gateway/rust-adk/commit/8df21505d2b02a583c931c87a81fcb22eac7203c))
+
+### 📚 Documentation
+
+* **readme:** Cleanup - remove table of content entry ([6117976](https://github.com/inference-gateway/rust-adk/commit/6117976c3c0ec3147561b16827fa418f9e05fb13))
+
 ## [0.4.1](https://github.com/inference-gateway/rust-adk/compare/0.4.0...0.4.1) (2026-05-18)
 
 ### ♻️ Improvements
