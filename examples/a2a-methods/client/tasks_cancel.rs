@@ -4,8 +4,8 @@
 //! transitions it to CANCELLED.
 //!
 //! ```bash
-//! cargo run --example a2a-methods-server
-//! cargo run --example a2a-methods-tasks-cancel
+//! cargo run -p a2a-methods-server
+//! cargo run -p a2a-methods-tasks-cancel
 //! ```
 
 use inference_gateway_adk::A2AClient;

@@ -54,7 +54,7 @@ SERVER_TLS_ENABLE=true \
 SERVER_TLS_CERT_PATH=examples/tls/certs/server.crt \
 SERVER_TLS_KEY_PATH=examples/tls/certs/server.key \
 PORT=8443 \
-cargo run --example tls-server
+cargo run -p tls-server
 ```
 
 Smoke-test with curl:
@@ -77,7 +77,7 @@ SERVER_TLS_CERT_PATH=examples/tls/certs/server.crt \
 SERVER_TLS_KEY_PATH=examples/tls/certs/server.key \
 SERVER_TLS_CLIENT_CA_PATH=examples/tls/certs/ca.crt \
 PORT=8443 \
-cargo run --example tls-server
+cargo run -p tls-server
 ```
 
 Now an unauthenticated client is rejected at the TLS layer:
@@ -119,14 +119,14 @@ The example client mirrors the curl commands above:
 # TLS only
 TLS_CA_PATH=examples/tls/certs/ca.crt \
 SERVER_URL=https://localhost:8443 \
-cargo run --example tls-client
+cargo run -p tls-client
 
 # mTLS
 TLS_CA_PATH=examples/tls/certs/ca.crt \
 TLS_CLIENT_CERT_PATH=examples/tls/certs/client.crt \
 TLS_CLIENT_KEY_PATH=examples/tls/certs/client.key \
 SERVER_URL=https://localhost:8443 \
-cargo run --example tls-client
+cargo run -p tls-client
 ```
 
 ## Environment knobs

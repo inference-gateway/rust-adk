@@ -1,0 +1,21 @@
+[package]
+name = "queue-storage-server"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[[bin]]
+name = "queue-storage-server"
+path = "main.rs"
+
+[dependencies]
+inference-gateway-adk = { path = "../../..", features = ["redis"] }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+envy = { workspace = true }
+serde = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+async-trait = { workspace = true }
+anyhow = { workspace = true }

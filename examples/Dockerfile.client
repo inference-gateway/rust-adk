@@ -13,7 +13,7 @@ COPY Cargo.toml Cargo.lock ./
 COPY src ./src
 COPY examples ./examples
 
-RUN cargo build --release --example "${BIN_NAME}"
+RUN cargo build --release -p "${BIN_NAME}"
 
 FROM debian:bookworm-slim
 
@@ -24,6 +24,6 @@ RUN apt-get update \
 ARG BIN_NAME
 
 WORKDIR /app
-COPY --from=builder /build/target/release/examples/${BIN_NAME} /usr/local/bin/client
+COPY --from=builder /build/target/release/${BIN_NAME} /usr/local/bin/client
 
 ENTRYPOINT ["/usr/local/bin/client"]

@@ -3,15 +3,52 @@ use inference_gateway_adk::a2a_types::{
     Message, Part, Role, Task, TaskState, TaskStatus, Timestamp,
 };
 use inference_gateway_adk::{Config, TaskHandler};
-use std::env;
+use serde::Deserialize;
 use std::time::Duration;
 use tracing::{error, info};
+use tracing_subscriber::{EnvFilter, fmt};
+
+/// App-specific config, kept under its own `APP_*` prefix so it stays
+/// clearly separate from the ADK's `A2A_*` namespace. Loaded with a
+/// second `envy::prefixed(...)` call in `main` — the ADK's `Config` is
+/// loaded independently with `envy::prefixed("A2A_")`.
+///
+/// This is the recommended layout for clients that want their own
+/// configuration alongside the ADK's: define your struct with whatever
+/// prefix you like (or no prefix at all), load it separately, and pass
+/// only the ADK [`Config`] into [`A2AServerBuilder::with_config`].
+///
+/// `log_level` and `log_format` here drive the `tracing` subscriber
+/// installed in `main`. The ADK never installs a subscriber itself —
+/// the consumer owns logging, the ADK just emits events.
+#[derive(Debug, Deserialize)]
+#[serde(default)]
+struct AppConfig {
+    /// Anything accepted by `EnvFilter`. Examples: `"info"`, `"debug"`,
+    /// or fine-grained directives like
+    /// `"info,tower_http=debug,inference_gateway_adk=trace"`.
+    log_level: String,
+    /// `"pretty"` (default) or `"json"`. Swap for whatever formatter /
+    /// Subscriber composition your stack needs.
+    log_format: String,
+    delay_ms: u64,
+}
+
+impl Default for AppConfig {
+    fn default() -> Self {
+        Self {
+            log_level: "info,tower_http=debug".to_string(),
+            log_format: "pretty".to_string(),
+            delay_ms: 2000,
+        }
+    }
+}
 
 /// Deliberately slow `TaskHandler` so worker concurrency becomes visible
 /// in the client log. Sleeps for `delay`, then completes the task with
 /// `echo: <input text>`.
 ///
-/// Configure via `EXAMPLE_DELAY_MS` (default 2000).
+/// Configure via `APP_DELAY_MS` (default 2000) — see `AppConfig`.
 #[derive(Debug)]
 struct SleepEchoHandler {
     delay: Duration,
@@ -61,26 +98,39 @@ impl TaskHandler for SleepEchoHandler {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    tracing_subscriber::fmt().init();
+    // Two independent envy calls — each owns its own prefix. The ADK's
+    // `Config` reads `A2A_*`; this example's `AppConfig` reads `APP_*`.
+    // Clients can use any prefix (or none) for their own config; the ADK
+    // only cares that you hand it a `Config`.
+    let config: Config = envy::prefixed("A2A_").from_env()?;
+    let app: AppConfig = envy::prefixed("APP_").from_env()?;
 
-    // `Config::from_env()` parses A2A_QUEUE_PROVIDER / A2A_QUEUE_URL /
-    // A2A_QUEUE_NAMESPACE / A2A_QUEUE_WORKERS / PORT into
-    // `config.queue_config` and `config.port`.
-    let config = Config::from_env()?;
+    // ─────────────────────────────────────────────────────────────────
+    // Subscriber installation — fully owned by the consumer.
+    //
+    // The ADK does NOT install a tracing subscriber. Every `info!()` /
+    // `debug!()` inside the ADK dispatches through whatever global
+    // subscriber is registered here. To swap in OpenTelemetry, a JSON
+    // exporter for Loki/Datadog/Honeycomb, or a custom `Subscriber`
+    // impl — change this block. The ADK doesn't need to know.
+    // ─────────────────────────────────────────────────────────────────
+    let filter = EnvFilter::try_new(&app.log_level)
+        .unwrap_or_else(|_| EnvFilter::new("info,tower_http=debug"));
 
-    let delay_ms = env::var("EXAMPLE_DELAY_MS")
-        .ok()
-        .and_then(|s| s.parse::<u64>().ok())
-        .unwrap_or(2000);
+    match app.log_format.as_str() {
+        "json" => fmt().with_env_filter(filter).json().init(),
+        _ => fmt().with_env_filter(filter).init(),
+    }
 
-    let port = env::var("PORT")
-        .ok()
-        .and_then(|s| s.parse::<u16>().ok())
-        .unwrap_or(8083);
-
+    let port = config.server_config.port;
     info!(
-        "starting queue-storage example server (provider={:?}, workers={}, delay_ms={}, port={})",
-        config.queue_config.provider, config.queue_config.workers, delay_ms, port,
+        log_level = %app.log_level,
+        log_format = %app.log_format,
+        provider = ?config.queue_config.provider,
+        workers = config.queue_config.workers,
+        delay_ms = app.delay_ms,
+        port = port,
+        "starting queue-storage example server",
     );
     if config.queue_config.provider == inference_gateway_adk::QueueProvider::Redis {
         info!("redis URL: {:?}", config.queue_config.url);
@@ -90,7 +140,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_config(config)
         .with_agent_card_from_file(".well-known/agent.json", None)
         .with_background_task_handler(SleepEchoHandler {
-            delay: Duration::from_millis(delay_ms),
+            delay: Duration::from_millis(app.delay_ms),
         })
         .with_default_streaming_task_handler()
         .build()

@@ -67,12 +67,12 @@ No `.env` needed — there are no provider keys.
 
 ```bash
 cd examples/input-required/server
-cargo run --example input-required-server
+cargo run -p input-required-server
 # or: task examples:input-required-server
 
-cargo run --example input-required-client
+cargo run -p input-required-client
 # or: task examples:input-required-client
 ```
 
-The server listens on `0.0.0.0:8087`. The client honours `SERVER_URL`
-(default `http://localhost:8087`).
+The server listens on `0.0.0.0:8080`. The client honours `SERVER_URL`
+(default `http://localhost:8080`).

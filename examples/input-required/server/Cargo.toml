@@ -1,0 +1,20 @@
+[package]
+name = "input-required-server"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[[bin]]
+name = "input-required-server"
+path = "main.rs"
+
+[dependencies]
+inference-gateway-adk = { path = "../../.." }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+envy = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+async-trait = { workspace = true }
+anyhow = { workspace = true }

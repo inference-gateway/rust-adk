@@ -22,7 +22,7 @@ By participating in this project, you agree to abide by our Code of Conduct. Ple
 
 ### Prerequisites
 
-- **Rust**: Version 1.88 or later
+- **Rust**: Version 1.94 or later
 - **Task**: Task runner for development workflows
 - **Git**: For version control
 - **Docker**: For running development containers (optional)

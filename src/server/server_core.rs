@@ -85,9 +85,10 @@ impl A2AServer {
                 .layer(CorsLayer::permissive()),
         );
 
-        let result = match tls_config.as_ref() {
-            Some(tls) if tls.enable => serve_tls(app, addr, tls).await,
-            _ => serve_plain(app, addr).await,
+        let result = if tls_config.enable {
+            serve_tls(app, addr, &tls_config).await
+        } else {
+            serve_plain(app, addr).await
         };
 
         if let Some(runner) = runner {
@@ -159,8 +160,12 @@ async fn health_handler(
 ) -> Result<Json<HealthStatus>, StatusCode> {
     debug!("Health check requested");
 
-    let gateway_client = InferenceGatewayClient::new(&state.server.gateway_url);
-    let gateway_healthy = gateway_client.health_check().await.unwrap_or(false);
+    let gateway_healthy = if state.server.agent.is_some() {
+        let gateway_client = InferenceGatewayClient::new(&state.server.gateway_url);
+        gateway_client.health_check().await.unwrap_or(false)
+    } else {
+        false
+    };
 
     let status = if gateway_healthy && state.server.agent.is_some() {
         "healthy"

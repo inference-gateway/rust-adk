@@ -47,7 +47,7 @@ docker compose up --build
 The stack starts three services:
 
 - `inference-gateway` (image `ghcr.io/inference-gateway/inference-gateway:latest`)
-- `server` — built from `examples/Dockerfile.server`, listens on port 8084
+- `server` — built from `examples/Dockerfile.server`, listens on port 8080
 - `client` — built from `examples/Dockerfile.client`, runs after the server is healthy
 
 ## Running locally
@@ -56,12 +56,12 @@ The stack starts three services:
 # Start an Inference Gateway separately, then run the server from inside its
 # subdir so .well-known/agent.json resolves correctly:
 cd examples/ai-powered-streaming/server
-cargo run --example ai-powered-streaming-server
+cargo run -p ai-powered-streaming-server
 # or: task examples:ai-powered-streaming-server
 
-cargo run --example ai-powered-streaming-client
+cargo run -p ai-powered-streaming-client
 # or: task examples:ai-powered-streaming-client
 ```
 
-The server listens on `0.0.0.0:8084`. The client honours `SERVER_URL`
-(default `http://localhost:8084`).
+The server listens on `0.0.0.0:8080`. The client honours `SERVER_URL`
+(default `http://localhost:8080`).

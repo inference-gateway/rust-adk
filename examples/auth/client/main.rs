@@ -58,7 +58,7 @@ async fn fetch_oidc_token(http: &reqwest::Client) -> Result<String, Box<dyn std:
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt().init();
 
-    let server_url = env::var("SERVER_URL").unwrap_or_else(|_| "http://localhost:8081".to_string());
+    let server_url = env::var("SERVER_URL").unwrap_or_else(|_| "http://localhost:8080".to_string());
     let auth_mode = env::var("AUTH_MODE").unwrap_or_default().to_lowercase();
 
     info!("Auth-example client connecting to {server_url} (mode={auth_mode:?})");

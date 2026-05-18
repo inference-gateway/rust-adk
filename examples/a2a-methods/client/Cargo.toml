@@ -1,0 +1,62 @@
+[package]
+name = "a2a-methods-client"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+# This crate is a collection of small binaries, one per JSON-RPC method,
+# all sharing the same dependency surface (just `uuid` + `futures` for the
+# streaming variants).
+
+[[bin]]
+name = "agent-authenticated-extended-card"
+path = "agent_authenticated_extended_card.rs"
+
+[[bin]]
+name = "message-send"
+path = "message_send.rs"
+
+[[bin]]
+name = "message-stream"
+path = "message_stream.rs"
+
+[[bin]]
+name = "push-config-delete"
+path = "push_config_delete.rs"
+
+[[bin]]
+name = "push-config-get"
+path = "push_config_get.rs"
+
+[[bin]]
+name = "push-config-list"
+path = "push_config_list.rs"
+
+[[bin]]
+name = "push-config-set"
+path = "push_config_set.rs"
+
+[[bin]]
+name = "tasks-cancel"
+path = "tasks_cancel.rs"
+
+[[bin]]
+name = "tasks-get"
+path = "tasks_get.rs"
+
+[[bin]]
+name = "tasks-list"
+path = "tasks_list.rs"
+
+[[bin]]
+name = "tasks-resubscribe"
+path = "tasks_resubscribe.rs"
+
+[dependencies]
+inference-gateway-adk = { path = "../../.." }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+uuid = { workspace = true }
+futures = { workspace = true }
+anyhow = { workspace = true }

@@ -13,8 +13,8 @@
 //! `message/stream`.
 //!
 //! ```bash
-//! cargo run --example a2a-methods-server
-//! cargo run --example a2a-methods-tasks-resubscribe
+//! cargo run -p a2a-methods-server
+//! cargo run -p a2a-methods-tasks-resubscribe
 //! ```
 use futures::StreamExt;
 use inference_gateway_adk::A2AClient;

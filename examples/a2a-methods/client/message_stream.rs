@@ -6,8 +6,8 @@
 //! prints each event as it arrives.
 //!
 //! ```bash
-//! cargo run --example a2a-methods-server
-//! cargo run --example a2a-methods-message-stream
+//! cargo run -p a2a-methods-server
+//! cargo run -p a2a-methods-message-stream
 //! ```
 
 use futures::StreamExt;
