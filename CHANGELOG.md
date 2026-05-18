@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.3](https://github.com/inference-gateway/rust-adk/compare/0.4.2...0.4.3) (2026-05-18)
+
+### ♻️ Improvements
+
+* **docs:** Some cleanups - replace emdashes and remove overwehlming docs ([a1915e9](https://github.com/inference-gateway/rust-adk/commit/a1915e90480bdbcd99dedb219c1cc2dd8f97cc82))
+
 ## [0.4.2](https://github.com/inference-gateway/rust-adk/compare/0.4.1...0.4.2) (2026-05-18)
 
 ### ♻️ Improvements
