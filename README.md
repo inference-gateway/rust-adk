@@ -39,7 +39,7 @@
 - [Key Features](#key-features)
   - [Core Capabilities](#core-capabilities)
   - [Developer Experience](#developer-experience)
-  - [Production Ready](#production-ready)
+  - [Enterprise Ready](#enterprise-ready)
 - [Development](#development)
   - [Prerequisites](#prerequisites)
   - [Development Workflow](#development-workflow)
@@ -307,7 +307,7 @@ suggested learning path.
 - 📚 **Type-Safe**: Generated types from A2A schema for compile-time safety
 - 🧪 **Well Tested**: Comprehensive test coverage with table-driven tests
 
-### Production Ready
+### Enterprise Ready
 
 - 🌿 **Lightweight**: Optimized binary size with Rust's zero-cost abstractions
 - 🛡️ **Production Hardened**: Configurable timeouts, TLS support, and error handling
