@@ -2,6 +2,36 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.1](https://github.com/inference-gateway/rust-adk/compare/0.4.0...0.4.1) (2026-05-18)
+
+### ♻️ Improvements
+
+* Load Config via envy, drop env reads from the library ([#42](https://github.com/inference-gateway/rust-adk/issues/42)) ([43b2b84](https://github.com/inference-gateway/rust-adk/commit/43b2b8479c0c0166f5d4bde8a56dbc02d67a54c2))
+
+### 🐛 Bug Fixes
+
+* **dependabot:** Drop duplicated deps scope from commit prefix ([50f37fb](https://github.com/inference-gateway/rust-adk/commit/50f37fb32c6365808d0a8d2b6073f29d0e7e3720))
+* **dependabot:** Remove versioning-strategy ([d8cb4a1](https://github.com/inference-gateway/rust-adk/commit/d8cb4a1b300afd7559b6113d2e602933ce1b4284))
+
+### 👷 CI
+
+* **deps:** Bump anthropics/claude-code-action in the actions-all group ([#43](https://github.com/inference-gateway/rust-adk/issues/43)) ([e73be5e](https://github.com/inference-gateway/rust-adk/commit/e73be5ecaf1ac4950a4235cc54093098ca7b9cc5))
+* **deps:** bump the actions-all group across 1 directory with 2 updates ([#35](https://github.com/inference-gateway/rust-adk/issues/35)) ([e13d384](https://github.com/inference-gateway/rust-adk/commit/e13d384ee8df9945573bb479fb209bafd1c64e48))
+
+### 📚 Documentation
+
+* **readme:** Update stale code snippets and env-var docs ([07a042c](https://github.com/inference-gateway/rust-adk/commit/07a042cf428bf7ed32070c324c9feee5fd7d13e2))
+
+### 🔧 Miscellaneous
+
+* Add dependabot config ([ceeaee2](https://github.com/inference-gateway/rust-adk/commit/ceeaee2a95f2d32b1297bf27b1ebd7322a6bbe58))
+* Add infer CLI for development ([#41](https://github.com/inference-gateway/rust-adk/issues/41)) ([5bc8d9a](https://github.com/inference-gateway/rust-adk/commit/5bc8d9a54907ee8be1c8e558bdd376c6fef0f34d))
+* **deps:** Bump axum-server from 0.7.3 to 0.8.0 ([#39](https://github.com/inference-gateway/rust-adk/issues/39)) ([7487b03](https://github.com/inference-gateway/rust-adk/commit/7487b03340b1e066f7a036deb9166800b5b5f205))
+* **deps:** Bump rcgen from 0.13.2 to 0.14.8 ([#40](https://github.com/inference-gateway/rust-adk/issues/40)) ([7ec84a3](https://github.com/inference-gateway/rust-adk/commit/7ec84a369878c19e83b5ce4c9ecad39f3fbd361c))
+* **deps:** Bump redis from 0.27.6 to 1.2.1 ([#38](https://github.com/inference-gateway/rust-adk/issues/38)) ([16f37b7](https://github.com/inference-gateway/rust-adk/commit/16f37b7275708cc6460857f863c2841cbdb24338))
+* **deps:** bump the cargo-minor-and-patch group across 1 directory with 3 updates ([#36](https://github.com/inference-gateway/rust-adk/issues/36)) ([efc2bc9](https://github.com/inference-gateway/rust-adk/commit/efc2bc96689cc6e328ebd97d36ebda84e29fc19c))
+* **deps:** Bump x509-parser from 0.16.0 to 0.18.1 ([#37](https://github.com/inference-gateway/rust-adk/issues/37)) ([deca3e2](https://github.com/inference-gateway/rust-adk/commit/deca3e2fa59d19c0f0d481511970c81265ee6ebc))
+
 ## [0.4.0](https://github.com/inference-gateway/rust-adk/compare/0.3.1...0.4.0) (2026-05-12)
 
 ### ✨ Features
