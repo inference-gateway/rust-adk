@@ -64,14 +64,14 @@ curl http://localhost:8080/a2a \
 `docker-compose.yaml` brings up three services on a private bridge
 network:
 
-1. **Keycloak 26.6.1** — pre-imports `keycloak/realm-export.json` on
+1. **Keycloak 26.6.1** - pre-imports `keycloak/realm-export.json` on
    start, so the realm, client, and audience mapper are ready before
    any other service launches.
-2. **`auth-server`** — runs with `AUTH_ENABLE=true` so the
+2. **`auth-server`** - runs with `AUTH_ENABLE=true` so the
    `A2AServerBuilder` instantiates `OidcJwtVerifier` from
    `Config::from_env()` and validates incoming JWTs against the
    Keycloak realm's JWKS.
-3. **`auth-client`** — runs with `AUTH_MODE=oidc` so it first exchanges
+3. **`auth-client`** - runs with `AUTH_MODE=oidc` so it first exchanges
    the configured client credentials for a real JWT at Keycloak's
    token endpoint, then calls the protected endpoint with that JWT.
 
@@ -106,7 +106,7 @@ defines:
 - client `inference-gateway-client` (confidential, service accounts
   enabled) with secret `inference-gateway-client-secret`
 - an `oidc-audience-mapper` that adds `inference-gateway-client` to the
-  access token's `aud` claim — required because the server is
+  access token's `aud` claim - required because the server is
   configured with `AUTH_CLIENT_ID=inference-gateway-client` and
   `OidcJwtVerifier` validates `aud` against that value.
 

@@ -39,13 +39,6 @@
   - [Core Capabilities](#core-capabilities)
   - [Developer Experience](#developer-experience)
   - [Enterprise Ready](#enterprise-ready)
-- [Development](#development)
-  - [Prerequisites](#prerequisites)
-  - [Development Workflow](#development-workflow)
-  - [Available Tasks](#available-tasks)
-  - [Build-Time Agent Metadata](#build-time-agent-metadata)
-    - [Available Build-Time Variables](#available-build-time-variables)
-    - [Usage Examples](#usage-examples)
 - [API Reference](#api-reference)
   - [Core Components](#core-components)
     - [A2AServer](#a2aserver)
@@ -63,12 +56,12 @@
     - [Agent with Custom LLM Client](#agent-with-custom-llm-client)
     - [Fully Configured Agent](#fully-configured-agent)
   - [Custom Tools](#custom-tools)
-  - [Custom Task Processing](#custom-task-processing)
+  - [Custom Task Handlers](#custom-task-handlers)
   - [Push Notifications](#push-notifications)
-    - [Webhook Payload](#webhook-payload)
   - [Agent Metadata](#agent-metadata)
     - [Build-Time Metadata (Recommended)](#build-time-metadata-recommended)
     - [Runtime Metadata Configuration](#runtime-metadata-configuration)
+  - [Authentication](#authentication)
   - [TLS and mTLS](#tls-and-mtls)
   - [Environment Configuration](#environment-configuration)
 - [A2A Ecosystem](#a2a-ecosystem)
@@ -76,17 +69,10 @@
   - [A2A Agents](#a2a-agents)
 - [Requirements](#requirements)
 - [OCI Compliant](#oci-compliant)
-- [Testing](#testing)
 - [License](#license)
 - [Contributing](#contributing)
-  - [Getting Started](#getting-started)
-  - [Development Guidelines](#development-guidelines)
-  - [Before Submitting](#before-submitting)
-  - [Pull Request Process](#pull-request-process)
 - [Support](#support)
-  - [Issues \& Questions](#issues--questions)
 - [Resources](#resources)
-  - [Documentation](#documentation)
 
 ---
 
@@ -125,7 +111,7 @@ use tracing::{error, info};
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt().init();
 
-    // Smallest possible A2A server — no agent, no custom handlers.
+    // Smallest possible A2A server - no agent, no custom handlers.
     // Health, agent card, and JSON-RPC routes are all wired in by the builder.
     let server = A2AServerBuilder::new().build().await?;
 
@@ -142,7 +128,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### AI-Powered Server
 
 `Config` is plain `serde`; pick whichever loader you like. The bundled
-examples use [`envy`][envy] with the `A2A_` prefix — that's the convention
+examples use [`envy`][envy] with the `A2A_` prefix - that's the convention
 adopted by the sibling Go and TypeScript ADKs. With `A2A_AGENT_CLIENT_*`
 env vars set, `AgentBuilder` produces a fully wired LLM agent:
 
@@ -314,100 +300,6 @@ suggested learning path.
 - ☸️ **Kubernetes Native**: Ready for cloud-native deployments
 - 📊 **Observability**: OpenTelemetry integration for monitoring and tracing
 
-## Development
-
-### Prerequisites
-
-- Rust 1.94 or later
-- [Task](https://taskfile.dev/) for build automation (optional, can use `cargo` directly)
-
-### Development Workflow
-
-1. **Download latest A2A schema**:
-
-   ```bash
-   task a2a:download-schema
-   ```
-
-2. **Generate types from schema**:
-
-   ```bash
-   task a2a:generate-types
-   ```
-
-3. **Run linting**:
-
-   ```bash
-   task lint
-   ```
-
-4. **Run tests**:
-   ```bash
-   task test
-   ```
-
-### Available Tasks
-
-| Task                       | Description                                 |
-| -------------------------- | ------------------------------------------- |
-| `task a2a:download-schema` | Download the latest A2A schema              |
-| `task a2a:generate-types`  | Generate Rust types from A2A schema         |
-| `task lint`                | Run static analysis and linting with clippy |
-| `task test`                | Run all tests                               |
-| `task build`               | Build the project                           |
-| `task clean`               | Clean up build artifacts                    |
-
-### Build-Time Agent Metadata
-
-The ADK supports injecting agent metadata at build time using Rust's build script and environment variables. This makes agent information immutable and embedded in the binary, which is useful for production deployments.
-
-#### Available Build-Time Variables
-
-The following build-time metadata variables can be set:
-
-- **`AGENT_NAME`** - The agent's display name
-- **`AGENT_DESCRIPTION`** - A description of the agent's capabilities
-- **`AGENT_VERSION`** - The agent's version number
-
-#### Usage Examples
-
-**Direct Cargo Build:**
-
-```bash
-# Build your application with custom metadata
-AGENT_NAME="MyAgent" \
-AGENT_DESCRIPTION="My custom agent description" \
-AGENT_VERSION="1.2.3" \
-cargo build --release
-```
-
-**Docker Build:**
-
-```dockerfile
-# Build with custom metadata in Docker
-FROM rust:1.94 AS builder
-
-ARG AGENT_NAME="Production Agent"
-ARG AGENT_DESCRIPTION="Production deployment agent with enhanced capabilities"
-ARG AGENT_VERSION="1.0.0"
-
-WORKDIR /app
-COPY Cargo.toml Cargo.lock ./
-RUN cargo fetch
-
-COPY . .
-RUN AGENT_NAME="${AGENT_NAME}" \
-    AGENT_DESCRIPTION="${AGENT_DESCRIPTION}" \
-    AGENT_VERSION="${AGENT_VERSION}" \
-    cargo build --release
-
-FROM debian:bookworm-slim
-RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
-WORKDIR /app
-COPY --from=builder /app/target/release/rust-adk .
-CMD ["./rust-adk"]
-```
-
 ## API Reference
 
 ### Core Components
@@ -417,88 +309,80 @@ CMD ["./rust-adk"]
 The main server trait that handles A2A protocol communication.
 
 ```rust
-use inference_gateway_adk::server::{A2AServer, A2AServerBuilder};
+use inference_gateway_adk::{A2AServerBuilder};
 
-// Create a default A2A server
-let server = A2AServerBuilder::new()
-    .build()
-    .await?;
+// Smallest possible A2A server - built-in default handlers, no agent
+let server = A2AServerBuilder::new().build().await?;
 
-// Create a server with agent integration
+// Server with an LLM agent and an agent card loaded from disk
 let server = A2AServerBuilder::new()
     .with_agent(agent)
-    .with_agent_card_from_file(".well-known/agent.json")
+    .with_agent_card_from_file(".well-known/agent.json", None)
+    .with_default_task_handlers()
     .build()
     .await?;
 
-// Create a server with custom configuration
+// Server with a custom message/send (background) and message/stream handler
 let server = A2AServerBuilder::new()
     .with_config(config)
-    .with_task_handler(custom_task_handler)
-    .with_task_processor(custom_processor)
+    .with_background_task_handler(my_background_handler)
+    .with_streaming_task_handler(my_streaming_handler)
     .build()
     .await?;
 ```
 
 #### A2AServerBuilder
 
-Build A2A servers with custom configurations using a fluent interface:
+Build A2A servers with custom configurations using a fluent interface. See
+`src/server/server_builder.rs` for the full method list; the highlights:
 
-```rust
-use inference_gateway_adk::server::{A2AServerBuilder, AgentBuilder};
-
-// Basic server with agent
-let server = A2AServerBuilder::new()
-    .with_agent(agent)
-    .with_agent_card_from_file(".well-known/agent.json")
-    .build()
-    .await?;
-
-// Server with custom task handler
-let server = A2AServerBuilder::new()
-    .with_task_handler(custom_task_handler)
-    .with_task_processor(custom_processor)
-    .with_agent_card_from_file(".well-known/agent.json")
-    .build()
-    .await?;
-
-// Server with custom configuration
-let server = A2AServerBuilder::new()
-    .with_config(config)
-    .with_agent(agent)
-    .with_agent_card_from_file(".well-known/agent.json")
-    .build()
-    .await?;
-```
+| Method | Purpose |
+| --- | --- |
+| `with_config(Config)` | Apply a fully-loaded `Config` (port, TLS, auth, queue, telemetry). |
+| `with_agent(Agent)` | Attach an LLM-backed agent built via `AgentBuilder`. |
+| `with_agent_card(AgentCard)` / `with_agent_card_from_file(path, overrides)` | Configure the card served at `/.well-known/agent.json`. |
+| `with_storage(Arc<dyn Storage>)` | Swap the task store (`InMemoryStorage` default, `RedisStorage` behind the `redis` feature). |
+| `with_background_task_handler(h)` | Custom `message/send` handler. |
+| `with_streaming_task_handler(h)` | Custom `message/stream` handler. |
+| `with_default_task_handlers()` | Wire in the LLM-backed defaults for both. |
+| `with_workers(n)` | Number of queue workers to spawn. |
+| `with_auth_verifier(v)` | Plug in a custom `AuthVerifier` (overrides `A2A_AUTH_ENABLE`). |
 
 #### AgentBuilder
 
 Build OpenAI-compatible agents that live inside the A2A server using a fluent interface:
 
 ```rust
-use inference_gateway_adk::server::AgentBuilder;
+use inference_gateway_adk::AgentBuilder;
 
-// Basic agent with custom LLM
+// Agent driven by `AgentConfig` (provider, model, key, …)
 let agent = AgentBuilder::new()
-    .with_config(&config)
+    .with_config(&config.agent_config)
     .with_toolbox(tools)
     .build()
     .await?;
 
-// Agent with system prompt
+// Agent with explicit per-field setters
 let agent = AgentBuilder::new()
+    .with_provider("deepseek")
+    .with_model("deepseek-v4-flash")
     .with_system_prompt("You are a helpful assistant")
-    .with_max_chat_completion(10)
+    .with_max_chat_completion_iterations(10)
     .build()
     .await?;
 
-// Use with A2A server builder
+// Wire the agent into the server
 let server = A2AServerBuilder::new()
     .with_agent(agent)
-    .with_agent_card_from_file(".well-known/agent.json")
+    .with_agent_card_from_file(".well-known/agent.json", None)
+    .with_default_task_handlers()
     .build()
     .await?;
 ```
+
+> `AgentBuilder::build()` fails fast when `provider` or `model` are unset, so a
+> misconfigured server errors out at startup instead of on the first chat
+> request.
 
 #### A2AClient
 
@@ -814,40 +698,36 @@ different backend (e.g. a mock for tests).
 
 ### Configuration
 
-The configuration is managed through environment variables and the config module:
+`Config` is a plain `serde` struct composed of nested sub-configs. The
+library does **not** read env itself - pick any loader you like. The
+bundled examples use [`envy`][envy] with an `A2A_` prefix:
 
 ```rust
-use inference_gateway_adk::config::{Config, AgentConfig};
+use inference_gateway_adk::Config;
 
-#[derive(Debug, Clone)]
+let config: Config = envy::prefixed("A2A_").from_env()?;
+```
+
+Top-level shape:
+
+```rust
 pub struct Config {
-    pub agent_url: String,                           // AGENT_URL (default: http://helloworld-agent:8080)
-    pub debug: bool,                                 // DEBUG (default: false)
-    pub port: u16,                                   // PORT (default: 8080)
-    pub streaming_status_update_interval: Duration,  // STREAMING_STATUS_UPDATE_INTERVAL (default: 1s)
-    pub agent_config: AgentConfig,                   // AGENT_CLIENT_*
-    pub capabilities_config: CapabilitiesConfig,     // CAPABILITIES_*
-    pub tls_config: Option<TlsConfig>,               // TLS_*
-    pub auth_config: Option<AuthConfig>,             // AUTH_*
-    pub queue_config: QueueConfig,                   // QUEUE_*
-    pub server_config: ServerConfig,                 // SERVER_*
-    pub telemetry_config: TelemetryConfig,           // TELEMETRY_*
-}
-
-#[derive(Debug, Clone)]
-pub struct AgentConfig {
-    pub provider: String,                    // AGENT_CLIENT_PROVIDER
-    pub model: String,                       // AGENT_CLIENT_MODEL
-    pub base_url: Option<String>,            // AGENT_CLIENT_BASE_URL
-    pub api_key: Option<String>,             // AGENT_CLIENT_API_KEY
-    pub timeout: Duration,                   // AGENT_CLIENT_TIMEOUT (default: 30s)
-    pub max_retries: u32,                    // AGENT_CLIENT_MAX_RETRIES (default: 3)
-    pub max_chat_completion_iterations: u32, // AGENT_CLIENT_MAX_CHAT_COMPLETION_ITERATIONS (default: 10)
-    pub max_tokens: u32,                     // AGENT_CLIENT_MAX_TOKENS (default: 4096)
-    pub temperature: f32,                    // AGENT_CLIENT_TEMPERATURE (default: 0.7)
-    pub system_prompt: Option<String>,       // AGENT_CLIENT_SYSTEM_PROMPT
+    pub agent_url: String,
+    pub debug: bool,
+    pub streaming_status_update_interval_secs: u64,
+    pub agent_config: AgentConfig,             // A2A_AGENT_CLIENT_*
+    pub capabilities_config: CapabilitiesConfig, // A2A_CAPABILITIES_*
+    pub tls_config: TlsConfig,                 // A2A_SERVER_TLS_*
+    pub auth_config: AuthConfig,               // A2A_AUTH_*
+    pub queue_config: QueueConfig,             // A2A_QUEUE_*
+    pub server_config: ServerConfig,           // A2A_SERVER_*
+    pub telemetry_config: TelemetryConfig,     // A2A_TELEMETRY_*
 }
 ```
+
+See [Environment Configuration](#environment-configuration) for the full
+env-var reference, or the rustdocs for `inference_gateway_adk::Config` and
+its sub-configs for field-level defaults.
 
 ## Advanced Usage
 
@@ -878,23 +758,21 @@ let agent = AgentBuilder::new()
 #### Agent with Custom Configuration
 
 ```rust
-use inference_gateway_adk::config::AgentConfig;
-use std::time::Duration;
+use inference_gateway_adk::AgentConfig;
 
-let config = AgentConfig {
+let agent_config = AgentConfig {
     provider: "deepseek".to_string(),
     model: "deepseek-v4-flash".to_string(),
     api_key: Some("your-api-key".to_string()),
     max_tokens: 4096,
     temperature: 0.7,
     max_chat_completion_iterations: 10,
-    max_conversation_history: 20,
     system_prompt: Some("You are a travel planning assistant.".to_string()),
     ..Default::default()
 };
 
 let agent = AgentBuilder::new()
-    .with_config(&config)
+    .with_config(&agent_config)
     .build()
     .await?;
 ```
@@ -934,192 +812,157 @@ impl LLMClient for MyCustomLLM {
 #### Fully Configured Agent
 
 ```rust
-use inference_gateway_adk::server::AgentBuilder;
-use inference_gateway_sdk::{Tool, ToolType, FunctionObject};
-use serde_json::json;
+use inference_gateway_adk::{A2AServerBuilder, AgentBuilder};
+use inference_gateway_sdk::{
+    ChatCompletionTool, ChatCompletionToolType, FunctionObject, FunctionParameters,
+};
+use serde_json::{Value, json};
 
-// Create tools for the agent's toolbox
-let tools = vec![
-    Tool {
-        r#type: ToolType::Function,
-        function: FunctionObject {
-            name: "get_weather".to_string(),
-            description: "Get current weather for a location".to_string(),
-            parameters: json!({
+let tools = vec![ChatCompletionTool {
+    type_: ChatCompletionToolType::Function,
+    function: FunctionObject {
+        name: "get_weather".to_string(),
+        description: Some("Get current weather for a location".to_string()),
+        parameters: Some(FunctionParameters(
+            json!({
                 "type": "object",
                 "properties": {
-                    "location": {
-                        "type": "string",
-                        "description": "The city and state, e.g. San Francisco, CA"
-                    },
-                    "unit": {
-                        "type": "string",
-                        "enum": ["celsius", "fahrenheit"],
-                        "description": "Temperature unit"
-                    }
+                    "location": { "type": "string" },
+                    "unit": { "type": "string", "enum": ["celsius", "fahrenheit"] }
                 },
                 "required": ["location"]
-            }),
-        },
+            })
+            .as_object()
+            .unwrap()
+            .clone(),
+        )),
+        strict: false,
     },
-    Tool {
-        r#type: ToolType::Function,
-        function: FunctionObject {
-            name: "calculate".to_string(),
-            description: "Perform basic mathematical calculations".to_string(),
-            parameters: json!({
-                "type": "object",
-                "properties": {
-                    "expression": {
-                        "type": "string",
-                        "description": "Mathematical expression to evaluate"
-                    }
-                },
-                "required": ["expression"]
-            }),
-        },
-    },
-];
+}];
 
-// Build a fully configured agent with toolbox
 let agent = AgentBuilder::new()
-    .with_config(&config)
-    .with_system_prompt("You are a helpful assistant with weather and calculation capabilities.")
-    .with_max_chat_completion(15)
-    .with_max_conversation_history(30)
+    .with_config(&config.agent_config)
+    .with_system_prompt("You are a helpful weather assistant.")
+    .with_max_chat_completion_iterations(15)
     .with_toolbox(tools)
-    .build()
-    .await?;
-);
-
-// Build a fully configured agent
-let agent = AgentBuilder::new()
-    .with_config(&config)
-    .with_llm_client(llm_client)
-    .with_toolbox(toolbox)
-    .with_system_prompt("You are a comprehensive AI assistant with weather capabilities.")
-    .with_max_chat_completion(20)
-    .with_max_conversation_history(50)
+    .with_function_tool("get_weather".to_string(), |args: Value| {
+        let location = args["location"].as_str().unwrap_or("Unknown");
+        Ok(json!({ "location": location, "temperature": "22°C" }).to_string())
+    })
     .build()
     .await?;
 
-// Use the agent in your server
 let server = A2AServerBuilder::new()
+    .with_config(config)
     .with_agent(agent)
-    .with_agent_card_from_file(".well-known/agent.json")
+    .with_agent_card_from_file(".well-known/agent.json", None)
+    .with_default_task_handlers()
     .build()
     .await?;
 ```
 
 ### Custom Tools
 
-Create custom tools to extend your agent's capabilities using the Inference Gateway SDK's tool system:
+Declare tools with the Inference Gateway SDK's
+`ChatCompletionTool`/`FunctionObject` types, and back each tool with a
+closure via `with_function_tool` (sync) or `with_async_function_tool`
+(async):
 
 ```rust
-use inference_gateway_adk::server::AgentBuilder;
-use inference_gateway_sdk::{Tool, ToolType, FunctionObject};
-use serde_json::json;
+use inference_gateway_adk::AgentBuilder;
+use inference_gateway_sdk::{
+    ChatCompletionTool, ChatCompletionToolType, FunctionObject, FunctionParameters,
+};
+use serde_json::{Value, json};
 
-// Define tools for your agent's toolbox
-let tools = vec![
-    Tool {
-        r#type: ToolType::Function,
-        function: FunctionObject {
-            name: "get_weather".to_string(),
-            description: "Get current weather for a location".to_string(),
-            parameters: json!({
+let tools = vec![ChatCompletionTool {
+    type_: ChatCompletionToolType::Function,
+    function: FunctionObject {
+        name: "search_web".to_string(),
+        description: Some("Search the web for information".to_string()),
+        parameters: Some(FunctionParameters(
+            json!({
                 "type": "object",
                 "properties": {
-                    "location": {
-                        "type": "string",
-                        "description": "The city and state, e.g. San Francisco, CA"
-                    },
-                    "unit": {
-                        "type": "string",
-                        "enum": ["celsius", "fahrenheit"],
-                        "description": "Temperature unit (default: celsius)"
-                    }
-                },
-                "required": ["location"]
-            }),
-        },
-    },
-    Tool {
-        r#type: ToolType::Function,
-        function: FunctionObject {
-            name: "search_web".to_string(),
-            description: "Search the web for information".to_string(),
-            parameters: json!({
-                "type": "object",
-                "properties": {
-                    "query": {
-                        "type": "string",
-                        "description": "Search query"
-                    },
-                    "limit": {
-                        "type": "integer",
-                        "description": "Maximum number of results (default: 5)",
-                        "default": 5
-                    }
+                    "query": { "type": "string" },
+                    "limit": { "type": "integer", "default": 5 }
                 },
                 "required": ["query"]
-            }),
-        },
+            })
+            .as_object()
+            .unwrap()
+            .clone(),
+        )),
+        strict: false,
     },
-];
+}];
 
-// Create an agent with the toolbox
 let agent = AgentBuilder::new()
-    .with_config(&config)
-    .with_system_prompt(
-        "You are a helpful assistant with access to weather information and web search. \
-        Use the provided tools when users ask for weather or need web search results."
-    )
+    .with_config(&config.agent_config)
+    .with_system_prompt("You can answer questions and search the web.")
     .with_toolbox(tools)
+    .with_function_tool("search_web".to_string(), |args: Value| {
+        let query = args["query"].as_str().unwrap_or("");
+        Ok(json!({ "query": query, "results": [] }).to_string())
+    })
     .build()
     .await?;
 ```
 
-The toolbox integrates with the Inference Gateway SDK's function calling system. When the LLM decides to use a tool, the tool call information is automatically sent through the gateway to the configured LLM provider, which will return tool call requests that can be processed by your application logic.
+When the LLM emits a tool call, the registered handler is invoked and its
+return value is appended to the conversation as a tool message. See
+[`examples/ai-powered/`](./examples/ai-powered/) for a multi-tool walkthrough.
 
-### Custom Task Processing
+### Custom Task Handlers
 
-Implement custom business logic for task completion:
+The server's two extension points for task execution are the `TaskHandler`
+trait (for `message/send`) and `StreamableTaskHandler` (for
+`message/stream`). The defaults wired in by
+`A2AServerBuilder::with_default_task_handlers()` delegate to the
+registered `Agent`; override either trait to plug in custom logic:
 
 ```rust
-use inference_gateway_adk::server::{TaskProcessor, TaskResult};
-use inference_gateway_adk::types::Message;
+use async_trait::async_trait;
+use inference_gateway_adk::{
+    A2AServerBuilder, TaskHandler,
+    a2a_types::{Message, Part, Role, Task, TaskState, TaskStatus},
+};
 
-struct CustomTaskProcessor;
+#[derive(Debug)]
+struct EchoHandler;
 
-impl TaskProcessor for CustomTaskProcessor {
-    async fn process_tool_result(&self, tool_call_result: &str) -> Option<Message> {
-        // Parse the tool result
-        let result: serde_json::Value = serde_json::from_str(tool_call_result).ok()?;
+#[async_trait]
+impl TaskHandler for EchoHandler {
+    async fn handle(&self, task: Task, message: Message) -> anyhow::Result<Task> {
+        let reply = message
+            .parts
+            .iter()
+            .filter_map(|p| p.text.as_deref())
+            .collect::<Vec<_>>()
+            .join(" ");
 
-        // Apply your business logic
-        if should_complete_task(&result) {
-            Some(Message {
-                role: "assistant".to_string(),
-                parts: vec![Part {
-                    kind: "text".to_string(),
-                    content: "Task completed successfully!".to_string(),
-                }],
-            })
-        } else {
-            // Return None to continue processing
-            None
-        }
+        let mut updated = task.clone();
+        updated.status = TaskStatus {
+            state: TaskState::TaskStateCompleted,
+            ..updated.status
+        };
+        updated.history.push(Message {
+            role: Role::RoleAgent,
+            parts: vec![Part { text: Some(reply), ..Default::default() }],
+            ..message
+        });
+        Ok(updated)
     }
 }
 
-// Set the processor when building your server
 let server = A2AServerBuilder::new()
-    .with_task_processor(CustomTaskProcessor)
-    .with_agent_card_from_file(".well-known/agent.json")
+    .with_background_task_handler(EchoHandler)
     .build()
     .await?;
 ```
+
+For a streaming variant see [`examples/streaming/`](./examples/streaming/);
+for `TaskStateInputRequired` flows see [`examples/input-required/`](./examples/input-required/).
 
 ### Push Notifications
 
@@ -1305,7 +1148,7 @@ attached to the request via an Axum extension and forwarded to the
 JSON-RPC dispatcher so per-tenant filtering of the extended agent card
 is a future no-op behind a feature flag rather than a breaking change.
 
-**Behaviour when `A2A_AUTH_ENABLE=false`** — the middleware is not attached
+**Behaviour when `A2A_AUTH_ENABLE=false`** - the middleware is not attached
 and `agent/getAuthenticatedExtendedCard` returns the configured card
 whenever `supportsExtendedAgentCard == true` on the agent card. This
 preserves backwards compatibility for callers who have not opted in to
@@ -1322,7 +1165,7 @@ When `A2A_SERVER_TLS_ENABLE=true`, `A2AServer::serve` swaps its plaintext
 Axum listener for `axum-server` backed by `rustls` (with the `ring`
 crypto provider) and serves the same Axum router over HTTPS. The
 configuration lives on `Config.tls_config` and is populated by whatever
-loader you used — `envy::prefixed("A2A_").from_env::<Config>()` in the
+loader you used - `envy::prefixed("A2A_").from_env::<Config>()` in the
 bundled examples:
 
 | Variable | Purpose |
@@ -1330,7 +1173,7 @@ bundled examples:
 | `A2A_SERVER_TLS_ENABLE` | Set to `true` to flip `A2AServer::serve` onto the TLS listener. |
 | `A2A_SERVER_TLS_CERT_PATH` | PEM file with the server certificate chain. |
 | `A2A_SERVER_TLS_KEY_PATH` | PEM file with the server private key (PKCS#1, PKCS#8, or SEC1). |
-| `A2A_SERVER_TLS_CLIENT_CA_PATH` | Optional. When set, the server requires every TLS client to present a certificate signed by one of the CAs in this PEM bundle — i.e. mutual TLS, the `MutualTlsSecurityScheme` the A2A spec describes. |
+| `A2A_SERVER_TLS_CLIENT_CA_PATH` | Optional. When set, the server requires every TLS client to present a certificate signed by one of the CAs in this PEM bundle - i.e. mutual TLS, the `MutualTlsSecurityScheme` the A2A spec describes. |
 
 The rustls stack was chosen over native-tls because (1) it is pure Rust
 and avoids the OpenSSL toolchain on container builds, and (2) it gives
@@ -1339,7 +1182,7 @@ what makes the mTLS subject extraction below tractable.
 
 When mTLS is enabled, the server's TLS acceptor parses the peer's leaf
 certificate and exposes it to handlers as an `axum::Extension<PeerCert>`
-extension — the same plumbing pattern the bearer-token auth middleware
+extension - the same plumbing pattern the bearer-token auth middleware
 uses for `AuthenticatedPrincipal`. The wrapped `ClientCertPrincipal`
 carries the subject DN, the Common Name (when present), the issuer DN,
 and the raw DER bytes of the leaf:
@@ -1367,7 +1210,7 @@ exercises both modes via the `tls` and `mtls` Compose profiles.
 ### Environment Configuration
 
 Runtime config flows in via the `A2A_*` env-var family. The library
-doesn't read env itself — pick any loader; the bundled examples use
+doesn't read env itself - pick any loader; the bundled examples use
 [`envy`][envy] (`envy::prefixed("A2A_").from_env::<Config>()`). The
 `A2A_` prefix is a convention; clients are free to use a different
 prefix as long as the leaf names match the `#[serde(rename = "...")]`
@@ -1481,129 +1324,21 @@ docker build \
   -t my-a2a-agent .
 ```
 
-## Testing
-
-The ADK follows table-driven testing patterns and provides comprehensive test coverage:
-
-```rust
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use tokio_test;
-
-    #[derive(Debug)]
-    struct TestCase {
-        name: &'static str,
-        endpoint: &'static str,
-        method: &'static str,
-        expected_status: u16,
-    }
-
-    #[tokio::test]
-    async fn test_a2a_server_endpoints() {
-        let test_cases = vec![
-            TestCase {
-                name: "health check",
-                endpoint: "/health",
-                method: "GET",
-                expected_status: 200,
-            },
-            TestCase {
-                name: "agent info",
-                endpoint: "/.well-known/agent.json",
-                method: "GET",
-                expected_status: 200,
-            },
-            TestCase {
-                name: "a2a endpoint",
-                endpoint: "/a2a",
-                method: "POST",
-                expected_status: 200,
-            },
-        ];
-
-        for test_case in test_cases {
-            // Each test case has isolated mocks
-            let server = setup_test_server().await;
-
-            // Test implementation with table-driven approach
-            let response = make_request(&server, test_case.method, test_case.endpoint).await;
-            assert_eq!(test_case.expected_status, response.status().as_u16());
-        }
-    }
-}
-```
-
-Run tests with:
-
-```bash
-task test
-```
-
-Or directly with cargo:
-
-```bash
-cargo test
-```
-
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](./LICENSE) file for details.
 
 ## Contributing
 
-We welcome contributions! Here's how you can help:
-
-### Getting Started
-
-1. **Fork the repository**
-2. **Clone your fork**:
-
-   ```bash
-   git clone https://github.com/your-username/rust-adk.git
-   cd rust-adk
-   ```
-
-3. **Create a feature branch**:
-   ```bash
-   git checkout -b feature/amazing-feature
-   ```
-
-### Development Guidelines
-
-- Follow the established code style and conventions (use `rustfmt`)
-- Write table-driven tests for new functionality
-- Use early returns to simplify logic and avoid deep nesting
-- Prefer match statements over if-else chains
-- Ensure type safety with proper error handling
-- Use lowercase log messages for consistency
-
-### Before Submitting
-
-1. **Download latest schema**: `task a2a:download-schema`
-2. **Generate types**: `task a2a:generate-types`
-3. **Run linting**: `task lint`
-4. **All tests pass**: `task test`
-
-### Pull Request Process
-
-1. Update documentation for any new features
-2. Add tests for new functionality
-3. Ensure all CI checks pass
-4. Request review from maintainers
-
-For more details, see [CONTRIBUTING.md](./CONTRIBUTING.md).
+Contributions are welcome - see [CONTRIBUTING.md](./CONTRIBUTING.md) for the
+development workflow, coding conventions, and pull-request checklist.
 
 ## Support
-
-### Issues & Questions
 
 - **Bug Reports**: [GitHub Issues](https://github.com/inference-gateway/rust-adk/issues)
 - **Documentation**: [Official Docs](https://docs.inference-gateway.com)
 
 ## Resources
-
-### Documentation
 
 - [A2A Protocol Specification](https://github.com/inference-gateway/schemas/tree/main/a2a)
 - [API Documentation](https://docs.inference-gateway.com/a2a)

@@ -49,7 +49,7 @@ Expected client log:
 In the current rust-adk, `message/send` always creates a new task,
 even when the request carries an existing `task_id`. That means the
 "second send resumes the paused task" flow demonstrated by some other
-A2A implementations is not yet wired here — the `TaskStateInputRequired`
+A2A implementations is not yet wired here - the `TaskStateInputRequired`
 state surfaces, but the protocol-level resume is a separate library
 improvement. This example sticks to demonstrating the state itself
 until that path lands.
@@ -61,7 +61,7 @@ cd examples/input-required
 docker compose up --build
 ```
 
-No `.env` needed — there are no provider keys.
+No `.env` needed - there are no provider keys.
 
 ## Running locally
 

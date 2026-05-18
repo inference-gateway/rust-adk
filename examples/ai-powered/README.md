@@ -21,13 +21,13 @@ ai-powered/
 
 ## What this shows
 
-- **`AgentBuilder::with_toolbox(tools)`** — register a list of
+- **`AgentBuilder::with_toolbox(tools)`** - register a list of
   `ChatCompletionTool` schemas with the agent.
-- **`with_function_tool(name, fn)`** — synchronous tool handler
+- **`with_function_tool(name, fn)`** - synchronous tool handler
   (weather, math).
-- **`with_async_function_tool(name, async fn)`** — async tool handler
+- **`with_async_function_tool(name, async fn)`** - async tool handler
   (web search).
-- **`with_default_task_handlers()`** — uses the built-in background
+- **`with_default_task_handlers()`** - uses the built-in background
   handler, which drives the LLM tool loop and writes the final reply
   onto the task.
 
@@ -43,8 +43,8 @@ docker compose up --build
 The stack starts three services on a private Docker network:
 
 - `inference-gateway` (image `ghcr.io/inference-gateway/inference-gateway:latest`)
-- `server` — built from `examples/Dockerfile.server`, listens on port 8080
-- `client` — built from `examples/Dockerfile.client`, runs after the server is healthy
+- `server` - built from `examples/Dockerfile.server`, listens on port 8080
+- `client` - built from `examples/Dockerfile.client`, runs after the server is healthy
 
 Defaults: `AGENT_CLIENT_PROVIDER=deepseek`, `AGENT_CLIENT_MODEL=deepseek-v4-flash`.
 Override via `.env` to switch to any other provider supported by the gateway

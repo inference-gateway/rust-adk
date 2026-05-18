@@ -16,7 +16,7 @@ These scenarios do not need an Inference Gateway or any provider keys.
 
 | Example | What it shows |
 |---|---|
-| [`minimal/`](./minimal) | Bare A2A server + client, no agent — built-in default echo reply |
+| [`minimal/`](./minimal) | Bare A2A server + client, no agent - built-in default echo reply |
 | [`static-agent-card/`](./static-agent-card) | Load agent metadata from JSON, override fields at runtime |
 | [`streaming/`](./streaming) | Custom `StreamableTaskHandler` emits a sentence word-by-word over SSE |
 | [`input-required/`](./input-required) | Handler chooses `TaskStateInputRequired` when the user message is incomplete |
@@ -111,29 +111,29 @@ the top-level [README](../README.md) for the full env var reference.
 
 ## Learning path
 
-1. **`minimal/`** — bare A2A wire-up; the default handler returns the
+1. **`minimal/`** - bare A2A wire-up; the default handler returns the
    built-in echo reply because no agent is configured.
-2. **`default-handlers/`** — same builder shape with an LLM agent
+2. **`default-handlers/`** - same builder shape with an LLM agent
    attached. Demonstrates that `with_default_task_handlers()` is enough
    to drive an LLM-backed server without any custom handler code.
-3. **`static-agent-card/`** — externalise agent metadata to a JSON file
+3. **`static-agent-card/`** - externalise agent metadata to a JSON file
    and override fields at runtime.
-4. **`streaming/`** — write a custom `StreamableTaskHandler` that emits
+4. **`streaming/`** - write a custom `StreamableTaskHandler` that emits
    SSE events without an LLM.
-5. **`input-required/`** — use `TaskStateInputRequired` to pause work
+5. **`input-required/`** - use `TaskStateInputRequired` to pause work
    when the handler needs more information from the user.
-6. **`auth/`** — gate `POST /a2a` behind a bearer token, either a
+6. **`auth/`** - gate `POST /a2a` behind a bearer token, either a
    static-token verifier for a quick `cargo run` demo or an
    `OidcJwtVerifier` doing OIDC discovery + JWKS validation against a
    Keycloak realm spun up by docker compose.
-7. **`tls/`** — terminate TLS with `axum-server` + `rustls`, optionally
+7. **`tls/`** - terminate TLS with `axum-server` + `rustls`, optionally
    require mTLS, and surface the client-cert subject to handlers via
    `axum::Extension<PeerCert>`.
-8. **`ai-powered/`** — register custom function tools and drive an LLM
+8. **`ai-powered/`** - register custom function tools and drive an LLM
    tool-loop via `message/send`.
-9. **`ai-powered-streaming/`** — the same LLM agent shape streamed over
+9. **`ai-powered-streaming/`** - the same LLM agent shape streamed over
    `message/stream`.
-10. **`queue-storage/`** — swap the in-memory storage backend for Redis
+10. **`queue-storage/`** - swap the in-memory storage backend for Redis
     and scale workers horizontally.
-11. **`a2a-methods/`** — every JSON-RPC method exposed by the A2A
+11. **`a2a-methods/`** - every JSON-RPC method exposed by the A2A
     specification, exercised one client at a time.

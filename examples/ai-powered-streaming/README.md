@@ -1,16 +1,16 @@
 # ai-powered-streaming example
 
 LLM-backed A2A server that streams delta chunks over `message/stream`.
-Uses `A2AServerBuilder::with_default_task_handlers()` — the built-in
+Uses `A2AServerBuilder::with_default_task_handlers()` - the built-in
 `DefaultStreamingTaskHandler` converts the LLM's streaming response
 into a sequence of `TaskArtifactUpdateEvent`s ending with
 `TaskStateCompleted`.
 
 Compare to:
 
-- [`../streaming`](../streaming) — same streaming wire-up, but the
+- [`../streaming`](../streaming) - same streaming wire-up, but the
   chunks come from a hardcoded sentence rather than an LLM.
-- [`../ai-powered`](../ai-powered) — same LLM agent shape but uses
+- [`../ai-powered`](../ai-powered) - same LLM agent shape but uses
   `message/send` + polling instead of streaming.
 
 ## What's in the box
@@ -47,8 +47,8 @@ docker compose up --build
 The stack starts three services:
 
 - `inference-gateway` (image `ghcr.io/inference-gateway/inference-gateway:latest`)
-- `server` — built from `examples/Dockerfile.server`, listens on port 8080
-- `client` — built from `examples/Dockerfile.client`, runs after the server is healthy
+- `server` - built from `examples/Dockerfile.server`, listens on port 8080
+- `client` - built from `examples/Dockerfile.client`, runs after the server is healthy
 
 ## Running locally
 
