@@ -39,7 +39,6 @@ use tracing::{error, info};
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt().init();
-    dotenvy::dotenv().ok();
 
     let config: Config = envy::prefixed("A2A_").from_env()?;
     if !config.tls_config.enable {

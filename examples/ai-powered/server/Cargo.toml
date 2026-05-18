@@ -1,0 +1,18 @@
+[package]
+name = "ai-powered-server"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[[bin]]
+name = "ai-powered-server"
+path = "main.rs"
+
+[dependencies]
+inference-gateway-adk = { path = "../../.." }
+inference-gateway-sdk = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+envy = { workspace = true }
+serde_json = { workspace = true }

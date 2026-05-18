@@ -2,12 +2,12 @@
 ARG RUST_VERSION=1
 FROM rust:${RUST_VERSION}-slim-bookworm AS builder
 
+# Name of the workspace package to build. Matches the `[package].name`
+# entry in `examples/<example>/server/Cargo.toml` (e.g. `queue-storage-server`).
 ARG BIN_NAME
+# Path to the example directory inside the repo (e.g. `examples/queue-storage`).
+# Used only for staging the runtime `.well-known/agent.json` next to the binary.
 ARG EXAMPLE_PATH
-# Comma-separated cargo features to enable when building the example
-# (e.g. `redis`). Defaults to empty so existing examples that don't
-# need optional crate features continue to build unchanged.
-ARG CARGO_FEATURES=""
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends pkg-config libssl-dev \
@@ -18,11 +18,10 @@ COPY Cargo.toml Cargo.lock ./
 COPY src ./src
 COPY examples ./examples
 
-RUN if [ -n "${CARGO_FEATURES}" ]; then \
-        cargo build --release --features "${CARGO_FEATURES}" --example "${BIN_NAME}"; \
-    else \
-        cargo build --release --example "${BIN_NAME}"; \
-    fi
+# Cargo features for each example are declared inside that example's own
+# Cargo.toml (e.g. `inference-gateway-adk = { ..., features = ["redis"] }`),
+# so the docker build just needs to ask Cargo for the package.
+RUN cargo build --release -p "${BIN_NAME}"
 
 # Stage runtime data files (.well-known/agent.json when present) into a known
 # location so the next stage can COPY a single directory without colliding with
@@ -44,7 +43,7 @@ RUN apt-get update \
 ARG BIN_NAME
 
 WORKDIR /app
-COPY --from=builder /build/target/release/examples/${BIN_NAME} /usr/local/bin/server
+COPY --from=builder /build/target/release/${BIN_NAME} /usr/local/bin/server
 COPY --from=builder /staged/ /app/
 
 ENTRYPOINT ["/usr/local/bin/server"]

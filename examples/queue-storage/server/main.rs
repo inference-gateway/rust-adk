@@ -32,7 +32,6 @@ struct AppConfig {
     /// Subscriber composition your stack needs.
     log_format: String,
     delay_ms: u64,
-    port: u16,
 }
 
 impl Default for AppConfig {
@@ -41,7 +40,6 @@ impl Default for AppConfig {
             log_level: "info,tower_http=debug".to_string(),
             log_format: "pretty".to_string(),
             delay_ms: 2000,
-            port: 8083,
         }
     }
 }
@@ -100,8 +98,6 @@ impl TaskHandler for SleepEchoHandler {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    dotenvy::dotenv().ok();
-
     // Two independent envy calls — each owns its own prefix. The ADK's
     // `Config` reads `A2A_*`; this example's `AppConfig` reads `APP_*`.
     // Clients can use any prefix (or none) for their own config; the ADK
@@ -126,13 +122,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         _ => fmt().with_env_filter(filter).init(),
     }
 
+    let port = config.server_config.port;
     info!(
         log_level = %app.log_level,
         log_format = %app.log_format,
         provider = ?config.queue_config.provider,
         workers = config.queue_config.workers,
         delay_ms = app.delay_ms,
-        port = app.port,
+        port = port,
         "starting queue-storage example server",
     );
     if config.queue_config.provider == inference_gateway_adk::QueueProvider::Redis {
@@ -149,7 +146,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build()
         .await?;
 
-    let addr: std::net::SocketAddr = format!("0.0.0.0:{}", app.port).parse()?;
+    let addr: std::net::SocketAddr = format!("0.0.0.0:{port}").parse()?;
     info!("queue-storage server listening on {addr}");
 
     if let Err(e) = server.serve(addr).await {

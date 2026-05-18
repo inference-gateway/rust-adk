@@ -1,0 +1,17 @@
+[package]
+name = "tls-client"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[[bin]]
+name = "tls-client"
+path = "main.rs"
+
+[dependencies]
+inference-gateway-adk = { path = "../../.." }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+reqwest = { workspace = true }
+anyhow = { workspace = true }

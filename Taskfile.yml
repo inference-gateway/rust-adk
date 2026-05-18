@@ -60,154 +60,154 @@ tasks:
     desc: Run the minimal A2A server example (requires Inference Gateway at localhost:8080)
     dir: examples/minimal
     cmds:
-      - cargo run --example minimal-server
+      - cargo run -p minimal-server
 
   examples:minimal-client:
     desc: Run the minimal A2A client example (requires the minimal server at localhost:8081)
     dir: examples/minimal
     cmds:
-      - cargo run --example minimal-client
+      - cargo run -p minimal-client
 
   examples:static-agent-card-server:
     desc: Run the static-agent-card A2A server example (requires environment config and Inference Gateway)
     dir: examples/static-agent-card
     cmds:
-      - cargo run --example static-agent-card-server
+      - cargo run -p static-agent-card-server
 
   examples:static-agent-card-client:
     desc: Run the static-agent-card A2A client example (requires the server at localhost:8081)
     dir: examples/static-agent-card
     cmds:
-      - cargo run --example static-agent-card-client
+      - cargo run -p static-agent-card-client
 
   examples:ai-powered-server:
     desc: Run the AI-powered A2A server example with tools (requires Inference Gateway at localhost:8080)
     dir: examples/ai-powered
     cmds:
-      - cargo run --example ai-powered-server
+      - cargo run -p ai-powered-server
 
   examples:ai-powered-client:
     desc: Run the AI-powered A2A client example (requires the server at localhost:8082)
     dir: examples/ai-powered
     cmds:
-      - cargo run --example ai-powered-client
+      - cargo run -p ai-powered-client
 
   examples:ai-powered-streaming-server:
     desc: Run the AI-powered streaming server example (requires Inference Gateway at localhost:8080)
     dir: examples/ai-powered-streaming
     cmds:
-      - cargo run --example ai-powered-streaming-server
+      - cargo run -p ai-powered-streaming-server
 
   examples:ai-powered-streaming-client:
     desc: Run the AI-powered streaming client example (requires the server at localhost:8084)
     dir: examples/ai-powered-streaming
     cmds:
-      - cargo run --example ai-powered-streaming-client
+      - cargo run -p ai-powered-streaming-client
 
   examples:default-handlers-server:
     desc: Run the default-handlers server example (requires Inference Gateway at localhost:8080)
     dir: examples/default-handlers
     cmds:
-      - cargo run --example default-handlers-server
+      - cargo run -p default-handlers-server
 
   examples:default-handlers-client:
     desc: Run the default-handlers client example (requires the server at localhost:8085)
     dir: examples/default-handlers
     cmds:
-      - cargo run --example default-handlers-client
+      - cargo run -p default-handlers-client
 
   examples:streaming-server:
     desc: Run the streaming server example (no AI required)
     dir: examples/streaming
     cmds:
-      - cargo run --example streaming-server
+      - cargo run -p streaming-server
 
   examples:streaming-client:
     desc: Run the streaming client example (requires the server at localhost:8086)
     dir: examples/streaming
     cmds:
-      - cargo run --example streaming-client
+      - cargo run -p streaming-client
 
   examples:input-required-server:
     desc: Run the input-required server example (no AI required)
     dir: examples/input-required
     cmds:
-      - cargo run --example input-required-server
+      - cargo run -p input-required-server
 
   examples:input-required-client:
     desc: Run the input-required client example (requires the server at localhost:8087)
     dir: examples/input-required
     cmds:
-      - cargo run --example input-required-client
+      - cargo run -p input-required-client
 
   examples:queue-storage-server:
-    desc: Run the queue-storage server example (in-memory by default; built with `redis` feature so A2A_QUEUE_PROVIDER=redis is available)
+    desc: Run the queue-storage server example (in-memory by default; the queue-storage-server package already enables the ADK `redis` feature so A2A_QUEUE_PROVIDER=redis is available)
     dir: examples/queue-storage
     cmds:
-      - cargo run --features redis --example queue-storage-server
+      - cargo run -p queue-storage-server
 
   examples:queue-storage-client:
     desc: Run the queue-storage client example (requires the server at localhost:8083)
     dir: examples/queue-storage
     cmds:
-      - cargo run --example queue-storage-client
+      - cargo run -p queue-storage-client
 
   examples:a2a-methods-server:
     desc: Run the shared offline server used by every a2a-methods client example (port 8085)
     dir: examples/a2a-methods
     cmds:
-      - cargo run --example a2a-methods-server
+      - cargo run -p a2a-methods-server
 
   examples:a2a-methods-message-send:
     desc: Run the a2a-methods client for the `message/send` JSON-RPC method
     dir: examples/a2a-methods
     cmds:
-      - cargo run --example a2a-methods-message-send
+      - cargo run -p a2a-methods-message-send
 
   examples:a2a-methods-message-stream:
     desc: Run the a2a-methods client for the `message/stream` JSON-RPC method
     dir: examples/a2a-methods
     cmds:
-      - cargo run --example a2a-methods-message-stream
+      - cargo run -p a2a-methods-message-stream
 
   examples:a2a-methods-tasks-get:
     desc: Run the a2a-methods client for the `tasks/get` JSON-RPC method
     dir: examples/a2a-methods
     cmds:
-      - cargo run --example a2a-methods-tasks-get
+      - cargo run -p a2a-methods-tasks-get
 
   examples:a2a-methods-tasks-list:
     desc: Run the a2a-methods client for the `tasks/list` JSON-RPC method
     dir: examples/a2a-methods
     cmds:
-      - cargo run --example a2a-methods-tasks-list
+      - cargo run -p a2a-methods-tasks-list
 
   examples:a2a-methods-tasks-cancel:
     desc: Run the a2a-methods client for the `tasks/cancel` JSON-RPC method
     dir: examples/a2a-methods
     cmds:
-      - cargo run --example a2a-methods-tasks-cancel
+      - cargo run -p a2a-methods-tasks-cancel
 
   examples:a2a-methods-push-config-set:
     desc: Run the a2a-methods client for the `tasks/pushNotificationConfig/set` JSON-RPC method
     dir: examples/a2a-methods
     cmds:
-      - cargo run --example a2a-methods-push-config-set
+      - cargo run -p a2a-methods-push-config-set
 
   examples:a2a-methods-push-config-get:
     desc: Run the a2a-methods client for the `tasks/pushNotificationConfig/get` JSON-RPC method
     dir: examples/a2a-methods
     cmds:
-      - cargo run --example a2a-methods-push-config-get
+      - cargo run -p a2a-methods-push-config-get
 
   examples:a2a-methods-push-config-list:
     desc: Run the a2a-methods client for the `tasks/pushNotificationConfig/list` JSON-RPC method
     dir: examples/a2a-methods
     cmds:
-      - cargo run --example a2a-methods-push-config-list
+      - cargo run -p a2a-methods-push-config-list
 
   examples:a2a-methods-push-config-delete:
     desc: Run the a2a-methods client for the `tasks/pushNotificationConfig/delete` JSON-RPC method
     dir: examples/a2a-methods
     cmds:
-      - cargo run --example a2a-methods-push-config-delete
+      - cargo run -p a2a-methods-push-config-delete

@@ -2,6 +2,7 @@
 name = "inference-gateway-adk"
 version = "0.4.0"
 edition = "2024"
+rust-version = "1.94.1"
 description = "Agent Development Kit (ADK) for building powerful, interoperable AI agents with the Agent-to-Agent (A2A) protocol"
 license = "MIT"
 documentation = "https://docs.rs/inference-gateway-adk"
@@ -47,134 +48,48 @@ redis = { version = "1.2.1", default-features = false, features = ["tokio-comp",
 
 [dev-dependencies]
 rcgen = { version = "0.14.8", default-features = false, features = ["pem", "ring"] }
+
+# The bundled examples are full workspace members under `examples/<name>/{server,client}/`.
+# Each declares its own dependencies in its own `Cargo.toml`, so a reader can see at a
+# glance what a given binary actually needs. Version pins for the deps that several
+# examples share are centralized below under `[workspace.dependencies]`.
+[workspace]
+members = [
+    "examples/minimal/server",
+    "examples/minimal/client",
+    "examples/static-agent-card/server",
+    "examples/static-agent-card/client",
+    "examples/ai-powered/server",
+    "examples/ai-powered/client",
+    "examples/ai-powered-streaming/server",
+    "examples/ai-powered-streaming/client",
+    "examples/default-handlers/server",
+    "examples/default-handlers/client",
+    "examples/streaming/server",
+    "examples/streaming/client",
+    "examples/input-required/server",
+    "examples/input-required/client",
+    "examples/queue-storage/server",
+    "examples/queue-storage/client",
+    "examples/auth/server",
+    "examples/auth/client",
+    "examples/tls/server",
+    "examples/tls/client",
+    "examples/a2a-methods/server",
+    "examples/a2a-methods/client",
+]
+
+[workspace.dependencies]
+inference-gateway-sdk = "0.13.3"
+tokio = { version = "1.52.3", features = ["full", "signal"] }
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter", "json"] }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"
 envy = "0.4.2"
-dotenvy = "0.15.7"
-
-[[example]]
-name = "minimal-server"
-path = "examples/minimal/server/main.rs"
-
-[[example]]
-name = "minimal-client"
-path = "examples/minimal/client/main.rs"
-
-[[example]]
-name = "static-agent-card-server"
-path = "examples/static-agent-card/server/main.rs"
-
-[[example]]
-name = "static-agent-card-client"
-path = "examples/static-agent-card/client/main.rs"
-
-[[example]]
-name = "ai-powered-server"
-path = "examples/ai-powered/server/main.rs"
-
-[[example]]
-name = "ai-powered-client"
-path = "examples/ai-powered/client/main.rs"
-
-[[example]]
-name = "ai-powered-streaming-server"
-path = "examples/ai-powered-streaming/server/main.rs"
-
-[[example]]
-name = "ai-powered-streaming-client"
-path = "examples/ai-powered-streaming/client/main.rs"
-
-[[example]]
-name = "default-handlers-server"
-path = "examples/default-handlers/server/main.rs"
-
-[[example]]
-name = "default-handlers-client"
-path = "examples/default-handlers/client/main.rs"
-
-[[example]]
-name = "streaming-server"
-path = "examples/streaming/server/main.rs"
-
-[[example]]
-name = "streaming-client"
-path = "examples/streaming/client/main.rs"
-
-[[example]]
-name = "input-required-server"
-path = "examples/input-required/server/main.rs"
-
-[[example]]
-name = "input-required-client"
-path = "examples/input-required/client/main.rs"
-
-# a2a-methods/ - one client binary per JSON-RPC method exposed by the spec.
-[[example]]
-name = "a2a-methods-server"
-path = "examples/a2a-methods/server/main.rs"
-
-[[example]]
-name = "a2a-methods-message-send"
-path = "examples/a2a-methods/client/message_send.rs"
-
-[[example]]
-name = "a2a-methods-message-stream"
-path = "examples/a2a-methods/client/message_stream.rs"
-
-[[example]]
-name = "a2a-methods-tasks-get"
-path = "examples/a2a-methods/client/tasks_get.rs"
-
-[[example]]
-name = "a2a-methods-tasks-list"
-path = "examples/a2a-methods/client/tasks_list.rs"
-
-[[example]]
-name = "a2a-methods-tasks-cancel"
-path = "examples/a2a-methods/client/tasks_cancel.rs"
-
-[[example]]
-name = "a2a-methods-push-config-set"
-path = "examples/a2a-methods/client/push_config_set.rs"
-
-[[example]]
-name = "a2a-methods-push-config-get"
-path = "examples/a2a-methods/client/push_config_get.rs"
-
-[[example]]
-name = "a2a-methods-push-config-list"
-path = "examples/a2a-methods/client/push_config_list.rs"
-
-[[example]]
-name = "a2a-methods-push-config-delete"
-path = "examples/a2a-methods/client/push_config_delete.rs"
-
-[[example]]
-name = "a2a-methods-tasks-resubscribe"
-path = "examples/a2a-methods/client/tasks_resubscribe.rs"
-
-[[example]]
-name = "a2a-methods-agent-authenticated-extended-card"
-path = "examples/a2a-methods/client/agent_authenticated_extended_card.rs"
-
-[[example]]
-name = "queue-storage-server"
-path = "examples/queue-storage/server/main.rs"
-
-[[example]]
-name = "queue-storage-client"
-path = "examples/queue-storage/client/main.rs"
-
-[[example]]
-name = "auth-server"
-path = "examples/auth/server/main.rs"
-
-[[example]]
-name = "auth-client"
-path = "examples/auth/client/main.rs"
-
-[[example]]
-name = "tls-server"
-path = "examples/tls/server/main.rs"
-
-[[example]]
-name = "tls-client"
-path = "examples/tls/client/main.rs"
+anyhow = "1.0.102"
+async-trait = "0.1.89"
+chrono = { version = "0.4.44", features = ["serde"] }
+uuid = { version = "1.23.1", features = ["v4", "serde"] }
+futures = "0.3.32"
+reqwest = { version = "0.13.3", features = ["json"] }

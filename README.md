@@ -20,7 +20,7 @@
     <img src="https://img.shields.io/github/license/inference-gateway/rust-adk?color=blue&style=flat-square" alt="License"/>
   </a>
   <!-- Rust Version -->
-  <img src="https://img.shields.io/badge/rust-1.88+-blue.svg?style=flat-square" alt="Rust Version"/>
+  <img src="https://img.shields.io/badge/dynamic/toml?url=https%3A%2F%2Fraw.githubusercontent.com%2Finference-gateway%2Frust-adk%2Fmain%2FCargo.toml&query=%24.package.rust-version&label=rust&suffix=%2B&color=blue&style=flat-square" alt="Rust Version"/>
 </p>
 
 ---
@@ -113,7 +113,7 @@ Add the ADK to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-inference-gateway-adk = "0.1.0"
+inference-gateway-adk = "0.4.0"
 ```
 
 ### Basic Usage (Minimal Server)
@@ -332,7 +332,7 @@ suggested learning path.
 
 ### Prerequisites
 
-- Rust 1.88 or later
+- Rust 1.94 or later
 - [Task](https://taskfile.dev/) for build automation (optional, can use `cargo` directly)
 
 ### Development Workflow
@@ -399,7 +399,7 @@ cargo build --release
 
 ```dockerfile
 # Build with custom metadata in Docker
-FROM rust:1.88 AS builder
+FROM rust:1.94 AS builder
 
 ARG AGENT_NAME="Production Agent"
 ARG AGENT_DESCRIPTION="Production deployment agent with enhanced capabilities"
@@ -1429,7 +1429,7 @@ This ADK is part of the broader Inference Gateway ecosystem:
 
 ## Requirements
 
-- **Rust**: 1.88 or later
+- **Rust**: 1.94 or later
 - **Dependencies**: See [Cargo.toml](./Cargo.toml) for full dependency list
 
 ## OCI Compliant

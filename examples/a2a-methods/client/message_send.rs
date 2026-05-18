@@ -4,8 +4,8 @@
 //! Run alongside `a2a-methods-server`:
 //!
 //! ```bash
-//! cargo run --example a2a-methods-server
-//! cargo run --example a2a-methods-message-send
+//! cargo run -p a2a-methods-server
+//! cargo run -p a2a-methods-message-send
 //! ```
 
 use inference_gateway_adk::A2AClient;

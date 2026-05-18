@@ -31,8 +31,7 @@ services:
       A2A_QUEUE_URL: ${A2A_QUEUE_URL:-}
       A2A_QUEUE_NAMESPACE: ${A2A_QUEUE_NAMESPACE:-a2a}
       A2A_QUEUE_WORKERS: ${A2A_QUEUE_WORKERS:-1}
-      EXAMPLE_DELAY_MS: ${EXAMPLE_DELAY_MS:-2000}
-      PORT: 8083
+      APP_DELAY_MS: ${APP_DELAY_MS:-2000}
     depends_on:
       redis:
         condition: service_healthy
@@ -43,7 +42,7 @@ services:
         - curl
         - --fail
         - --silent
-        - http://localhost:8083/health
+        - http://localhost:8080/health
       interval: 5s
       timeout: 3s
       retries: 10
@@ -61,7 +60,7 @@ services:
       server:
         condition: service_healthy
     environment:
-      SERVER_URL: http://server:8083
+      SERVER_URL: http://server:8080
       EXAMPLE_TASKS: ${EXAMPLE_TASKS:-5}
     networks:
       - a2a-network

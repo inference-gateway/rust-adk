@@ -54,21 +54,13 @@ impl AuthVerifier for StaticTokenVerifier {
     }
 }
 
-fn auth_enabled() -> bool {
-    std::env::var("A2A_AUTH_ENABLE")
-        .map(|v| v.to_lowercase() == "true")
-        .unwrap_or(false)
-}
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt().init();
-    dotenvy::dotenv().ok();
 
-    let port: u16 = std::env::var("PORT")
-        .ok()
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(8081);
+    let config: Config = envy::prefixed("A2A_").from_env()?;
+    let auth_enabled = config.auth_config.enable;
+    let port = config.server_config.port;
 
     let agent_card: AgentCard = serde_json::from_value(json!({
         "name": "Auth-Gated Rust A2A Agent",
@@ -99,19 +91,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut builder = A2AServerBuilder::new()
         .with_agent_card(agent_card)
-        .with_gateway_url("http://localhost:8080/v1")
         .with_default_task_handlers();
 
-    if auth_enabled() {
-        // OIDC mode: hand the builder a Config and let it construct
-        // OidcJwtVerifier from A2A_AUTH_ISSUER_URL / A2A_AUTH_CLIENT_ID.
-        let config: Config = envy::prefixed("A2A_").from_env()?;
+    if auth_enabled {
+        // OIDC mode: hand the builder the Config we already loaded; it
+        // constructs OidcJwtVerifier from `auth_config.issuer_url` /
+        // `auth_config.client_id`.
         info!(
             "A2A_AUTH_ENABLE=true → using OidcJwtVerifier (issuer={})",
             config.auth_config.issuer_url
         );
         builder = builder.with_config(config);
     } else {
+        // EXAMPLE_BEARER_TOKEN is an example-specific demo knob — it's not
+        // part of the ADK's config surface, so we read it directly.
         let bearer_token =
             std::env::var("EXAMPLE_BEARER_TOKEN").unwrap_or_else(|_| "demo-token-123".to_string());
         info!(
@@ -130,7 +123,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("Try:");
     info!("  curl http://localhost:{port}/health                               # public");
     info!("  curl http://localhost:{port}/.well-known/agent.json               # public");
-    if auth_enabled() {
+    if auth_enabled {
         info!(
             "  curl -H 'Authorization: Bearer <jwt>' http://localhost:{port}/a2a -d '...'  # protected (JWT from Keycloak)"
         );

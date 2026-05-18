@@ -38,7 +38,7 @@ async fn poll_until_terminal(
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt().init();
 
-    let server_url = env::var("SERVER_URL").unwrap_or_else(|_| "http://localhost:8081".to_string());
+    let server_url = env::var("SERVER_URL").unwrap_or_else(|_| "http://localhost:8080".to_string());
     let client = A2AClient::new(&server_url)?;
 
     info!("Minimal A2A client connecting to {}", server_url);

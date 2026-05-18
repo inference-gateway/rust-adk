@@ -3,28 +3,20 @@ use inference_gateway_sdk::{
     ChatCompletionTool, ChatCompletionToolType, FunctionObject, FunctionParameters,
 };
 use serde_json::{Value, json};
-use std::env;
 use tracing::{error, info};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt().init();
-    dotenvy::dotenv().ok();
 
-    let mut config: Config = envy::prefixed("A2A_").from_env()?;
+    let config: Config = envy::prefixed("A2A_").from_env()?;
 
-    let gateway_url = env::var("INFERENCE_GATEWAY_URL")
-        .unwrap_or_else(|_| "http://localhost:8080/v1".to_string());
-
-    if config.agent_config.base_url.is_none() {
-        config.agent_config.base_url = Some(gateway_url.clone());
-    }
-
-    info!("Starting AI-powered A2A server (toolbox + tools)...");
-    info!("Gateway URL: {}", gateway_url);
-    info!("Agent provider: {}", config.agent_config.provider);
-    info!("Agent model: {}", config.agent_config.model);
-    info!("Has API key: {}", config.agent_config.api_key.is_some());
+    info!(
+        provider = %config.agent_config.provider,
+        model = %config.agent_config.model,
+        has_api_key = config.agent_config.api_key.is_some(),
+        "starting AI-powered A2A server (toolbox + tools)",
+    );
 
     let function_params = |value: Value| {
         FunctionParameters(
@@ -213,17 +205,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     info!("Agent built with toolbox and default handlers");
 
+    let port = config.server_config.port;
     let server = A2AServerBuilder::new()
         .with_config(config)
         .with_agent(agent)
         .with_agent_card_from_file(".well-known/agent.json", None)
-        .with_gateway_url(gateway_url)
         .with_default_task_handlers()
         .build()
         .await?;
 
-    let addr = "0.0.0.0:8082".parse()?;
-    info!("AI-powered A2A server running on port 8082");
+    let addr = format!("0.0.0.0:{port}").parse()?;
+    info!("AI-powered A2A server running on port {port}");
 
     if let Err(e) = server.serve(addr).await {
         error!("Server failed to start: {}", e);

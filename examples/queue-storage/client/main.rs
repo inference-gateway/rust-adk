@@ -77,7 +77,7 @@ fn reply_text(task: &Task) -> String {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt().init();
 
-    let server_url = env::var("SERVER_URL").unwrap_or_else(|_| "http://localhost:8083".to_string());
+    let server_url = env::var("SERVER_URL").unwrap_or_else(|_| "http://localhost:8080".to_string());
     let n: usize = env::var("EXAMPLE_TASKS")
         .ok()
         .and_then(|s| s.parse().ok())

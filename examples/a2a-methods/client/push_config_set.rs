@@ -6,8 +6,8 @@
 //! set/get/list/delete control plane is fully wired up.
 //!
 //! ```bash
-//! cargo run --example a2a-methods-server
-//! cargo run --example a2a-methods-push-config-set
+//! cargo run -p a2a-methods-server
+//! cargo run -p a2a-methods-push-config-set
 //! ```
 
 use inference_gateway_adk::A2AClient;

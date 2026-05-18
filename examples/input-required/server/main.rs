@@ -94,9 +94,9 @@ impl TaskHandler for WeatherHandler {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt().init();
-    dotenvy::dotenv().ok();
 
     let config: Config = envy::prefixed("A2A_").from_env()?;
+    let port = config.server_config.port;
 
     let server = A2AServerBuilder::new()
         .with_config(config)
@@ -106,7 +106,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build()
         .await?;
 
-    let addr = "0.0.0.0:8087".parse()?;
+    let addr = format!("0.0.0.0:{port}").parse()?;
     info!("input-required A2A server listening on {addr}");
 
     if let Err(e) = server.serve(addr).await {

@@ -53,8 +53,8 @@ Every example exposes Cargo example binaries (`<name>-server` and
 
 ```bash
 # Cargo
-cargo run --example minimal-server
-cargo run --example minimal-client
+cargo run -p minimal-server
+cargo run -p minimal-client
 
 # Taskfile
 task examples:minimal-server
@@ -104,9 +104,10 @@ Notes per scenario:
 
 ## Configuration
 
-Examples that integrate with the Inference Gateway use `Config::from_env()`
-and the `INFERENCE_GATEWAY_URL` environment variable. See the top-level
-[README](../README.md) for the full env var reference.
+Examples that integrate with the Inference Gateway load their `Config`
+via `envy::prefixed("A2A_").from_env::<Config>()`. The gateway endpoint
+comes from the `A2A_AGENT_CLIENT_BASE_URL` environment variable. See
+the top-level [README](../README.md) for the full env var reference.
 
 ## Learning path
 

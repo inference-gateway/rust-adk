@@ -27,33 +27,33 @@ client uses the same token.
 In one terminal:
 
 ```bash
-cargo run --example auth-server
+cargo run -p auth-server
 # Or with a custom token:
-# EXAMPLE_BEARER_TOKEN=my-secret cargo run --example auth-server
+# EXAMPLE_BEARER_TOKEN=my-secret cargo run -p auth-server
 ```
 
 In another terminal:
 
 ```bash
-cargo run --example auth-client
+cargo run -p auth-client
 # Token used by the client must match the server:
-# EXAMPLE_BEARER_TOKEN=my-secret cargo run --example auth-client
+# EXAMPLE_BEARER_TOKEN=my-secret cargo run -p auth-client
 ```
 
 You can also poke the endpoints directly with curl:
 
 ```bash
 # Public - works without a token
-curl http://localhost:8081/health
-curl http://localhost:8081/.well-known/agent.json
+curl http://localhost:8080/health
+curl http://localhost:8080/.well-known/agent.json
 
 # Protected - 401 without a token
-curl -i http://localhost:8081/a2a \
+curl -i http://localhost:8080/a2a \
   -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","id":"1","method":"agent/getAuthenticatedExtendedCard","params":{"tenant":"demo-tenant"}}'
 
 # Protected - 200 with a valid token
-curl http://localhost:8081/a2a \
+curl http://localhost:8080/a2a \
   -H 'Authorization: Bearer demo-token-123' \
   -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","id":"1","method":"agent/getAuthenticatedExtendedCard","params":{"tenant":"demo-tenant"}}'

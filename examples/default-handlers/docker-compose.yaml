@@ -22,17 +22,16 @@ services:
       inference-gateway:
         condition: service_started
     environment:
-      INFERENCE_GATEWAY_URL: http://inference-gateway:8080/v1
-      AGENT_CLIENT_BASE_URL: http://inference-gateway:8080/v1
-      AGENT_CLIENT_PROVIDER: ${AGENT_CLIENT_PROVIDER:-deepseek}
-      AGENT_CLIENT_MODEL: ${AGENT_CLIENT_MODEL:-deepseek-v4-flash}
+      A2A_AGENT_CLIENT_BASE_URL: http://inference-gateway:8080/v1
+      A2A_AGENT_CLIENT_PROVIDER: ${A2A_AGENT_CLIENT_PROVIDER:-deepseek}
+      A2A_AGENT_CLIENT_MODEL: ${A2A_AGENT_CLIENT_MODEL:-deepseek-v4-flash}
     healthcheck:
       test:
         - CMD
         - curl
         - --fail
         - --silent
-        - http://localhost:8085/health
+        - http://localhost:8080/health
       interval: 5s
       timeout: 3s
       retries: 10
@@ -50,7 +49,7 @@ services:
       server:
         condition: service_healthy
     environment:
-      SERVER_URL: http://server:8085
+      SERVER_URL: http://server:8080
     networks:
       - a2a-network
 

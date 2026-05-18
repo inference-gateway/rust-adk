@@ -11,8 +11,8 @@
 //! the discovery endpoint and logs both side-by-side.
 //!
 //! ```bash
-//! cargo run --example a2a-methods-server
-//! cargo run --example a2a-methods-agent-authenticated-extended-card
+//! cargo run -p a2a-methods-server
+//! cargo run -p a2a-methods-agent-authenticated-extended-card
 //! ```
 use inference_gateway_adk::A2AClient;
 use inference_gateway_adk::a2a_types::GetExtendedAgentCardRequest;

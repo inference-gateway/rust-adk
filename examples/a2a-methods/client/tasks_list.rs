@@ -3,8 +3,8 @@
 //! Seeds a couple of tasks first so the response is non-empty.
 //!
 //! ```bash
-//! cargo run --example a2a-methods-server
-//! cargo run --example a2a-methods-tasks-list
+//! cargo run -p a2a-methods-server
+//! cargo run -p a2a-methods-tasks-list
 //! ```
 
 use inference_gateway_adk::A2AClient;

@@ -17,7 +17,6 @@ use inference_gateway_adk::a2a_types::{
 };
 use inference_gateway_adk::{StreamEmitter, StreamableTaskHandler, TaskHandler};
 use serde_json::json;
-use std::env;
 use std::time::Duration;
 use tracing::{error, info};
 
@@ -128,10 +127,7 @@ impl StreamableTaskHandler for EchoStreamHandler {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt().init();
 
-    let port: u16 = env::var("SERVER_PORT")
-        .ok()
-        .and_then(|p| p.parse().ok())
-        .unwrap_or(8085);
+    let port: u16 = 8085;
 
     let agent_card: AgentCard = serde_json::from_value(json!({
         "name": "A2A Methods Example Agent",

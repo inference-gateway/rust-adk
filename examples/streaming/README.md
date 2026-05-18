@@ -56,12 +56,12 @@ No `.env` needed — there are no provider keys.
 
 ```bash
 cd examples/streaming/server
-cargo run --example streaming-server
+cargo run -p streaming-server
 # or: task examples:streaming-server
 
-cargo run --example streaming-client
+cargo run -p streaming-client
 # or: task examples:streaming-client
 ```
 
-The server listens on `0.0.0.0:8086`. The client honours `SERVER_URL`
-(default `http://localhost:8086`).
+The server listens on `0.0.0.0:8080`. The client honours `SERVER_URL`
+(default `http://localhost:8080`).

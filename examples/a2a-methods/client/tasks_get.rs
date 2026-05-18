@@ -3,8 +3,8 @@
 //! Creates a task via `message/send` first so the example is self-contained.
 //!
 //! ```bash
-//! cargo run --example a2a-methods-server
-//! cargo run --example a2a-methods-tasks-get
+//! cargo run -p a2a-methods-server
+//! cargo run -p a2a-methods-tasks-get
 //! ```
 
 use inference_gateway_adk::A2AClient;

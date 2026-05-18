@@ -1,0 +1,17 @@
+[package]
+name = "streaming-server"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[[bin]]
+name = "streaming-server"
+path = "main.rs"
+
+[dependencies]
+inference-gateway-adk = { path = "../../.." }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+async-trait = { workspace = true }
+anyhow = { workspace = true }

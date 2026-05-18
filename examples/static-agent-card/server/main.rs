@@ -1,26 +1,18 @@
 use inference_gateway_adk::{A2AServerBuilder, AgentBuilder, AgentCardOverrides, Config};
-use std::env;
 use tracing::{error, info};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt().init();
-    dotenvy::dotenv().ok();
 
-    let mut config: Config = envy::prefixed("A2A_").from_env()?;
+    let config: Config = envy::prefixed("A2A_").from_env()?;
 
-    let gateway_url = env::var("INFERENCE_GATEWAY_URL")
-        .unwrap_or_else(|_| "http://localhost:8080/v1".to_string());
-
-    if config.agent_config.base_url.is_none() {
-        config.agent_config.base_url = Some(gateway_url.clone());
-    }
-
-    info!("Starting A2A server with Inference Gateway SDK...");
-    info!("Gateway URL: {}", gateway_url);
-    info!("Agent provider: {}", config.agent_config.provider);
-    info!("Agent model: {}", config.agent_config.model);
-    info!("Has API key: {}", config.agent_config.api_key.is_some());
+    info!(
+        provider = %config.agent_config.provider,
+        model = %config.agent_config.model,
+        has_api_key = config.agent_config.api_key.is_some(),
+        "starting static-agent-card A2A server",
+    );
 
     let agent = AgentBuilder::new()
         .with_config(&config.agent_config)
@@ -29,24 +21,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build()
         .await?;
 
+    let port = config.server_config.port;
     let server = A2AServerBuilder::new()
         .with_config(config)
         .with_agent(agent)
         .with_agent_card_from_file(
             ".well-known/agent.json",
-            Some(AgentCardOverrides::new()
-                .with_name("My Custom Agent")
-                .with_version("2.0.0")
-                .with_description("A customized A2A assistant built with Rust and powered by the Inference Gateway SDK.")
-            )
+            Some(
+                AgentCardOverrides::new()
+                    .with_name("My Custom Agent")
+                    .with_version("2.0.0")
+                    .with_description(
+                        "A customized A2A assistant built with Rust and powered by the Inference Gateway SDK.",
+                    ),
+            ),
         )
-        .with_gateway_url(gateway_url)
         .with_default_task_handlers()
         .build()
         .await?;
 
-    let addr = "0.0.0.0:8081".parse()?;
-    info!("Configured A2A server with SDK integration running on port 8081");
+    let addr = format!("0.0.0.0:{port}").parse()?;
+    info!("Configured A2A server with SDK integration running on port {port}");
 
     if let Err(e) = server.serve(addr).await {
         error!("Server failed to start: {}", e);
