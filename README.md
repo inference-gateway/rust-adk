@@ -119,116 +119,103 @@ inference-gateway-adk = "0.4.0"
 ### Basic Usage (Minimal Server)
 
 ```rust
-use inference_gateway_adk::server::{A2AServer, A2AServerBuilder};
-use tokio;
-use tracing::{info, error};
+use inference_gateway_adk::A2AServerBuilder;
+use tracing::{error, info};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize tracing
-    tracing_subscriber::init();
+    tracing_subscriber::fmt().init();
 
-    // Create the simplest A2A server
-    let server = A2AServerBuilder::new()
-        .build()
-        .await?;
+    // Smallest possible A2A server — no agent, no custom handlers.
+    // Health, agent card, and JSON-RPC routes are all wired in by the builder.
+    let server = A2AServerBuilder::new().build().await?;
 
-    // Start server
     let addr = "0.0.0.0:8080".parse()?;
-    info!("Server running on port 8080");
+    info!("A2A server listening on {addr}");
 
     if let Err(e) = server.serve(addr).await {
-        error!("Server failed to start: {}", e);
+        error!("server stopped: {e}");
     }
-
     Ok(())
 }
 ```
 
 ### AI-Powered Server
 
+`Config` is plain `serde`; pick whichever loader you like. The bundled
+examples use [`envy`][envy] with the `A2A_` prefix — that's the convention
+adopted by the sibling Go and TypeScript ADKs. With `A2A_AGENT_CLIENT_*`
+env vars set, `AgentBuilder` produces a fully wired LLM agent:
+
 ```rust
-use inference_gateway_adk::{
-    server::{A2AServer, A2AServerBuilder, AgentBuilder},
-    config::Config,
-    tools::ToolBox,
+use inference_gateway_adk::{A2AServerBuilder, AgentBuilder, Config};
+use inference_gateway_sdk::{
+    ChatCompletionTool, ChatCompletionToolType, FunctionObject, FunctionParameters,
 };
-use serde_json::json;
-use tokio;
-use tracing::{info, error};
+use serde_json::{Value, json};
+use tracing::{error, info};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize tracing
-    tracing_subscriber::init();
+    tracing_subscriber::fmt().init();
 
-    // Load configuration from environment
-    let config = Config::from_env()?;
+    // Load `A2A_AGENT_CLIENT_PROVIDER`, `A2A_AGENT_CLIENT_MODEL`,
+    // `A2A_AGENT_CLIENT_API_KEY`, `A2A_SERVER_PORT`, etc. AgentBuilder
+    // fails fast at startup if provider/model are missing.
+    let config: Config = envy::prefixed("A2A_").from_env()?;
 
-    // Create toolbox with custom tools
-    let mut toolbox = ToolBox::new();
-
-    // Add a weather tool
-    toolbox.add_tool(
-        "get_weather",
-        "Get weather information",
-        json!({
-            "type": "object",
-            "properties": {
-                "location": {
-                    "type": "string",
-                    "description": "City name"
-                }
-            },
-            "required": ["location"]
-        }),
-        |args| async move {
-            let location = args["location"].as_str().unwrap_or("Unknown");
-            Ok(format!(r#"{{"location": "{}", "temperature": "22°C"}}"#, location))
+    let tools = vec![ChatCompletionTool {
+        type_: ChatCompletionToolType::Function,
+        function: FunctionObject {
+            name: "get_weather".to_string(),
+            description: Some("Get weather information for a city".to_string()),
+            parameters: Some(FunctionParameters(
+                json!({
+                    "type": "object",
+                    "properties": {
+                        "location": { "type": "string", "description": "City name" }
+                    },
+                    "required": ["location"]
+                })
+                .as_object()
+                .unwrap()
+                .clone(),
+            )),
+            strict: false,
         },
-    );
+    }];
 
-    // Create LLM client (requires AGENT_CLIENT_API_KEY environment variable)
-    let server = if let Some(api_key) = &config.agent_config.api_key {
-        // AI-powered agent
-        let agent = AgentBuilder::new()
-            .with_config(&config.agent_config)
-            .with_toolbox(toolbox)
-            .build()
-            .await?;
+    let agent = AgentBuilder::new()
+        .with_config(&config.agent_config)
+        .with_system_prompt("You are a helpful weather assistant.")
+        .with_toolbox(tools)
+        .with_function_tool("get_weather".to_string(), |args: Value| {
+            let location = args["location"].as_str().unwrap_or("Unknown");
+            Ok(json!({ "location": location, "temperature": "22°C" }).to_string())
+        })
+        .build()
+        .await?;
 
-        A2AServerBuilder::new()
-            .with_config(config)
-            .with_agent(agent)
-            .with_agent_card_from_file(".well-known/agent.json")
-            .build()
-            .await?
-    } else {
-        // Mock mode without actual LLM
-        let agent = AgentBuilder::new()
-            .with_toolbox(toolbox)
-            .build()
-            .await?;
+    let port = config.server_config.port;
+    let server = A2AServerBuilder::new()
+        .with_config(config)
+        .with_agent(agent)
+        .with_agent_card_from_file(".well-known/agent.json", None)
+        .with_default_task_handlers()
+        .build()
+        .await?;
 
-        A2AServerBuilder::new()
-            .with_config(config)
-            .with_agent(agent)
-            .with_agent_card_from_file(".well-known/agent.json")
-            .build()
-            .await?
-    };
-
-    // Start server
-    let addr = "0.0.0.0:8080".parse()?;
-    info!("AI-powered A2A server running on port 8080");
+    let addr = format!("0.0.0.0:{port}").parse()?;
+    info!("AI-powered A2A server running on {addr}");
 
     if let Err(e) = server.serve(addr).await {
-        error!("Server failed to start: {}", e);
+        error!("Server failed to start: {e}");
     }
-
     Ok(())
 }
 ```
+
+[envy]: https://docs.rs/envy
 
 ### Health Check Example
 
@@ -1265,36 +1252,43 @@ cargo build --release
 
 #### Runtime Metadata Configuration
 
-For development or when dynamic configuration is needed, you can override the build-time metadata through the server's configuration:
+For development or when dynamic configuration is needed, override individual
+agent card fields at runtime via `AgentCardOverrides`. The builder layers
+your overrides on top of whatever was loaded from disk:
 
 ```rust
-use inference_gateway_adk::config::Config;
+use inference_gateway_adk::{A2AServerBuilder, AgentCardOverrides, Config};
 
-let mut config = Config::from_env()?;
-
-// Override build-time metadata for development
-config.agent_name = Some("Development Weather Assistant".to_string());
-config.agent_description = Some("Development version with debug features".to_string());
-config.agent_version = Some("dev-1.0.0".to_string());
+let config: Config = envy::prefixed("A2A_").from_env()?;
 
 let server = A2AServerBuilder::new()
     .with_config(config)
-    .with_agent_card_from_file(".well-known/agent.json")
+    .with_agent_card_from_file(
+        ".well-known/agent.json",
+        Some(
+            AgentCardOverrides::new()
+                .with_name("Development Weather Assistant")
+                .with_description("Development version with debug features")
+                .with_version("dev-1.0.0"),
+        ),
+    )
     .build()
     .await?;
 ```
 
-**Note:** Build-time metadata takes precedence as defaults, but can be overridden at runtime using the configuration.
+**Note:** The file on disk supplies the baseline; `AgentCardOverrides` wins
+for any field you set explicitly. See [`examples/static-agent-card/`](./examples/static-agent-card/)
+for a runnable end-to-end demo.
 
 ### Authentication
 
-When `AUTH_ENABLE=true`, the server gates `POST /a2a` behind an
+When `A2A_AUTH_ENABLE=true`, the server gates `POST /a2a` behind an
 `Authorization: Bearer <token>` header validated against the OIDC issuer
-configured by `AUTH_ISSUER_URL`. The bundled `OidcJwtVerifier`:
+configured by `A2A_AUTH_ISSUER_URL`. The bundled `OidcJwtVerifier`:
 
-1. Performs OIDC discovery at `<AUTH_ISSUER_URL>/.well-known/openid-configuration`.
+1. Performs OIDC discovery at `<A2A_AUTH_ISSUER_URL>/.well-known/openid-configuration`.
 2. Fetches and caches the JWKS advertised by the discovery document.
-3. Validates the JWT signature, `iss`, `exp`, and (when `AUTH_CLIENT_ID`
+3. Validates the JWT signature, `iss`, `exp`, and (when `A2A_AUTH_CLIENT_ID`
    is set) `aud` claims.
 
 `GET /health` and `GET /.well-known/agent.json` are always public so
@@ -1305,14 +1299,14 @@ Tokens that fail any check produce **HTTP 401** with a
 To plug in a custom backend (static keys, internal identity service,
 mocks for tests) implement `AuthVerifier` and pass it to
 `A2AServerBuilder::with_auth_verifier(...)` - this overrides whatever
-`AUTH_ENABLE` selects and works the same way `with_storage(...)` does.
+`A2A_AUTH_ENABLE` selects and works the same way `with_storage(...)` does.
 
 The authenticated principal (subject, tenant, all JWT claims) is
 attached to the request via an Axum extension and forwarded to the
 JSON-RPC dispatcher so per-tenant filtering of the extended agent card
 is a future no-op behind a feature flag rather than a breaking change.
 
-**Behaviour when `AUTH_ENABLE=false`** — the middleware is not attached
+**Behaviour when `A2A_AUTH_ENABLE=false`** — the middleware is not attached
 and `agent/getAuthenticatedExtendedCard` returns the configured card
 whenever `supportsExtendedAgentCard == true` on the agent card. This
 preserves backwards compatibility for callers who have not opted in to
@@ -1325,17 +1319,19 @@ See [`examples/auth/`](./examples/auth/) for a runnable end-to-end demo.
 
 ### TLS and mTLS
 
-When `SERVER_TLS_ENABLE=true`, `A2AServer::serve` swaps its plaintext
+When `A2A_SERVER_TLS_ENABLE=true`, `A2AServer::serve` swaps its plaintext
 Axum listener for `axum-server` backed by `rustls` (with the `ring`
 crypto provider) and serves the same Axum router over HTTPS. The
-configuration is loaded from the environment via `Config::from_env()`:
+configuration lives on `Config.tls_config` and is populated by whatever
+loader you used — `envy::prefixed("A2A_").from_env::<Config>()` in the
+bundled examples:
 
 | Variable | Purpose |
 | --- | --- |
-| `SERVER_TLS_ENABLE` | Set to `true` to flip `A2AServer::serve` onto the TLS listener. |
-| `SERVER_TLS_CERT_PATH` | PEM file with the server certificate chain. |
-| `SERVER_TLS_KEY_PATH` | PEM file with the server private key (PKCS#1, PKCS#8, or SEC1). |
-| `SERVER_TLS_CLIENT_CA_PATH` | Optional. When set, the server requires every TLS client to present a certificate signed by one of the CAs in this PEM bundle — i.e. mutual TLS, the `MutualTlsSecurityScheme` the A2A spec describes. |
+| `A2A_SERVER_TLS_ENABLE` | Set to `true` to flip `A2AServer::serve` onto the TLS listener. |
+| `A2A_SERVER_TLS_CERT_PATH` | PEM file with the server certificate chain. |
+| `A2A_SERVER_TLS_KEY_PATH` | PEM file with the server private key (PKCS#1, PKCS#8, or SEC1). |
+| `A2A_SERVER_TLS_CLIENT_CA_PATH` | Optional. When set, the server requires every TLS client to present a certificate signed by one of the CAs in this PEM bundle — i.e. mutual TLS, the `MutualTlsSecurityScheme` the A2A spec describes. |
 
 The rustls stack was chosen over native-tls because (1) it is pure Rust
 and avoids the OpenSSL toolchain on container builds, and (2) it gives
@@ -1360,7 +1356,7 @@ async fn my_handler(Extension(peer): Extension<PeerCert>) {
 }
 ```
 
-For plain HTTPS (no `SERVER_TLS_CLIENT_CA_PATH`) the `PeerCert` is still
+For plain HTTPS (no `A2A_SERVER_TLS_CLIENT_CA_PATH`) the `PeerCert` is still
 injected, but its inner `Option` is `None` because the client did not
 present a certificate.
 
@@ -1371,43 +1367,56 @@ exercises both modes via the `tls` and `mtls` Compose profiles.
 
 ### Environment Configuration
 
-Key environment variables for configuring your agent:
+Runtime config flows in via the `A2A_*` env-var family. The library
+doesn't read env itself — pick any loader; the bundled examples use
+[`envy`][envy] (`envy::prefixed("A2A_").from_env::<Config>()`). The
+`A2A_` prefix is a convention; clients are free to use a different
+prefix as long as the leaf names match the `#[serde(rename = "...")]`
+tags on `Config`.
 
 ```bash
-# Server configuration
-PORT="8080"
+# Server
+A2A_SERVER_HOST="0.0.0.0"
+A2A_SERVER_PORT="8080"
+A2A_DEBUG="false"
 
-# Agent metadata configuration (via build-time environment variables)
-AGENT_NAME="My Agent"                       # Build-time only
-AGENT_DESCRIPTION="My agent description"    # Build-time only
-AGENT_VERSION="1.0.0"                      # Build-time only
-AGENT_CARD_FILE_PATH="./.well-known/agent.json"    # Path to JSON AgentCard file (optional)
+# Build-time agent metadata (compile-time env vars, read by env! macros)
+AGENT_NAME="My Agent"
+AGENT_DESCRIPTION="My agent description"
+AGENT_VERSION="1.0.0"
+AGENT_CARD_FILE_PATH="./.well-known/agent.json"
 
-# LLM client configuration
-AGENT_CLIENT_PROVIDER="deepseek"            # groq, google, openai, anthropic, cohere, cloudflare, deepseek, ollama
-AGENT_CLIENT_MODEL="deepseek-v4-flash"      # Model name
-AGENT_CLIENT_API_KEY="your-api-key"         # Required for AI features
-AGENT_CLIENT_BASE_URL="http://inference-gateway:8080/v1"  # Custom endpoint
-AGENT_CLIENT_MAX_TOKENS="4096"              # Max tokens for completion
-AGENT_CLIENT_TEMPERATURE="0.7"              # Temperature for completion
-AGENT_CLIENT_SYSTEM_PROMPT="You are a helpful assistant"
+# LLM client (the ADK fails fast at AgentBuilder::build if provider/model are unset)
+A2A_AGENT_CLIENT_PROVIDER="deepseek"            # groq, google, openai, anthropic, cohere, cloudflare, deepseek, ollama
+A2A_AGENT_CLIENT_MODEL="deepseek-v4-flash"
+A2A_AGENT_CLIENT_API_KEY="your-api-key"
+A2A_AGENT_CLIENT_BASE_URL="http://inference-gateway:8080/v1"
+A2A_AGENT_CLIENT_MAX_TOKENS="4096"
+A2A_AGENT_CLIENT_TEMPERATURE="0.7"
+A2A_AGENT_CLIENT_SYSTEM_PROMPT="You are a helpful assistant"
 
-# Capabilities
-CAPABILITIES_STREAMING="true"
-CAPABILITIES_PUSH_NOTIFICATIONS="true"
-CAPABILITIES_STATE_TRANSITION_HISTORY="false"
+# Capabilities (surfaced in the agent card)
+A2A_CAPABILITIES_STREAMING="true"
+A2A_CAPABILITIES_PUSH_NOTIFICATIONS="true"
+A2A_CAPABILITIES_STATE_TRANSITION_HISTORY="false"
+
+# Queue / storage
+A2A_QUEUE_PROVIDER="memory"                     # `memory` (default) or `redis` (requires the `redis` Cargo feature)
+A2A_QUEUE_URL="redis://localhost:6379"          # required when provider=redis
+A2A_QUEUE_NAMESPACE="a2a"
+A2A_QUEUE_WORKERS="1"
 
 # Authentication (optional, OIDC bearer-token JWT)
-AUTH_ENABLE="false"                                                  # when true, POST /a2a requires a valid bearer token
-AUTH_ISSUER_URL="http://keycloak:8080/realms/inference-gateway-realm" # OIDC issuer; the server performs discovery + JWKS lookup
-AUTH_CLIENT_ID="inference-gateway-client"                            # validated as the JWT audience when set
-AUTH_CLIENT_SECRET="your-secret"                                     # currently unused server-side (reserved for client-side OAuth2)
+A2A_AUTH_ENABLE="false"                                                  # when true, POST /a2a requires a valid bearer token
+A2A_AUTH_ISSUER_URL="http://keycloak:8080/realms/inference-gateway-realm" # OIDC issuer; the server performs discovery + JWKS lookup
+A2A_AUTH_CLIENT_ID="inference-gateway-client"                            # validated as the JWT audience when set
+A2A_AUTH_CLIENT_SECRET="your-secret"                                     # currently unused server-side (reserved for client-side OAuth2)
 
 # TLS (optional)
-SERVER_TLS_ENABLE="false"                   # when true, A2AServer::serve binds an HTTPS listener via axum-server + rustls
-SERVER_TLS_CERT_PATH="/path/to/cert.pem"    # PEM-encoded server certificate chain
-SERVER_TLS_KEY_PATH="/path/to/key.pem"      # PEM-encoded private key (PKCS#1, PKCS#8, or SEC1)
-SERVER_TLS_CLIENT_CA_PATH=""                # optional: when set, the server requires mTLS and trusts client certs signed by the CAs in this PEM bundle
+A2A_SERVER_TLS_ENABLE="false"                   # when true, A2AServer::serve binds an HTTPS listener via axum-server + rustls
+A2A_SERVER_TLS_CERT_PATH="/path/to/cert.pem"    # PEM-encoded server certificate chain
+A2A_SERVER_TLS_KEY_PATH="/path/to/key.pem"      # PEM-encoded private key (PKCS#1, PKCS#8, or SEC1)
+A2A_SERVER_TLS_CLIENT_CA_PATH=""                # optional: when set, the server requires mTLS and trusts client certs signed by the CAs in this PEM bundle
 ```
 
 ## A2A Ecosystem
