@@ -33,8 +33,6 @@ services:
       args:
         BIN_NAME: a2a-methods-server
         EXAMPLE_PATH: examples/a2a-methods
-    environment:
-      SERVER_PORT: "8085"
     healthcheck:
       test:
         - CMD

@@ -27,33 +27,33 @@ client uses the same token.
 In one terminal:
 
 ```bash
-cargo run --example auth-server
+cargo run -p auth-server
 # Or with a custom token:
-# EXAMPLE_BEARER_TOKEN=my-secret cargo run --example auth-server
+# EXAMPLE_BEARER_TOKEN=my-secret cargo run -p auth-server
 ```
 
 In another terminal:
 
 ```bash
-cargo run --example auth-client
+cargo run -p auth-client
 # Token used by the client must match the server:
-# EXAMPLE_BEARER_TOKEN=my-secret cargo run --example auth-client
+# EXAMPLE_BEARER_TOKEN=my-secret cargo run -p auth-client
 ```
 
 You can also poke the endpoints directly with curl:
 
 ```bash
 # Public - works without a token
-curl http://localhost:8081/health
-curl http://localhost:8081/.well-known/agent.json
+curl http://localhost:8080/health
+curl http://localhost:8080/.well-known/agent.json
 
 # Protected - 401 without a token
-curl -i http://localhost:8081/a2a \
+curl -i http://localhost:8080/a2a \
   -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","id":"1","method":"agent/getAuthenticatedExtendedCard","params":{"tenant":"demo-tenant"}}'
 
 # Protected - 200 with a valid token
-curl http://localhost:8081/a2a \
+curl http://localhost:8080/a2a \
   -H 'Authorization: Bearer demo-token-123' \
   -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","id":"1","method":"agent/getAuthenticatedExtendedCard","params":{"tenant":"demo-tenant"}}'
@@ -64,14 +64,14 @@ curl http://localhost:8081/a2a \
 `docker-compose.yaml` brings up three services on a private bridge
 network:
 
-1. **Keycloak 26.6.1** — pre-imports `keycloak/realm-export.json` on
+1. **Keycloak 26.6.1** - pre-imports `keycloak/realm-export.json` on
    start, so the realm, client, and audience mapper are ready before
    any other service launches.
-2. **`auth-server`** — runs with `AUTH_ENABLE=true` so the
+2. **`auth-server`** - runs with `AUTH_ENABLE=true` so the
    `A2AServerBuilder` instantiates `OidcJwtVerifier` from
    `Config::from_env()` and validates incoming JWTs against the
    Keycloak realm's JWKS.
-3. **`auth-client`** — runs with `AUTH_MODE=oidc` so it first exchanges
+3. **`auth-client`** - runs with `AUTH_MODE=oidc` so it first exchanges
    the configured client credentials for a real JWT at Keycloak's
    token endpoint, then calls the protected endpoint with that JWT.
 
@@ -106,7 +106,7 @@ defines:
 - client `inference-gateway-client` (confidential, service accounts
   enabled) with secret `inference-gateway-client-secret`
 - an `oidc-audience-mapper` that adds `inference-gateway-client` to the
-  access token's `aud` claim — required because the server is
+  access token's `aud` claim - required because the server is
   configured with `AUTH_CLIENT_ID=inference-gateway-client` and
   `OidcJwtVerifier` validates `aud` against that value.
 

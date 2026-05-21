@@ -63,23 +63,23 @@ offline (no Inference Gateway, no LLM credentials).
 In one terminal, start the server:
 
 ```bash
-cargo run --example a2a-methods-server
+cargo run -p a2a-methods-server
 ```
 
 In another terminal, run any of the per-method clients:
 
 ```bash
-cargo run --example a2a-methods-message-send
-cargo run --example a2a-methods-message-stream
-cargo run --example a2a-methods-tasks-get
-cargo run --example a2a-methods-tasks-list
-cargo run --example a2a-methods-tasks-cancel
-cargo run --example a2a-methods-tasks-resubscribe
-cargo run --example a2a-methods-push-config-set
-cargo run --example a2a-methods-push-config-get
-cargo run --example a2a-methods-push-config-list
-cargo run --example a2a-methods-push-config-delete
-cargo run --example a2a-methods-agent-authenticated-extended-card
+cargo run -p a2a-methods-message-send
+cargo run -p a2a-methods-message-stream
+cargo run -p a2a-methods-tasks-get
+cargo run -p a2a-methods-tasks-list
+cargo run -p a2a-methods-tasks-cancel
+cargo run -p a2a-methods-tasks-resubscribe
+cargo run -p a2a-methods-push-config-set
+cargo run -p a2a-methods-push-config-get
+cargo run -p a2a-methods-push-config-list
+cargo run -p a2a-methods-push-config-delete
+cargo run -p a2a-methods-agent-authenticated-extended-card
 ```
 
 The server listens on port `8085` by default (override with `SERVER_PORT=…`).

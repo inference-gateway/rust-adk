@@ -1,0 +1,16 @@
+[package]
+name = "input-required-client"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[[bin]]
+name = "input-required-client"
+path = "main.rs"
+
+[dependencies]
+inference-gateway-adk = { path = "../../.." }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+uuid = { workspace = true }

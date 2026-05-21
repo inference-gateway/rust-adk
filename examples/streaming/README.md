@@ -1,7 +1,7 @@
 # streaming example
 
 A2A server with a custom `StreamableTaskHandler` that emits a fixed
-sentence one word at a time. No LLM, no Inference Gateway — the cadence
+sentence one word at a time. No LLM, no Inference Gateway - the cadence
 and content are hardcoded so the SSE machinery is the only thing on
 display.
 
@@ -50,18 +50,18 @@ cd examples/streaming
 docker compose up --build
 ```
 
-No `.env` needed — there are no provider keys.
+No `.env` needed - there are no provider keys.
 
 ## Running locally
 
 ```bash
 cd examples/streaming/server
-cargo run --example streaming-server
+cargo run -p streaming-server
 # or: task examples:streaming-server
 
-cargo run --example streaming-client
+cargo run -p streaming-client
 # or: task examples:streaming-client
 ```
 
-The server listens on `0.0.0.0:8086`. The client honours `SERVER_URL`
-(default `http://localhost:8086`).
+The server listens on `0.0.0.0:8080`. The client honours `SERVER_URL`
+(default `http://localhost:8080`).

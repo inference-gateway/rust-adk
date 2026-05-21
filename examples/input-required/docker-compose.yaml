@@ -7,13 +7,15 @@ services:
       args:
         BIN_NAME: input-required-server
         EXAMPLE_PATH: examples/input-required
+    environment:
+      A2A_SERVER_PORT: "8080"
     healthcheck:
       test:
         - CMD
         - curl
         - --fail
         - --silent
-        - http://localhost:8087/health
+        - http://localhost:8080/health
       interval: 5s
       timeout: 3s
       retries: 10
@@ -31,7 +33,7 @@ services:
       server:
         condition: service_healthy
     environment:
-      SERVER_URL: http://server:8087
+      SERVER_URL: http://server:8080
     networks:
       - a2a-network
 

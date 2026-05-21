@@ -3,7 +3,7 @@
 This scenario shows how to wire [`TlsConfig`](../../src/config.rs) through
 the [`A2AServer`](../../src/server/server_core.rs) so the A2A endpoint
 terminates TLS, and how to optionally require every client to present a
-certificate signed by a trusted CA (mTLS) — i.e. the
+certificate signed by a trusted CA (mTLS) - i.e. the
 [`MutualTlsSecurityScheme`](../../src/a2a_types.rs) the A2A spec
 describes.
 
@@ -36,12 +36,12 @@ real domain or CA. Generate it with:
 
 This produces:
 
-- `certs/ca.crt` / `certs/ca.key` — root CA. Both the server (for its
+- `certs/ca.crt` / `certs/ca.key` - root CA. Both the server (for its
   own chain) and the client (as a trust root) consume `ca.crt`. The CA
   also signs the client cert in mTLS mode.
-- `certs/server.crt` / `certs/server.key` — leaf with
+- `certs/server.crt` / `certs/server.key` - leaf with
   `subjectAltName = DNS:localhost, IP:127.0.0.1`.
-- `certs/client.crt` / `certs/client.key` — leaf with
+- `certs/client.crt` / `certs/client.key` - leaf with
   `CN=demo-client`, signed by `ca.crt`.
 
 The certificates are gitignored; rerun the script if they expire or you
@@ -54,7 +54,7 @@ SERVER_TLS_ENABLE=true \
 SERVER_TLS_CERT_PATH=examples/tls/certs/server.crt \
 SERVER_TLS_KEY_PATH=examples/tls/certs/server.key \
 PORT=8443 \
-cargo run --example tls-server
+cargo run -p tls-server
 ```
 
 Smoke-test with curl:
@@ -77,7 +77,7 @@ SERVER_TLS_CERT_PATH=examples/tls/certs/server.crt \
 SERVER_TLS_KEY_PATH=examples/tls/certs/server.key \
 SERVER_TLS_CLIENT_CA_PATH=examples/tls/certs/ca.crt \
 PORT=8443 \
-cargo run --example tls-server
+cargo run -p tls-server
 ```
 
 Now an unauthenticated client is rejected at the TLS layer:
@@ -119,14 +119,14 @@ The example client mirrors the curl commands above:
 # TLS only
 TLS_CA_PATH=examples/tls/certs/ca.crt \
 SERVER_URL=https://localhost:8443 \
-cargo run --example tls-client
+cargo run -p tls-client
 
 # mTLS
 TLS_CA_PATH=examples/tls/certs/ca.crt \
 TLS_CLIENT_CERT_PATH=examples/tls/certs/client.crt \
 TLS_CLIENT_KEY_PATH=examples/tls/certs/client.key \
 SERVER_URL=https://localhost:8443 \
-cargo run --example tls-client
+cargo run -p tls-client
 ```
 
 ## Environment knobs

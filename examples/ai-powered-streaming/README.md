@@ -1,16 +1,16 @@
 # ai-powered-streaming example
 
 LLM-backed A2A server that streams delta chunks over `message/stream`.
-Uses `A2AServerBuilder::with_default_task_handlers()` — the built-in
+Uses `A2AServerBuilder::with_default_task_handlers()` - the built-in
 `DefaultStreamingTaskHandler` converts the LLM's streaming response
 into a sequence of `TaskArtifactUpdateEvent`s ending with
 `TaskStateCompleted`.
 
 Compare to:
 
-- [`../streaming`](../streaming) — same streaming wire-up, but the
+- [`../streaming`](../streaming) - same streaming wire-up, but the
   chunks come from a hardcoded sentence rather than an LLM.
-- [`../ai-powered`](../ai-powered) — same LLM agent shape but uses
+- [`../ai-powered`](../ai-powered) - same LLM agent shape but uses
   `message/send` + polling instead of streaming.
 
 ## What's in the box
@@ -47,8 +47,8 @@ docker compose up --build
 The stack starts three services:
 
 - `inference-gateway` (image `ghcr.io/inference-gateway/inference-gateway:latest`)
-- `server` — built from `examples/Dockerfile.server`, listens on port 8084
-- `client` — built from `examples/Dockerfile.client`, runs after the server is healthy
+- `server` - built from `examples/Dockerfile.server`, listens on port 8080
+- `client` - built from `examples/Dockerfile.client`, runs after the server is healthy
 
 ## Running locally
 
@@ -56,12 +56,12 @@ The stack starts three services:
 # Start an Inference Gateway separately, then run the server from inside its
 # subdir so .well-known/agent.json resolves correctly:
 cd examples/ai-powered-streaming/server
-cargo run --example ai-powered-streaming-server
+cargo run -p ai-powered-streaming-server
 # or: task examples:ai-powered-streaming-server
 
-cargo run --example ai-powered-streaming-client
+cargo run -p ai-powered-streaming-client
 # or: task examples:ai-powered-streaming-client
 ```
 
-The server listens on `0.0.0.0:8084`. The client honours `SERVER_URL`
-(default `http://localhost:8084`).
+The server listens on `0.0.0.0:8080`. The client honours `SERVER_URL`
+(default `http://localhost:8080`).

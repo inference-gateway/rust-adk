@@ -2,8 +2,8 @@
 //! configurations belonging to a task.
 //!
 //! ```bash
-//! cargo run --example a2a-methods-server
-//! cargo run --example a2a-methods-push-config-list
+//! cargo run -p a2a-methods-server
+//! cargo run -p a2a-methods-push-config-list
 //! ```
 
 use inference_gateway_adk::A2AClient;

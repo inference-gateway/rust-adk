@@ -7,10 +7,10 @@ final reply onto the task.
 
 Compare to:
 
-- [`../minimal`](../minimal) — same builder shape but **no agent**, so
+- [`../minimal`](../minimal) - same builder shape but **no agent**, so
   the default handler returns the built-in `NO_AGENT_REPLY` echo
   instead of an LLM response.
-- [`../ai-powered`](../ai-powered) — same builder shape plus a custom
+- [`../ai-powered`](../ai-powered) - same builder shape plus a custom
   toolbox (weather / math / search). Use this example when you want to
   ship an LLM-backed agent without writing handler code; use
   `ai-powered/` when you want tools.
@@ -34,7 +34,7 @@ default-handlers/
   working LLM-driven server in fewer than 40 lines.
 - The same default handler returns the built-in echo when no agent is
   attached (see `minimal/`), so this is also the bridge between
-  "no AI" and "with AI" — flip the agent in or out without changing
+  "no AI" and "with AI" - flip the agent in or out without changing
   handler code.
 
 ## Running with Docker Compose
@@ -46,12 +46,12 @@ cp .env.example .env
 docker compose up --build
 ```
 
-The stack starts three services on port 8085 (server), with
+The stack starts three services on port 8080 (server), with
 `inference-gateway` on its own internal port:
 
 - `inference-gateway` (image `ghcr.io/inference-gateway/inference-gateway:latest`)
-- `server` — built from `examples/Dockerfile.server`, listens on port 8085
-- `client` — built from `examples/Dockerfile.client`, runs after the server is healthy
+- `server` - built from `examples/Dockerfile.server`, listens on port 8080
+- `client` - built from `examples/Dockerfile.client`, runs after the server is healthy
 
 ## Running locally
 
@@ -59,12 +59,12 @@ The stack starts three services on port 8085 (server), with
 # Start an Inference Gateway separately, then run the server from inside its
 # subdir so .well-known/agent.json resolves correctly:
 cd examples/default-handlers/server
-cargo run --example default-handlers-server
+cargo run -p default-handlers-server
 # or: task examples:default-handlers-server
 
-cargo run --example default-handlers-client
+cargo run -p default-handlers-client
 # or: task examples:default-handlers-client
 ```
 
-The server listens on `0.0.0.0:8085`. The client honours `SERVER_URL`
-(default `http://localhost:8085`).
+The server listens on `0.0.0.0:8080`. The client honours `SERVER_URL`
+(default `http://localhost:8080`).

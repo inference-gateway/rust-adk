@@ -147,15 +147,10 @@ fn write_temp(suffix: &str, contents: &str) -> PathBuf {
 
 fn build_test_config(tls: TlsConfig, port: u16) -> Config {
     Config {
-        port,
-        tls_config: Some(tls.clone()),
+        tls_config: tls,
         server_config: ServerConfig {
             host: "127.0.0.1".to_string(),
             port,
-            tls_enable: true,
-            tls_cert_path: Some(tls.cert_path.clone()),
-            tls_key_path: Some(tls.key_path.clone()),
-            tls_client_ca_path: tls.client_ca_path.clone(),
         },
         ..Config::default()
     }

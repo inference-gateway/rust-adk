@@ -13,7 +13,7 @@ services:
         - curl
         - --fail
         - --silent
-        - http://localhost:8086/health
+        - http://localhost:8080/health
       interval: 5s
       timeout: 3s
       retries: 10
@@ -31,7 +31,7 @@ services:
       server:
         condition: service_healthy
     environment:
-      SERVER_URL: http://server:8086
+      SERVER_URL: http://server:8080
     networks:
       - a2a-network
 

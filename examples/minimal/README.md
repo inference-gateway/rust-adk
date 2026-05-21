@@ -31,23 +31,23 @@ docker compose up --build
 
 The compose stack runs only the server and client - no Inference Gateway is
 needed, since the minimal server never calls one. The client connects to the
-server via the internal Docker network (`SERVER_URL=http://server:8081`).
+server via the internal Docker network (`SERVER_URL=http://server:8080`).
 
 ## Running locally
 
 In one terminal:
 
 ```bash
-cargo run --example minimal-server
+cargo run -p minimal-server
 # or: task examples:minimal-server
 ```
 
 In another terminal:
 
 ```bash
-cargo run --example minimal-client
+cargo run -p minimal-client
 # or: task examples:minimal-client
 ```
 
-The server listens on `0.0.0.0:8081`. The client honours `SERVER_URL`
-(default `http://localhost:8081`).
+The server listens on `0.0.0.0:8080`. The client honours `SERVER_URL`
+(default `http://localhost:8080`).

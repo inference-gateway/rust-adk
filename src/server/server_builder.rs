@@ -227,7 +227,7 @@ impl A2AServerBuilder {
 
         let gateway_url = self
             .gateway_url
-            .unwrap_or_else(|| "http://localhost:8080/v1".to_string());
+            .unwrap_or_else(|| "http://gateway:8080/v1".to_string());
 
         let streaming_enabled = agent_card
             .as_ref()
@@ -293,18 +293,17 @@ impl A2AServerBuilder {
 
         let auth_verifier = match self.auth_verifier {
             Some(v) => Some(v),
-            None => match config.auth_config.as_ref() {
-                Some(auth_cfg) if auth_cfg.enable => {
-                    info!(
-                        issuer = %auth_cfg.issuer_url,
-                        "enabling bearer-token auth on POST /a2a (issuer={})",
-                        auth_cfg.issuer_url
-                    );
-                    let verifier = OidcJwtVerifier::from_config(auth_cfg)?;
-                    Some(Arc::new(verifier) as Arc<dyn AuthVerifier>)
-                }
-                _ => None,
-            },
+            None if config.auth_config.enable => {
+                let auth_cfg = &config.auth_config;
+                info!(
+                    issuer = %auth_cfg.issuer_url,
+                    "enabling bearer-token auth on POST /a2a (issuer={})",
+                    auth_cfg.issuer_url
+                );
+                let verifier = OidcJwtVerifier::from_config(auth_cfg)?;
+                Some(Arc::new(verifier) as Arc<dyn AuthVerifier>)
+            }
+            None => None,
         };
 
         let artifact_service = match self.artifact_service {

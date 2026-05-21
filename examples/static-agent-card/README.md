@@ -46,10 +46,10 @@ Override via `.env` to switch to any other provider supported by the gateway
 # Start an Inference Gateway separately, then run the server from inside its
 # subdir so `.well-known/agent.json` resolves correctly:
 cd examples/static-agent-card/server
-cargo run --example static-agent-card-server
+cargo run -p static-agent-card-server
 # or: task examples:static-agent-card-server
 
-cargo run --example static-agent-card-client
+cargo run -p static-agent-card-client
 # or: task examples:static-agent-card-client
 ```
 

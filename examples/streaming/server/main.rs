@@ -67,7 +67,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build()
         .await?;
 
-    let addr = "0.0.0.0:8086".parse()?;
+    let addr = "0.0.0.0:8080".parse()?;
     info!("streaming A2A server listening on {addr}");
 
     if let Err(e) = server.serve(addr).await {

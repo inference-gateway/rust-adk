@@ -9,11 +9,12 @@
 //!    in-process [`AuthVerifier`] accepts one hard-coded token (set
 //!    via `EXAMPLE_BEARER_TOKEN`). Zero external dependencies.
 //! 2. **OIDC mode** (used by `docker-compose.yaml` against a Keycloak
-//!    realm): set `AUTH_ENABLE=true`, `AUTH_ISSUER_URL=...`, and
-//!    `AUTH_CLIENT_ID=...`. The builder picks those up through
-//!    `Config::from_env()` and instantiates the bundled
-//!    [`OidcJwtVerifier`] which does OIDC discovery + JWKS validation.
-//!    No code changes needed - the env vars are enough.
+//!    realm): set `A2A_AUTH_ENABLE=true`, `A2A_AUTH_ISSUER_URL=...`, and
+//!    `A2A_AUTH_CLIENT_ID=...`. The example loads those through
+//!    `envy::prefixed("A2A_").from_env::<Config>()` and the builder
+//!    instantiates the bundled [`OidcJwtVerifier`] which does OIDC
+//!    discovery + JWKS validation. No code changes needed - the env
+//!    vars are enough.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -53,20 +54,13 @@ impl AuthVerifier for StaticTokenVerifier {
     }
 }
 
-fn auth_enabled() -> bool {
-    std::env::var("AUTH_ENABLE")
-        .map(|v| v.to_lowercase() == "true")
-        .unwrap_or(false)
-}
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt().init();
 
-    let port: u16 = std::env::var("PORT")
-        .ok()
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(8081);
+    let config: Config = envy::prefixed("A2A_").from_env()?;
+    let auth_enabled = config.auth_config.enable;
+    let port = config.server_config.port;
 
     let agent_card: AgentCard = serde_json::from_value(json!({
         "name": "Auth-Gated Rust A2A Agent",
@@ -97,24 +91,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut builder = A2AServerBuilder::new()
         .with_agent_card(agent_card)
-        .with_gateway_url("http://localhost:8080/v1")
         .with_default_task_handlers();
 
-    if auth_enabled() {
-        // OIDC mode: hand the builder a Config and let it construct
-        // OidcJwtVerifier from AUTH_ISSUER_URL / AUTH_CLIENT_ID.
-        let config = Config::from_env()?;
-        let issuer = config
-            .auth_config
-            .as_ref()
-            .map(|c| c.issuer_url.clone())
-            .unwrap_or_default();
-        info!("AUTH_ENABLE=true → using OidcJwtVerifier (issuer={issuer})");
+    if auth_enabled {
+        // OIDC mode: hand the builder the Config we already loaded; it
+        // constructs OidcJwtVerifier from `auth_config.issuer_url` /
+        // `auth_config.client_id`.
+        info!(
+            "A2A_AUTH_ENABLE=true → using OidcJwtVerifier (issuer={})",
+            config.auth_config.issuer_url
+        );
         builder = builder.with_config(config);
     } else {
+        // EXAMPLE_BEARER_TOKEN is an example-specific demo knob — it's not
+        // part of the ADK's config surface, so we read it directly.
         let bearer_token =
             std::env::var("EXAMPLE_BEARER_TOKEN").unwrap_or_else(|_| "demo-token-123".to_string());
-        info!("AUTH_ENABLE not set → using StaticTokenVerifier (expected token: {bearer_token})");
+        info!(
+            "A2A_AUTH_ENABLE not set → using StaticTokenVerifier (expected token: {bearer_token})"
+        );
         let verifier: Arc<dyn AuthVerifier> = Arc::new(StaticTokenVerifier {
             expected: bearer_token,
         });
@@ -128,7 +123,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("Try:");
     info!("  curl http://localhost:{port}/health                               # public");
     info!("  curl http://localhost:{port}/.well-known/agent.json               # public");
-    if auth_enabled() {
+    if auth_enabled {
         info!(
             "  curl -H 'Authorization: Bearer <jwt>' http://localhost:{port}/a2a -d '...'  # protected (JWT from Keycloak)"
         );

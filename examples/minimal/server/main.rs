@@ -12,7 +12,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "description": "A minimal A2A server built with the Rust ADK",
         "version": "0.1.0",
         "protocolVersion": "0.2.6",
-        "url": "http://localhost:8081",
+        "url": "http://server:8080",
         "preferredTransport": "JSONRPC",
         "capabilities": {
             "streaming": true,
@@ -33,14 +33,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let server = A2AServerBuilder::new()
         .with_agent_card(agent_card)
-        .with_gateway_url("http://localhost:8080/v1")
+        .with_gateway_url("http://gateway:8080/v1")
         .with_default_task_handlers()
         .build()
         .await?;
 
-    let addr = "0.0.0.0:8081".parse()?;
-    info!("Minimal A2A server with Inference Gateway SDK running on port 8081");
-    info!("Using Inference Gateway at: http://localhost:8080/v1");
+    let addr = "0.0.0.0:8080".parse()?;
+    info!("Minimal A2A server with Inference Gateway SDK running on port 8080");
+    info!("Using Inference Gateway at: http://gateway:8080/v1");
 
     if let Err(e) = server.serve(addr).await {
         error!("Server failed to start: {}", e);

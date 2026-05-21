@@ -1,61 +1,309 @@
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 use std::time::Duration;
 
+/// Deserialization helpers that accept both native types AND string
+/// representations of those types. Needed because `serde(flatten)` buffers
+/// fields via `deserialize_any`, and `envy` exposes every env var as a
+/// string — without these helpers, `A2A_SERVER_PORT=8080` fails to coerce
+/// into the `port: u16` field that lives inside a flattened sub-struct.
+///
+/// All helpers fall back to native deserialization too, so JSON / YAML /
+/// any other format that drives this `Config` keeps working.
+mod de {
+    macro_rules! int_helper {
+        ($mod_name:ident, $ty:ty) => {
+            pub mod $mod_name {
+                pub fn deserialize<'de, D>(d: D) -> Result<$ty, D::Error>
+                where
+                    D: serde::Deserializer<'de>,
+                {
+                    struct V;
+                    impl<'de> serde::de::Visitor<'de> for V {
+                        type Value = $ty;
+                        fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                            f.write_str(concat!(
+                                stringify!($ty),
+                                " (native or string representation)"
+                            ))
+                        }
+                        fn visit_u64<E: serde::de::Error>(self, v: u64) -> Result<$ty, E> {
+                            <$ty>::try_from(v).map_err(serde::de::Error::custom)
+                        }
+                        fn visit_i64<E: serde::de::Error>(self, v: i64) -> Result<$ty, E> {
+                            <$ty>::try_from(v).map_err(serde::de::Error::custom)
+                        }
+                        fn visit_str<E: serde::de::Error>(self, v: &str) -> Result<$ty, E> {
+                            v.parse().map_err(serde::de::Error::custom)
+                        }
+                        fn visit_string<E: serde::de::Error>(self, v: String) -> Result<$ty, E> {
+                            self.visit_str(&v)
+                        }
+                    }
+                    d.deserialize_any(V)
+                }
+            }
+        };
+    }
+
+    int_helper!(u16, u16);
+    int_helper!(u32, u32);
+    int_helper!(u64, u64);
+    int_helper!(usize, usize);
+
+    pub mod boolean {
+        pub fn deserialize<'de, D>(d: D) -> Result<bool, D::Error>
+        where
+            D: serde::Deserializer<'de>,
+        {
+            struct V;
+            impl<'de> serde::de::Visitor<'de> for V {
+                type Value = bool;
+                fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                    f.write_str("bool (native or string representation)")
+                }
+                fn visit_bool<E: serde::de::Error>(self, v: bool) -> Result<bool, E> {
+                    Ok(v)
+                }
+                fn visit_str<E: serde::de::Error>(self, v: &str) -> Result<bool, E> {
+                    match v.to_ascii_lowercase().as_str() {
+                        "true" | "1" | "yes" | "on" => Ok(true),
+                        "false" | "0" | "no" | "off" | "" => Ok(false),
+                        other => Err(serde::de::Error::custom(format!("invalid bool: {other:?}"))),
+                    }
+                }
+                fn visit_string<E: serde::de::Error>(self, v: String) -> Result<bool, E> {
+                    self.visit_str(&v)
+                }
+            }
+            d.deserialize_any(V)
+        }
+    }
+
+    pub mod float32 {
+        pub fn deserialize<'de, D>(d: D) -> Result<f32, D::Error>
+        where
+            D: serde::Deserializer<'de>,
+        {
+            struct V;
+            impl<'de> serde::de::Visitor<'de> for V {
+                type Value = f32;
+                fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                    f.write_str("f32 (native or string representation)")
+                }
+                fn visit_f64<E: serde::de::Error>(self, v: f64) -> Result<f32, E> {
+                    Ok(v as f32)
+                }
+                fn visit_i64<E: serde::de::Error>(self, v: i64) -> Result<f32, E> {
+                    Ok(v as f32)
+                }
+                fn visit_u64<E: serde::de::Error>(self, v: u64) -> Result<f32, E> {
+                    Ok(v as f32)
+                }
+                fn visit_str<E: serde::de::Error>(self, v: &str) -> Result<f32, E> {
+                    v.parse().map_err(serde::de::Error::custom)
+                }
+                fn visit_string<E: serde::de::Error>(self, v: String) -> Result<f32, E> {
+                    self.visit_str(&v)
+                }
+            }
+            d.deserialize_any(V)
+        }
+    }
+
+    pub mod queue_provider {
+        use crate::config::QueueProvider;
+        use std::str::FromStr;
+        pub fn deserialize<'de, D>(d: D) -> Result<QueueProvider, D::Error>
+        where
+            D: serde::Deserializer<'de>,
+        {
+            struct V;
+            impl<'de> serde::de::Visitor<'de> for V {
+                type Value = QueueProvider;
+                fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                    f.write_str("`memory` or `redis`")
+                }
+                fn visit_str<E: serde::de::Error>(self, v: &str) -> Result<QueueProvider, E> {
+                    QueueProvider::from_str(v).map_err(serde::de::Error::custom)
+                }
+                fn visit_string<E: serde::de::Error>(self, v: String) -> Result<QueueProvider, E> {
+                    self.visit_str(&v)
+                }
+            }
+            d.deserialize_any(V)
+        }
+    }
+}
+
+/// Top-level ADK configuration.
+///
+/// The library does not load environment variables itself. Consumers pick a
+/// loader (e.g. [`envy::prefixed("A2A_").from_env::<Config>()`][envy-prefixed])
+/// and pass the resulting [`Config`] to [`A2AServerBuilder::with_config`].
+///
+/// Each leaf field carries a `#[serde(rename = "...")]` tag whose value is the
+/// **flat, lowercase, unprefixed** env var name. With `envy::prefixed("A2A_")`
+/// that turns into `A2A_<UPPERCASE_RENAME>` on the wire, matching the Go ADK's
+/// `A2A_*` convention. Switch prefixes by changing the loader, not the tags.
+///
+/// All structs derive `Default`/`#[serde(default)]`, so any unset env var falls
+/// back to the value in the `Default` impl below.
+///
+/// [`A2AServerBuilder::with_config`]: crate::server::A2AServerBuilder::with_config
+/// [envy-prefixed]: https://docs.rs/envy/latest/envy/fn.prefixed.html
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct Config {
     pub agent_url: String,
+
     pub debug: bool,
-    pub port: u16,
-    pub streaming_status_update_interval: Duration,
+
+    pub streaming_status_update_interval_secs: u64,
+
+    #[serde(flatten)]
     pub agent_config: AgentConfig,
+
+    #[serde(flatten)]
     pub capabilities_config: CapabilitiesConfig,
-    pub tls_config: Option<TlsConfig>,
-    pub auth_config: Option<AuthConfig>,
+
+    #[serde(flatten)]
+    pub tls_config: TlsConfig,
+
+    #[serde(flatten)]
+    pub auth_config: AuthConfig,
+
+    #[serde(flatten)]
     pub queue_config: QueueConfig,
+
+    #[serde(flatten)]
     pub server_config: ServerConfig,
+
+    #[serde(flatten)]
     pub telemetry_config: TelemetryConfig,
     pub artifacts_config: ArtifactsConfig,
 }
 
+impl Config {
+    pub fn streaming_status_update_interval(&self) -> Duration {
+        Duration::from_secs(self.streaming_status_update_interval_secs)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct AgentConfig {
+    #[serde(rename = "agent_client_provider")]
     pub provider: String,
+
+    #[serde(rename = "agent_client_model")]
     pub model: String,
+
+    #[serde(rename = "agent_client_base_url")]
     pub base_url: Option<String>,
+
+    #[serde(rename = "agent_client_api_key")]
     pub api_key: Option<String>,
-    pub timeout: Duration,
+
+    #[serde(
+        rename = "agent_client_timeout_secs",
+        deserialize_with = "de::u64::deserialize"
+    )]
+    pub timeout_secs: u64,
+
+    #[serde(
+        rename = "agent_client_max_retries",
+        deserialize_with = "de::u32::deserialize"
+    )]
     pub max_retries: u32,
+
+    #[serde(
+        rename = "agent_client_max_chat_completion_iterations",
+        deserialize_with = "de::u32::deserialize"
+    )]
     pub max_chat_completion_iterations: u32,
+
+    #[serde(
+        rename = "agent_client_max_tokens",
+        deserialize_with = "de::u32::deserialize"
+    )]
     pub max_tokens: u32,
+
+    #[serde(
+        rename = "agent_client_temperature",
+        deserialize_with = "de::float32::deserialize"
+    )]
     pub temperature: f32,
+
+    #[serde(rename = "agent_client_system_prompt")]
     pub system_prompt: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CapabilitiesConfig {
-    pub streaming: bool,
-    pub push_notifications: bool,
-    pub state_transition_history: bool,
+impl AgentConfig {
+    pub fn timeout(&self) -> Duration {
+        Duration::from_secs(self.timeout_secs)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct CapabilitiesConfig {
+    #[serde(
+        rename = "capabilities_streaming",
+        deserialize_with = "de::boolean::deserialize"
+    )]
+    pub streaming: bool,
+
+    #[serde(
+        rename = "capabilities_push_notifications",
+        deserialize_with = "de::boolean::deserialize"
+    )]
+    pub push_notifications: bool,
+
+    #[serde(
+        rename = "capabilities_state_transition_history",
+        deserialize_with = "de::boolean::deserialize"
+    )]
+    pub state_transition_history: bool,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
 pub struct TlsConfig {
+    #[serde(
+        rename = "server_tls_enable",
+        deserialize_with = "de::boolean::deserialize"
+    )]
     pub enable: bool,
+
+    #[serde(rename = "server_tls_cert_path")]
     pub cert_path: String,
+
+    #[serde(rename = "server_tls_key_path")]
     pub key_path: String,
+
     /// Path to a PEM file containing trusted client CA certificates.
     /// When `Some(_)`, the server requires every TLS client to present a
     /// certificate signed by one of these CAs (mTLS). When `None`, client
     /// authentication is not requested and `TlsConfig` simply terminates
     /// TLS for the A2A endpoint.
+    #[serde(rename = "server_tls_client_ca_path")]
     pub client_ca_path: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
 pub struct AuthConfig {
+    #[serde(rename = "auth_enable", deserialize_with = "de::boolean::deserialize")]
     pub enable: bool,
+
+    #[serde(rename = "auth_issuer_url")]
     pub issuer_url: String,
+
+    #[serde(rename = "auth_client_id")]
     pub client_id: String,
+
+    #[serde(rename = "auth_client_secret")]
     pub client_secret: String,
 }
 
@@ -67,40 +315,82 @@ pub enum QueueProvider {
     Redis,
 }
 
+impl FromStr for QueueProvider {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "memory" | "" => Ok(QueueProvider::Memory),
+            "redis" => Ok(QueueProvider::Redis),
+            other => Err(format!(
+                "QUEUE_PROVIDER must be `memory` or `redis` (got {other:?})"
+            )),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct QueueConfig {
     /// Selects which `Storage` backend the server factory wires up.
+    #[serde(
+        rename = "queue_provider",
+        deserialize_with = "de::queue_provider::deserialize"
+    )]
     pub provider: QueueProvider,
+
     /// Connection URL for the provider (e.g. `redis://host:6379`).
     /// Required when `provider == Redis`.
+    #[serde(rename = "queue_url")]
     pub url: Option<String>,
+
     /// Key prefix / namespace for backend keys.
+    #[serde(rename = "queue_namespace")]
     pub namespace: String,
+
     /// Number of `DefaultTaskManager` workers draining the queue.
+    #[serde(rename = "queue_workers", deserialize_with = "de::usize::deserialize")]
     pub workers: usize,
+
     /// Max number of in-flight queue entries the in-memory backend will
     /// accept (advisory; current impl does not enforce).
+    #[serde(rename = "queue_max_size", deserialize_with = "de::usize::deserialize")]
     pub max_size: usize,
-    /// Per-operation timeout for backend calls that support timeouts.
-    pub timeout: Duration,
+
+    /// Per-operation timeout for backend calls, in seconds.
+    #[serde(
+        rename = "queue_timeout_secs",
+        deserialize_with = "de::u64::deserialize"
+    )]
+    pub timeout_secs: u64,
+}
+
+impl QueueConfig {
+    pub fn timeout(&self) -> Duration {
+        Duration::from_secs(self.timeout_secs)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct ServerConfig {
+    #[serde(rename = "server_host")]
     pub host: String,
+
+    #[serde(rename = "server_port", deserialize_with = "de::u16::deserialize")]
     pub port: u16,
-    pub tls_enable: bool,
-    pub tls_cert_path: Option<String>,
-    pub tls_key_path: Option<String>,
-    /// Path to a PEM file containing trusted client CA certificates. When
-    /// set, the server requires mutual TLS on `POST /a2a` (and any other
-    /// route served on the TLS listener).
-    pub tls_client_ca_path: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
 pub struct TelemetryConfig {
+    #[serde(
+        rename = "telemetry_enable",
+        deserialize_with = "de::boolean::deserialize"
+    )]
     pub enable: bool,
+
+    #[serde(rename = "telemetry_endpoint")]
     pub endpoint: Option<String>,
 }
 
@@ -179,12 +469,11 @@ impl Default for Config {
         Self {
             agent_url: "http://helloworld-agent:8080".to_string(),
             debug: false,
-            port: 8080,
-            streaming_status_update_interval: Duration::from_secs(1),
+            streaming_status_update_interval_secs: 1,
             agent_config: AgentConfig::default(),
             capabilities_config: CapabilitiesConfig::default(),
-            tls_config: None,
-            auth_config: None,
+            tls_config: TlsConfig::default(),
+            auth_config: AuthConfig::default(),
             queue_config: QueueConfig::default(),
             server_config: ServerConfig::default(),
             telemetry_config: TelemetryConfig::default(),
@@ -234,11 +523,11 @@ impl Default for ArtifactRetentionConfig {
 impl Default for AgentConfig {
     fn default() -> Self {
         Self {
-            provider: "openai".to_string(),
-            model: "gpt-4".to_string(),
+            provider: String::new(),
+            model: String::new(),
             base_url: None,
             api_key: None,
-            timeout: Duration::from_secs(30),
+            timeout_secs: 30,
             max_retries: 3,
             max_chat_completion_iterations: 10,
             max_tokens: 4096,
@@ -266,7 +555,7 @@ impl Default for QueueConfig {
             namespace: "a2a".to_string(),
             workers: 1,
             max_size: 1000,
-            timeout: Duration::from_secs(30),
+            timeout_secs: 30,
         }
     }
 }
@@ -276,239 +565,7 @@ impl Default for ServerConfig {
         Self {
             host: "0.0.0.0".to_string(),
             port: 8080,
-            tls_enable: false,
-            tls_cert_path: None,
-            tls_key_path: None,
-            tls_client_ca_path: None,
         }
-    }
-}
-
-impl Config {
-    pub fn from_env() -> Result<Self, Box<dyn std::error::Error>> {
-        let mut config = Config::default();
-
-        if let Ok(port) = std::env::var("PORT") {
-            config.port = port.parse().unwrap_or(8080);
-            config.server_config.port = config.port;
-        }
-
-        if let Ok(debug) = std::env::var("DEBUG") {
-            config.debug = debug.to_lowercase() == "true";
-        }
-
-        if let Ok(agent_url) = std::env::var("AGENT_URL") {
-            config.agent_url = agent_url;
-        }
-
-        if let Ok(provider) = std::env::var("AGENT_CLIENT_PROVIDER") {
-            config.agent_config.provider = provider;
-        }
-
-        if let Ok(model) = std::env::var("AGENT_CLIENT_MODEL") {
-            config.agent_config.model = model;
-        }
-
-        if let Ok(base_url) = std::env::var("AGENT_CLIENT_BASE_URL") {
-            config.agent_config.base_url = Some(base_url);
-        }
-
-        if let Ok(api_key) = std::env::var("AGENT_CLIENT_API_KEY") {
-            config.agent_config.api_key = Some(api_key);
-        }
-
-        #[allow(clippy::collapsible_if)]
-        if let Ok(timeout) = std::env::var("AGENT_CLIENT_TIMEOUT") {
-            if let Ok(timeout_secs) = timeout.parse::<u64>() {
-                config.agent_config.timeout = Duration::from_secs(timeout_secs);
-            }
-        }
-
-        #[allow(clippy::collapsible_if)]
-        if let Ok(max_retries) = std::env::var("AGENT_CLIENT_MAX_RETRIES") {
-            if let Ok(retries) = max_retries.parse::<u32>() {
-                config.agent_config.max_retries = retries;
-            }
-        }
-
-        #[allow(clippy::collapsible_if)]
-        if let Ok(max_tokens) = std::env::var("AGENT_CLIENT_MAX_TOKENS") {
-            if let Ok(tokens) = max_tokens.parse::<u32>() {
-                config.agent_config.max_tokens = tokens;
-            }
-        }
-
-        #[allow(clippy::collapsible_if)]
-        if let Ok(temperature) = std::env::var("AGENT_CLIENT_TEMPERATURE") {
-            if let Ok(temp) = temperature.parse::<f32>() {
-                config.agent_config.temperature = temp;
-            }
-        }
-
-        if let Ok(system_prompt) = std::env::var("AGENT_CLIENT_SYSTEM_PROMPT") {
-            config.agent_config.system_prompt = Some(system_prompt);
-        }
-
-        #[allow(clippy::collapsible_if)]
-        if let Ok(max_iterations) = std::env::var("AGENT_CLIENT_MAX_CHAT_COMPLETION_ITERATIONS") {
-            if let Ok(iterations) = max_iterations.parse::<u32>() {
-                config.agent_config.max_chat_completion_iterations = iterations;
-            }
-        }
-
-        if let Ok(streaming) = std::env::var("CAPABILITIES_STREAMING") {
-            config.capabilities_config.streaming = streaming.to_lowercase() == "true";
-        }
-
-        if let Ok(push_notifications) = std::env::var("CAPABILITIES_PUSH_NOTIFICATIONS") {
-            config.capabilities_config.push_notifications =
-                push_notifications.to_lowercase() == "true";
-        }
-
-        if let Ok(state_history) = std::env::var("CAPABILITIES_STATE_TRANSITION_HISTORY") {
-            config.capabilities_config.state_transition_history =
-                state_history.to_lowercase() == "true";
-        }
-
-        #[allow(clippy::collapsible_if)]
-        if let Ok(tls_enable) = std::env::var("SERVER_TLS_ENABLE") {
-            if tls_enable.to_lowercase() == "true" {
-                let client_ca_path = std::env::var("SERVER_TLS_CLIENT_CA_PATH")
-                    .ok()
-                    .filter(|s| !s.is_empty());
-                config.tls_config = Some(TlsConfig {
-                    enable: true,
-                    cert_path: std::env::var("SERVER_TLS_CERT_PATH").unwrap_or_default(),
-                    key_path: std::env::var("SERVER_TLS_KEY_PATH").unwrap_or_default(),
-                    client_ca_path: client_ca_path.clone(),
-                });
-                config.server_config.tls_enable = true;
-                config.server_config.tls_cert_path =
-                    Some(config.tls_config.as_ref().unwrap().cert_path.clone());
-                config.server_config.tls_key_path =
-                    Some(config.tls_config.as_ref().unwrap().key_path.clone());
-                config.server_config.tls_client_ca_path = client_ca_path;
-            }
-        }
-
-        #[allow(clippy::collapsible_if)]
-        if let Ok(auth_enable) = std::env::var("AUTH_ENABLE") {
-            if auth_enable.to_lowercase() == "true" {
-                config.auth_config = Some(AuthConfig {
-                    enable: true,
-                    issuer_url: std::env::var("AUTH_ISSUER_URL").unwrap_or_default(),
-                    client_id: std::env::var("AUTH_CLIENT_ID").unwrap_or_default(),
-                    client_secret: std::env::var("AUTH_CLIENT_SECRET").unwrap_or_default(),
-                });
-            }
-        }
-
-        if let Ok(provider) = std::env::var("A2A_QUEUE_PROVIDER") {
-            config.queue_config.provider = match provider.to_lowercase().as_str() {
-                "redis" => QueueProvider::Redis,
-                "memory" | "" => QueueProvider::Memory,
-                other => {
-                    return Err(format!(
-                        "A2A_QUEUE_PROVIDER must be one of `memory` or `redis` (got {other:?})"
-                    )
-                    .into());
-                }
-            };
-        }
-        if let Ok(url) = std::env::var("A2A_QUEUE_URL") {
-            config.queue_config.url = Some(url);
-        }
-        if let Ok(ns) = std::env::var("A2A_QUEUE_NAMESPACE") {
-            config.queue_config.namespace = ns;
-        }
-        if let Ok(workers) = std::env::var("A2A_QUEUE_WORKERS")
-            && let Ok(n) = workers.parse::<usize>()
-        {
-            config.queue_config.workers = n.max(1);
-        }
-        if let Ok(max) = std::env::var("A2A_QUEUE_MAX_SIZE")
-            && let Ok(n) = max.parse::<usize>()
-        {
-            config.queue_config.max_size = n;
-        }
-
-        if let Ok(enable) = std::env::var("ARTIFACTS_ENABLE") {
-            config.artifacts_config.enable = enable.to_lowercase() == "true";
-        }
-
-        if let Ok(host) = std::env::var("ARTIFACTS_SERVER_HOST") {
-            config.artifacts_config.server.host = host;
-        }
-        if let Ok(port) = std::env::var("ARTIFACTS_SERVER_PORT")
-            && let Ok(n) = port.parse::<u16>()
-        {
-            config.artifacts_config.server.port = n;
-        }
-        if let Ok(rt) = std::env::var("ARTIFACTS_SERVER_READ_TIMEOUT")
-            && let Some(d) = parse_duration(&rt)
-        {
-            config.artifacts_config.server.read_timeout = d;
-        }
-        if let Ok(wt) = std::env::var("ARTIFACTS_SERVER_WRITE_TIMEOUT")
-            && let Some(d) = parse_duration(&wt)
-        {
-            config.artifacts_config.server.write_timeout = d;
-        }
-
-        if let Ok(provider) = std::env::var("ARTIFACTS_STORAGE_PROVIDER") {
-            config.artifacts_config.storage.provider = match provider.to_lowercase().as_str() {
-                "minio" => ArtifactsStorageProvider::Minio,
-                "filesystem" | "fs" | "" => ArtifactsStorageProvider::Filesystem,
-                other => {
-                    return Err(format!(
-                        "ARTIFACTS_STORAGE_PROVIDER must be one of `filesystem` or `minio` (got {other:?})"
-                    )
-                    .into());
-                }
-            };
-        }
-        if let Ok(base_path) = std::env::var("ARTIFACTS_STORAGE_BASE_PATH") {
-            config.artifacts_config.storage.base_path = base_path;
-        }
-        if let Ok(base_url) = std::env::var("ARTIFACTS_STORAGE_BASE_URL") {
-            config.artifacts_config.storage.base_url = base_url;
-        }
-        if let Ok(endpoint) = std::env::var("ARTIFACTS_STORAGE_ENDPOINT") {
-            config.artifacts_config.storage.endpoint = Some(endpoint);
-        }
-        if let Ok(ak) = std::env::var("ARTIFACTS_STORAGE_ACCESS_KEY") {
-            config.artifacts_config.storage.access_key = Some(ak);
-        }
-        if let Ok(sk) = std::env::var("ARTIFACTS_STORAGE_SECRET_KEY") {
-            config.artifacts_config.storage.secret_key = Some(sk);
-        }
-        if let Ok(bucket) = std::env::var("ARTIFACTS_STORAGE_BUCKET_NAME") {
-            config.artifacts_config.storage.bucket_name = Some(bucket);
-        }
-        if let Ok(region) = std::env::var("ARTIFACTS_STORAGE_REGION") {
-            config.artifacts_config.storage.region = Some(region);
-        }
-        if let Ok(use_ssl) = std::env::var("ARTIFACTS_STORAGE_USE_SSL") {
-            config.artifacts_config.storage.use_ssl = use_ssl.to_lowercase() == "true";
-        }
-
-        if let Ok(max) = std::env::var("ARTIFACTS_RETENTION_MAX_ARTIFACTS")
-            && let Ok(n) = max.parse::<usize>()
-        {
-            config.artifacts_config.retention.max_artifacts = n;
-        }
-        if let Ok(age) = std::env::var("ARTIFACTS_RETENTION_MAX_AGE")
-            && let Some(d) = parse_duration(&age)
-        {
-            config.artifacts_config.retention.max_age = d;
-        }
-        if let Ok(interval) = std::env::var("ARTIFACTS_RETENTION_CLEANUP_INTERVAL")
-            && let Some(d) = parse_duration(&interval)
-        {
-            config.artifacts_config.retention.cleanup_interval = d;
-        }
-
-        Ok(config)
     }
 }
 
