@@ -569,45 +569,6 @@ impl Default for ServerConfig {
     }
 }
 
-/// Tiny Go-style duration parser, sufficient for the
-/// `ARTIFACTS_RETENTION_*` env vars. Accepts plain seconds (`30`),
-/// suffixed values (`30s`, `15m`, `2h`, `7d`), or a comma/space-separated
-/// composite (`1h30m`). Returns `None` on any parse failure.
-fn parse_duration(s: &str) -> Option<Duration> {
-    let s = s.trim();
-    if s.is_empty() {
-        return None;
-    }
-    // Plain integer = seconds (matches the rest of the codebase).
-    if let Ok(secs) = s.parse::<u64>() {
-        return Some(Duration::from_secs(secs));
-    }
-    let mut total: u64 = 0;
-    let mut num = String::new();
-    for ch in s.chars() {
-        if ch.is_ascii_digit() {
-            num.push(ch);
-            continue;
-        }
-        let n: u64 = num.parse().ok()?;
-        num.clear();
-        let mul = match ch {
-            's' => 1,
-            'm' => 60,
-            'h' => 60 * 60,
-            'd' => 60 * 60 * 24,
-            _ => return None,
-        };
-        total = total.checked_add(n.checked_mul(mul)?)?;
-    }
-    if !num.is_empty() {
-        // Trailing number with no unit -> seconds.
-        let n: u64 = num.parse().ok()?;
-        total = total.checked_add(n)?;
-    }
-    Some(Duration::from_secs(total))
-}
-
 #[derive(Debug, Clone)]
 pub struct ClientConfig {
     pub base_url: String,
