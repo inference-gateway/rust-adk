@@ -106,7 +106,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let health = client.get_health().await?;
     info!("server health: {}", health.status);
 
-    // Branch A: message contains a known city — handler completes.
+    // Branch A: message contains a known city - handler completes.
     dispatch(
         &client,
         "with-city",
@@ -114,9 +114,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     )
     .await?;
 
-    // Branch B: no city mentioned — handler pauses in InputRequired.
+    // Branch B: no city mentioned - handler pauses in InputRequired.
     dispatch(&client, "no-city", "What's the weather?").await?;
 
-    info!("done — observe the two branches above: TaskStateCompleted vs TaskStateInputRequired");
+    info!("done - observe the two branches above: TaskStateCompleted vs TaskStateInputRequired");
     Ok(())
 }

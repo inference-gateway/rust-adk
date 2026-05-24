@@ -4,7 +4,7 @@ use std::time::Duration;
 use tracing::{error, info};
 
 /// Streams a fixed sentence one word at a time so the SSE flow is
-/// visible in the client log. No LLM dependency — the cadence and
+/// visible in the client log. No LLM dependency - the cadence and
 /// content are hardcoded.
 #[derive(Debug)]
 struct WordByWordStreamHandler;

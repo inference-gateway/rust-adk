@@ -10,7 +10,7 @@ use tracing_subscriber::{EnvFilter, fmt};
 
 /// App-specific config, kept under its own `APP_*` prefix so it stays
 /// clearly separate from the ADK's `A2A_*` namespace. Loaded with a
-/// second `envy::prefixed(...)` call in `main` — the ADK's `Config` is
+/// second `envy::prefixed(...)` call in `main` - the ADK's `Config` is
 /// loaded independently with `envy::prefixed("A2A_")`.
 ///
 /// This is the recommended layout for clients that want their own
@@ -19,7 +19,7 @@ use tracing_subscriber::{EnvFilter, fmt};
 /// only the ADK [`Config`] into [`A2AServerBuilder::with_config`].
 ///
 /// `log_level` and `log_format` here drive the `tracing` subscriber
-/// installed in `main`. The ADK never installs a subscriber itself —
+/// installed in `main`. The ADK never installs a subscriber itself -
 /// the consumer owns logging, the ADK just emits events.
 #[derive(Debug, Deserialize)]
 #[serde(default)]
@@ -48,7 +48,7 @@ impl Default for AppConfig {
 /// in the client log. Sleeps for `delay`, then completes the task with
 /// `echo: <input text>`.
 ///
-/// Configure via `APP_DELAY_MS` (default 2000) — see `AppConfig`.
+/// Configure via `APP_DELAY_MS` (default 2000) - see `AppConfig`.
 #[derive(Debug)]
 struct SleepEchoHandler {
     delay: Duration,
@@ -98,7 +98,7 @@ impl TaskHandler for SleepEchoHandler {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Two independent envy calls — each owns its own prefix. The ADK's
+    // Two independent envy calls - each owns its own prefix. The ADK's
     // `Config` reads `A2A_*`; this example's `AppConfig` reads `APP_*`.
     // Clients can use any prefix (or none) for their own config; the ADK
     // only cares that you hand it a `Config`.
@@ -106,13 +106,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app: AppConfig = envy::prefixed("APP_").from_env()?;
 
     // ─────────────────────────────────────────────────────────────────
-    // Subscriber installation — fully owned by the consumer.
+    // Subscriber installation - fully owned by the consumer.
     //
     // The ADK does NOT install a tracing subscriber. Every `info!()` /
     // `debug!()` inside the ADK dispatches through whatever global
     // subscriber is registered here. To swap in OpenTelemetry, a JSON
     // exporter for Loki/Datadog/Honeycomb, or a custom `Subscriber`
-    // impl — change this block. The ADK doesn't need to know.
+    // impl - change this block. The ADK doesn't need to know.
     // ─────────────────────────────────────────────────────────────────
     let filter = EnvFilter::try_new(&app.log_level)
         .unwrap_or_else(|_| EnvFilter::new("info,tower_http=debug"));

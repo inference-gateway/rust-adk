@@ -103,7 +103,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
         builder = builder.with_config(config);
     } else {
-        // EXAMPLE_BEARER_TOKEN is an example-specific demo knob — it's not
+        // EXAMPLE_BEARER_TOKEN is an example-specific demo knob - it's not
         // part of the ADK's config surface, so we read it directly.
         let bearer_token =
             std::env::var("EXAMPLE_BEARER_TOKEN").unwrap_or_else(|_| "demo-token-123".to_string());

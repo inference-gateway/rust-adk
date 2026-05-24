@@ -10,7 +10,7 @@ use tracing::{error, info};
 /// state-machine flow without any AI noise.
 ///
 /// Note: this rust-adk version does not yet wire a "resume" path for
-/// `message/send` carrying an existing `task_id` — every send creates
+/// `message/send` carrying an existing `task_id` - every send creates
 /// a new task. The example therefore demonstrates the InputRequired
 /// state on its own; the client dispatches two independent tasks (one
 /// with a city, one without) to show both branches side by side.
@@ -63,7 +63,7 @@ impl TaskHandler for WeatherHandler {
 
         match extract_city(&user_text) {
             Some(city) => {
-                info!(task_id = %task.id, city, "weather request — completing");
+                info!(task_id = %task.id, city, "weather request - completing");
                 let reply = agent_text(&task, &format!("Weather in {city}: 18°C, partly cloudy."));
                 task.history.push(reply.clone());
                 task.status = TaskStatus {
@@ -73,7 +73,7 @@ impl TaskHandler for WeatherHandler {
                 };
             }
             None => {
-                info!(task_id = %task.id, "weather request — pausing for city input");
+                info!(task_id = %task.id, "weather request - pausing for city input");
                 let prompt = agent_text(
                     &task,
                     "Which city would you like the weather for? \
