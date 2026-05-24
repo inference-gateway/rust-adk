@@ -291,7 +291,7 @@ This ADK is part of the larger Inference Gateway ecosystem:
 
 ## License
 
-By contributing to this project, you agree that your contributions will be licensed under the MIT License.
+By contributing to this project, you agree that your contributions will be licensed under the Apache 2.0 License.
 
 ---
 
