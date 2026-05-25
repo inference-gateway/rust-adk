@@ -80,12 +80,12 @@ members = [
 ]
 
 [workspace.dependencies]
-inference-gateway-sdk = "0.13.3"
+inference-gateway-sdk = "0.13.4"
 tokio = { version = "1.52.3", features = ["full", "signal"] }
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter", "json"] }
 serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.149"
+serde_json = "1.0.150"
 envy = "0.4.2"
 anyhow = "1.0.102"
 async-trait = "0.1.89"

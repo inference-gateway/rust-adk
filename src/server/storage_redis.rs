@@ -462,7 +462,7 @@ impl Storage for RedisStorage {
         };
         let mut completed: Vec<(String, Option<chrono::DateTime<chrono::Utc>>)> = Vec::new();
         let mut failed: Vec<(String, Option<chrono::DateTime<chrono::Utc>>)> = Vec::new();
-        for (id, payload) in ids.into_iter().zip(payloads.into_iter()) {
+        for (id, payload) in ids.into_iter().zip(payloads) {
             let Some(payload) = payload else { continue };
             let Ok(task) = serde_json::from_str::<Task>(&payload) else {
                 continue;
