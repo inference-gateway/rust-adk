@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `inference-gateway-adk` is a Rust Agent Development Kit for building servers and clients that speak the **Agent-to-Agent (A2A) JSON-RPC protocol**. It is one of several sibling ADKs (Go, TypeScript) maintained under `inference-gateway/`. The wire types in `src/a2a_types.rs` are **generated** from `schema.json` via `cargo typify` - do not hand-edit; regenerate via `task a2a:generate-types` and run `cargo fmt` (the task already does this).
 
-Rust edition is **2024** and toolchain pinned to **1.94.1** in CI (`README` advertises 1.94+). The `redis` feature is optional and gates `RedisStorage`.
+Rust edition is **2024** and the MSRV is **1.94.1** (`rust-version` in `Cargo.toml`). The `redis` feature is optional and gates `RedisStorage`.
 
 ## Common commands
 
@@ -19,20 +19,11 @@ task test        # cargo test --all-targets --all-features
 
 Run a single test: `cargo test --all-features <test_name>` (e.g. `cargo test --all-features test_a2a_types_serialization`). Use `--all-features` so the Redis-gated paths compile.
 
-Run a single example (Cargo example names are flat - see the `[[example]]` table in `Cargo.toml`):
-
-```bash
-cargo run --example minimal-server
-cargo run --example a2a-methods-tasks-list
-```
-
-Examples that load `.well-known/agent.json` resolve the path **relative to CWD**. Run those from inside the example's `server/` directory, or pass an absolute path to `with_agent_card_from_file(...)`.
-
 Pre-commit/CI gate: `task lint && task analyse && task test` (this is what `.github/workflows/ci.yml` runs).
 
 ## Architecture
 
-The crate's public surface is re-exported from `lib.rs`; everything server-side lives under `src/server/` and is fan-out via `src/server.rs`.
+The crate's public surface is re-exported from `lib.rs`; everything server-side lives under `src/server/` and is fanned out via `src/server.rs`.
 
 **Request flow for `message/send`** (and similarly for `message/stream`):
 
@@ -50,7 +41,7 @@ The crate's public surface is re-exported from `lib.rs`; everything server-side 
 - `LLMClient` - pluggable LLM transport. `OpenAICompatibleLLMClient` wraps `inference-gateway-sdk` and is what `AgentBuilder` constructs by default.
 - `ToolHandler` (`agent_toolbox.rs`) - sync (`FunctionToolHandler`) and async (`AsyncFunctionToolHandler`) wrappers exist for closures.
 
-**Construction pattern**: builders, not raw struct literals. `A2AServerBuilder::new().with_agent(...).with_storage(...).with_task_handler(...).build().await` returns an `A2AServer`. Likewise `AgentBuilder` for the `Agent`. Calling `.serve(addr)` on `A2AServer` consumes it, spawns the task manager, and blocks on Axum until SIGINT, then drains workers via `TaskManagerRunner::shutdown`.
+**Construction pattern**: builders, not raw struct literals. `A2AServerBuilder::new().with_agent(...).with_storage(...).with_task_handler(...).build().await` returns an `A2AServer`. Likewise `AgentBuilder` for the `Agent`. `with_default_task_handlers()` wires both `DefaultBackgroundTaskHandler` and `DefaultStreamingTaskHandler` from the configured `Agent`. Calling `.serve(addr)` on `A2AServer` consumes it, spawns the task manager, and blocks on Axum until SIGINT, then drains workers via `TaskManagerRunner::shutdown`.
 
 **Config** (`src/config.rs`): `Config::from_env()` is the entry point. Nested sub-configs: `AgentConfig` (`AGENT_CLIENT_*`), `CapabilitiesConfig`, `TlsConfig`, `AuthConfig`, `QueueConfig` (`QUEUE_*` - `provider` picks `Memory` vs `Redis`), `ServerConfig`, `TelemetryConfig`.
 
@@ -67,17 +58,30 @@ The generated file has several `#![allow(...)]` attributes prepended by the task
 
 ## Examples layout
 
-Examples are split into "without AI" (no provider key needed: `minimal`, `static-agent-card`, `streaming`, `input-required`) and "with AI" (Inference Gateway container + provider key: `default-handlers`, `ai-powered`, `ai-powered-streaming`). Each scenario has `server/`, `client/`, and a `docker-compose.yaml`. `a2a-methods/` exposes one client binary per JSON-RPC method. `queue-storage/` demonstrates `InMemoryStorage` vs `RedisStorage` via Compose profiles.
+Examples are **full Cargo workspace members** under `examples/<scenario>/{server,client}/`, each with its own `Cargo.toml` (listed in the top-level `[workspace] members` array). They are **not** plain `[[example]]` targets, so the `cargo run --example` form does not apply. Run a binary either via the Taskfile shortcut or directly with `-p <package-name>` from the scenario directory:
+
+```bash
+task examples:minimal-server                    # or
+(cd examples/minimal && cargo run -p minimal-server)
+
+task examples:a2a-methods-tasks-list            # or
+(cd examples/a2a-methods && cargo run -p a2a-methods-tasks-list)
+```
+
+Scenarios split into "without AI" (no provider key needed: `minimal`, `static-agent-card`, `streaming`, `input-required`, `auth`, `tls`) and "with AI" (an `inference-gateway:latest` container + provider key: `default-handlers`, `ai-powered`, `ai-powered-streaming`). Each scenario has `server/`, `client/`, and a `docker-compose.yaml`. `a2a-methods/` exposes one client binary per JSON-RPC method against a single shared server. `queue-storage/` demonstrates `InMemoryStorage` vs `RedisStorage` via Compose profiles. `artifacts-filesystem/` shows artifact-handling patterns.
+
+Examples that load `.well-known/agent.json` resolve the path **relative to CWD**. Run those from inside the example's `server/` directory (the Taskfile shortcuts already `cd` for you), or pass an absolute path to `with_agent_card_from_file(...)`. In the Docker images, `WORKDIR /app` plus a staged `/app/.well-known/agent.json` makes this automatic.
 
 ## Testing conventions (from CONTRIBUTING.md)
 
 - **Table-driven tests** with isolated mocks per case
 - Use `tokio::test` for async tests
 - Mock external dependencies via the trait abstractions above (`Storage`, `LLMClient`, `TaskHandler`) - don't hit the network
+- Integration tests live in `tests/` (`a2a_server_test.rs`, `auth_test.rs`, `tls_test.rs`); unit tests live under `#[cfg(test)]` next to the code
 
 ## Notes that bite
 
-- Generated `a2a_types.rs` is large (~50k lines). Avoid loading it in full; grep for the specific struct/enum you need.
-- The `redis` dependency is `optional` and pinned at `0.27.6` with only `tokio-comp` + `connection-manager` features. Don't enable extra features without checking compile times.
-- The crate's `Cargo.toml` lists every example explicitly with both a flat `name` (e.g. `a2a-methods-tasks-get`) and a `path` - add new examples there or Cargo won't pick them up.
-- Tracing is set up via `tracing-subscriber` with env-filter; examples typically call `tracing_subscriber::init()` at the top of `main`.
+- Generated `a2a_types.rs` is ~7k lines. Avoid loading it in full; grep for the specific struct/enum you need.
+- The `redis` dependency is `optional` and pinned at `1.2.1` with only `tokio-comp` + `connection-manager` features. Don't enable extra features without checking compile times.
+- New examples must be added to `[workspace] members` in the top-level `Cargo.toml` (both `server` and `client` packages), AND should get a matching `task examples:<name>-{server,client}` entry in `Taskfile.yml`.
+- Tracing is set up via `tracing-subscriber` with env-filter; examples typically call `tracing_subscriber::init()` (or the JSON variant) at the top of `main`.
