@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `inference-gateway-adk` is a Rust Agent Development Kit for building servers and clients that speak the **Agent-to-Agent (A2A) JSON-RPC protocol**. It is one of several sibling ADKs (Go, TypeScript) maintained under `inference-gateway/`. The wire types in `src/a2a_types.rs` are **generated** from `schema.json` via `cargo typify` - do not hand-edit; regenerate via `task a2a:generate-types` and run `cargo fmt` (the task already does this).
 
-Rust edition is **2024** and the MSRV is **1.94.1** (`rust-version` in `Cargo.toml`). The `redis` feature is optional and gates `RedisStorage`.
+Rust edition is **2024** and the MSRV is **1.95.0** (`rust-version` in `Cargo.toml`). The `redis` feature is optional and gates `RedisStorage`.
 
 ## Common commands
 

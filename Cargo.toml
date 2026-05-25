@@ -2,7 +2,7 @@
 name = "inference-gateway-adk"
 version = "0.4.3"
 edition = "2024"
-rust-version = "1.94.1"
+rust-version = "1.95.0"
 description = "Agent Development Kit (ADK) for building powerful, interoperable AI agents with the Agent-to-Agent (A2A) protocol"
 license = "Apache-2.0"
 documentation = "https://docs.rs/inference-gateway-adk"

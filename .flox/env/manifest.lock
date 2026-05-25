@@ -5,7 +5,7 @@
     "install": {
       "cargo": {
         "pkg-path": "cargo",
-        "version": "^1.94.1"
+        "version": "^1.95.0"
       },
       "claude-code": {
         "pkg-path": "claude-code",
@@ -14,7 +14,7 @@
       },
       "clippy": {
         "pkg-path": "clippy",
-        "version": "^1.94.1"
+        "version": "^1.95.0"
       },
       "codex": {
         "pkg-path": "codex",
@@ -34,11 +34,11 @@
       },
       "rustc": {
         "pkg-path": "rustc",
-        "version": "^1.94.1"
+        "version": "^1.95.0"
       },
       "rustfmt": {
         "pkg-path": "rustfmt",
-        "version": "^1.94.1"
+        "version": "^1.95.0"
       }
     },
     "options": {}
