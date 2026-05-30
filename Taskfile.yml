@@ -140,6 +140,30 @@ tasks:
     cmds:
       - cargo run -p input-required-client
 
+  examples:artifacts-filesystem-server:
+    desc: Run the artifacts-filesystem server example (no AI required; spawns A2A on :8087 and artifacts HTTP on :8088)
+    dir: examples/artifacts-filesystem/server
+    cmds:
+      - cargo run --example artifacts-filesystem-server
+
+  examples:artifacts-filesystem-client:
+    desc: Run the artifacts-filesystem client example (requires the server at localhost:8087)
+    dir: examples/artifacts-filesystem
+    cmds:
+      - cargo run --example artifacts-filesystem-client
+
+  examples:artifacts-minio-server:
+    desc: Run the artifacts-minio server example (requires MinIO at localhost:9000; built with the `minio` feature)
+    dir: examples/artifacts-minio/server
+    cmds:
+      - cargo run --features minio --example artifacts-minio-server
+
+  examples:artifacts-minio-client:
+    desc: Run the artifacts-minio client example (requires the server at localhost:8089)
+    dir: examples/artifacts-minio
+    cmds:
+      - cargo run --example artifacts-minio-client
+
   examples:queue-storage-server:
     desc: Run the queue-storage server example (in-memory by default; the queue-storage-server package already enables the ADK `redis` feature so A2A_QUEUE_PROVIDER=redis is available)
     dir: examples/queue-storage

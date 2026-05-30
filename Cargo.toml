@@ -15,6 +15,7 @@ categories = ["api-bindings", "development-tools"]
 [features]
 default = []
 redis = ["dep:redis"]
+minio = ["dep:minio", "dep:bytes"]
 
 [dependencies]
 inference-gateway-sdk = "0.13.3"
@@ -45,9 +46,32 @@ rustls-pemfile = "2.2.0"
 tokio-rustls = { version = "0.26.4", default-features = false, features = ["ring", "tls12", "logging"] }
 x509-parser = "0.18.1"
 redis = { version = "1.2.1", default-features = false, features = ["tokio-comp", "connection-manager"], optional = true }
+minio = { version = "0.4.0", default-features = false, features = ["rustls-tls", "ring"], optional = true }
+bytes = { version = "1.11", optional = true }
 
 [dev-dependencies]
 rcgen = { version = "0.14.8", default-features = false, features = ["pem", "ring"] }
+envy = "0.4.2"
+
+# The artifacts examples are root-crate `[[example]]` targets (rather than workspace
+# members) so the `minio` variant can be gated behind the crate's `minio` feature via
+# `required-features`. They reuse the crate's own dependencies plus the `envy` dev-dep.
+[[example]]
+name = "artifacts-filesystem-server"
+path = "examples/artifacts-filesystem/server/main.rs"
+
+[[example]]
+name = "artifacts-filesystem-client"
+path = "examples/artifacts-filesystem/client/main.rs"
+
+[[example]]
+name = "artifacts-minio-server"
+path = "examples/artifacts-minio/server/main.rs"
+required-features = ["minio"]
+
+[[example]]
+name = "artifacts-minio-client"
+path = "examples/artifacts-minio/client/main.rs"
 
 # The bundled examples are full workspace members under `examples/<name>/{server,client}/`.
 # Each declares its own dependencies in its own `Cargo.toml`, so a reader can see at a

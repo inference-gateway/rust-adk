@@ -3,6 +3,11 @@ mod agent_builder;
 mod agent_card;
 mod agent_llm_client;
 mod agent_toolbox;
+mod artifact_service;
+mod artifact_storage;
+#[cfg(feature = "minio")]
+mod artifact_storage_minio;
+mod artifacts_server;
 mod auth;
 mod errors;
 mod protocol;
@@ -20,6 +25,11 @@ pub use agent_builder::AgentBuilder;
 pub use agent_card::AgentCardOverrides;
 pub use agent_llm_client::{LLMClient, OpenAICompatibleLLMClient};
 pub use agent_toolbox::{AsyncFunctionToolHandler, FunctionToolHandler, ToolHandler};
+pub use artifact_service::{ArtifactService, DefaultArtifactService, infer_mime_type};
+pub use artifact_storage::{ArtifactStorage, FilesystemArtifactStorage, StoredArtifactInfo};
+#[cfg(feature = "minio")]
+pub use artifact_storage_minio::MinioArtifactStorage;
+pub use artifacts_server::{ArtifactsServer, spawn_retention_task};
 pub use auth::{AuthError, AuthVerifier, AuthenticatedPrincipal, OidcJwtVerifier};
 pub use server_builder::A2AServerBuilder;
 pub use server_core::A2AServer;

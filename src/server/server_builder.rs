@@ -1,5 +1,7 @@
 use super::agent::Agent;
 use super::agent_card::AgentCardOverrides;
+use super::artifact_service::{ArtifactService, DefaultArtifactService};
+use super::artifact_storage::{ArtifactStorage, FilesystemArtifactStorage};
 use super::auth::{AuthVerifier, OidcJwtVerifier};
 use super::server_core::A2AServer;
 use super::storage::{Storage, create_storage};
@@ -8,10 +10,12 @@ use super::task_handler::{
 };
 use super::task_manager::DefaultTaskManager;
 use crate::a2a_types::AgentCard;
-use crate::config::Config;
+use crate::config::{ArtifactsStorageProvider, Config};
 use anyhow::{Result, anyhow};
 use std::sync::Arc;
 use tracing::info;
+#[cfg(not(feature = "minio"))]
+use tracing::warn;
 
 pub struct A2AServerBuilder {
     config: Option<Config>,
@@ -27,6 +31,7 @@ pub struct A2AServerBuilder {
     use_default_streaming_task_handler: bool,
     worker_count: Option<usize>,
     auth_verifier: Option<Arc<dyn AuthVerifier>>,
+    artifact_service: Option<Arc<dyn ArtifactService>>,
 }
 
 impl A2AServerBuilder {
@@ -45,6 +50,7 @@ impl A2AServerBuilder {
             use_default_streaming_task_handler: false,
             worker_count: None,
             auth_verifier: None,
+            artifact_service: None,
         }
     }
 
@@ -152,6 +158,17 @@ impl A2AServerBuilder {
     /// `GET /health` and `GET /.well-known/agent.json` remain public.
     pub fn with_auth_verifier(mut self, verifier: Arc<dyn AuthVerifier>) -> Self {
         self.auth_verifier = Some(verifier);
+        self
+    }
+
+    /// Inject the [`ArtifactService`] the server should use to mint and
+    /// resolve file/data artifacts. When set, this takes precedence over
+    /// the service automatically built from [`crate::config::ArtifactsConfig`]
+    /// in [`build`](Self::build). Pass `Arc<DefaultArtifactService>` (or
+    /// any custom implementation) when you need full control over the
+    /// storage backend wiring.
+    pub fn with_artifact_service(mut self, service: Arc<dyn ArtifactService>) -> Self {
+        self.artifact_service = Some(service);
         self
     }
 
@@ -289,6 +306,58 @@ impl A2AServerBuilder {
             None => None,
         };
 
+        let artifact_service = match self.artifact_service {
+            Some(svc) => Some(svc),
+            None if config.artifacts_config.enable => {
+                let storage_cfg = &config.artifacts_config.storage;
+                let backend: Arc<dyn ArtifactStorage> = match storage_cfg.provider {
+                    ArtifactsStorageProvider::Filesystem => {
+                        info!(
+                            base_path = %storage_cfg.base_path,
+                            base_url = %storage_cfg.base_url,
+                            "wiring filesystem artifact storage",
+                        );
+                        Arc::new(FilesystemArtifactStorage::new(
+                            storage_cfg.base_path.clone(),
+                            storage_cfg.base_url.clone(),
+                        ))
+                    }
+                    ArtifactsStorageProvider::Minio => {
+                        #[cfg(feature = "minio")]
+                        {
+                            info!(
+                                endpoint = storage_cfg.endpoint.as_deref().unwrap_or(""),
+                                bucket = storage_cfg.bucket_name.as_deref().unwrap_or(""),
+                                base_url = %storage_cfg.base_url,
+                                "wiring minio artifact storage",
+                            );
+                            let minio =
+                                super::artifact_storage_minio::MinioArtifactStorage::from_config(
+                                    storage_cfg,
+                                )
+                                .await?;
+                            Arc::new(minio) as Arc<dyn ArtifactStorage>
+                        }
+                        #[cfg(not(feature = "minio"))]
+                        {
+                            warn!(
+                                "ARTIFACTS_STORAGE_PROVIDER=minio was requested but the crate was \
+                                 built without the `minio` feature; falling back to filesystem \
+                                 storage at `{}`",
+                                storage_cfg.base_path,
+                            );
+                            Arc::new(FilesystemArtifactStorage::new(
+                                storage_cfg.base_path.clone(),
+                                storage_cfg.base_url.clone(),
+                            )) as Arc<dyn ArtifactStorage>
+                        }
+                    }
+                };
+                Some(Arc::new(DefaultArtifactService::new(backend)) as Arc<dyn ArtifactService>)
+            }
+            None => None,
+        };
+
         Ok(A2AServer {
             config,
             agent_card,
@@ -299,6 +368,7 @@ impl A2AServerBuilder {
             streaming_task_handler,
             task_manager,
             auth_verifier,
+            artifact_service,
         })
     }
 }

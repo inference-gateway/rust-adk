@@ -63,6 +63,9 @@
     - [Runtime Metadata Configuration](#runtime-metadata-configuration)
   - [Authentication](#authentication)
   - [TLS and mTLS](#tls-and-mtls)
+  - [Artifacts](#artifacts)
+    - [Environment variables](#environment-variables)
+    - [Quick start](#quick-start-1)
   - [Environment Configuration](#environment-configuration)
 - [A2A Ecosystem](#a2a-ecosystem)
   - [Related Projects](#related-projects)
@@ -271,6 +274,7 @@ suggested learning path.
 - **[A2A Methods](./examples/a2a-methods/)** - One client binary per JSON-RPC method exposed by the A2A spec
 - **[Auth](./examples/auth/)** - Bearer-token authentication on `POST /a2a` with public `/health` and `/.well-known/agent.json`
 - **[TLS / mTLS](./examples/tls/)** - TLS termination via `axum-server` + `rustls`, optional mTLS with client-cert subject as principal
+- **[Artifacts (filesystem)](./examples/artifacts-filesystem/)** - Streaming handler emits a `FilePart` whose URI is served by the standalone artifacts HTTP server, backed by an on-disk store
 - **[Health Check Example](#health-check-example)** - Monitor agent health status
 
 ## Key Features
@@ -1206,6 +1210,102 @@ See [`examples/tls/`](./examples/tls/) for a runnable end-to-end demo
 with a `make-certs.sh` script that mints a self-signed CA, a server
 cert, and a client cert under `examples/tls/certs/`. The example
 exercises both modes via the `tls` and `mtls` Compose profiles.
+
+### Artifacts
+
+The ADK ships a first-class artifacts subsystem so agents can produce
+downloadable file artifacts (PDFs, images, structured data dumps) and
+expose them to A2A clients as URIs rather than inline base64 bytes
+embedded in JSON-RPC responses.
+
+The subsystem has four moving parts, each behind a trait so production
+deployments can plug in their own backends:
+
+| Layer | Trait / type | Default |
+| --- | --- | --- |
+| Configuration | `ArtifactsConfig` in `src/config.rs` | disabled (`ARTIFACTS_ENABLE=false`) |
+| Storage backend | `ArtifactStorage` (`store`, `retrieve`, `exists`, `delete`, `cleanup_*`) | `FilesystemArtifactStorage` |
+| Helper service | `ArtifactService` (`create_*_artifact`, `add_artifact_to_task`, retention) | `DefaultArtifactService` |
+| HTTP surface | `ArtifactsServer` (`GET /health`, `GET /artifacts/:artifact_id/:filename`) | `:8081` listener with range support |
+
+When `ARTIFACTS_ENABLE=true`, `A2AServer::serve(...)` spawns the
+artifacts HTTP server on its own listener alongside the main A2A
+JSON-RPC server and runs a background retention loop that prunes
+expired / over-cap blobs. The TLS layer reuses the same
+`build_server_config` machinery as the A2A endpoint, so the artifacts
+server can sit behind TLS/mTLS too.
+
+Streaming task handlers can mint file artifacts via
+`StreamEmitter::emit_file_artifact(...)` and structured-data artifacts
+via `StreamEmitter::emit_data_artifact(...)`. Both routes write the
+artifact to storage, attach the resulting `Artifact` (with `FilePart`
+`fileWithUri` set) to the stored task, and emit a
+`TaskArtifactUpdateEvent` to the SSE stream — clients then download the
+file directly from the artifacts server.
+
+#### Environment variables
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `ARTIFACTS_ENABLE` | `false` | Master switch — when `true`, `A2AServer::serve(...)` spawns the artifacts server and retention loop. |
+| `ARTIFACTS_SERVER_HOST` | `0.0.0.0` | Bind address of the artifacts HTTP server. |
+| `ARTIFACTS_SERVER_PORT` | `8081` | Port of the artifacts HTTP server. |
+| `ARTIFACTS_SERVER_READ_TIMEOUT` | `30s` | Per-request read timeout. Accepts Go-style durations (`30s`, `5m`, `2h`, `7d`) or bare seconds. |
+| `ARTIFACTS_SERVER_WRITE_TIMEOUT` | `30s` | Per-response write timeout. |
+| `ARTIFACTS_STORAGE_PROVIDER` | `filesystem` | `filesystem` or `minio`. The `minio` provider requires the crate to be built with the `minio` Cargo feature; without it, requests fall back to filesystem storage with a `warn!` log. |
+| `ARTIFACTS_STORAGE_BASE_PATH` | `./artifacts` | On-disk root for the `filesystem` provider. |
+| `ARTIFACTS_STORAGE_BASE_URL` | `http://localhost:8081` | Public URL prefix baked into file artifact URIs - point this at wherever the artifacts server (or MinIO endpoint) is externally reachable. |
+| `ARTIFACTS_STORAGE_ENDPOINT` | unset | MinIO endpoint URL. |
+| `ARTIFACTS_STORAGE_ACCESS_KEY` | unset | MinIO access key. |
+| `ARTIFACTS_STORAGE_SECRET_KEY` | unset | MinIO secret key. |
+| `ARTIFACTS_STORAGE_BUCKET_NAME` | unset | MinIO bucket name. |
+| `ARTIFACTS_STORAGE_REGION` | unset | MinIO region. |
+| `ARTIFACTS_STORAGE_USE_SSL` | `false` | Whether to use TLS when talking to the MinIO endpoint. |
+| `ARTIFACTS_RETENTION_MAX_ARTIFACTS` | `5` | Cap on the total number of artifacts kept by the backend. |
+| `ARTIFACTS_RETENTION_MAX_AGE` | `168h` | Maximum age before an artifact is pruned. |
+| `ARTIFACTS_RETENTION_CLEANUP_INTERVAL` | `24h` | Frequency of the retention loop. |
+
+#### Quick start
+
+```rust,no_run
+use inference_gateway_adk::{
+    A2AServerBuilder, ArtifactsConfig, ArtifactsServerConfig, ArtifactsStorageConfig, Config,
+};
+
+# async fn run() -> anyhow::Result<()> {
+let config = Config {
+    artifacts_config: ArtifactsConfig {
+        enable: true,
+        server: ArtifactsServerConfig {
+            port: 8088,
+            ..Default::default()
+        },
+        storage: ArtifactsStorageConfig {
+            base_path: "./artifacts-data".to_string(),
+            base_url: "http://localhost:8088".to_string(),
+            ..Default::default()
+        },
+        retention: Default::default(),
+    },
+    ..Config::default()
+};
+
+let server = A2AServerBuilder::new()
+    .with_config(config)
+    .with_agent_card_from_file(".well-known/agent.json", None)
+    .with_default_task_handlers()
+    .build()
+    .await?;
+
+server.serve("0.0.0.0:8087".parse()?).await?;
+# Ok(())
+# }
+```
+
+A runnable end-to-end demo lives at
+[`examples/artifacts-filesystem/`](./examples/artifacts-filesystem/) -
+the streaming handler emits a small text report as a file artifact and
+the client downloads it directly from the artifacts server.
 
 ### Environment Configuration
 

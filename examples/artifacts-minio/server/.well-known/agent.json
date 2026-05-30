@@ -1,0 +1,27 @@
+{
+  "name": "Rust A2A MinIO Artifacts Agent",
+  "description": "A2A server demonstrating the artifacts subsystem with a MinIO-backed store. Streaming task handler emits a downloadable file artifact whose URI points directly at the MinIO endpoint (anonymous-read bucket).",
+  "version": "0.1.0",
+  "protocolVersion": "0.2.6",
+  "url": "http://localhost:8089",
+  "preferredTransport": "JSONRPC",
+  "capabilities": {
+    "streaming": true,
+    "pushNotifications": false,
+    "stateTransitionHistory": false
+  },
+  "provider": {
+    "organization": "Inference Gateway",
+    "url": "https://github.com/inference-gateway/rust-adk"
+  },
+  "skills": [
+    {
+      "id": "generate-report",
+      "name": "generate-report",
+      "description": "Generate a downloadable text report as a file artifact stored in MinIO",
+      "tags": ["artifacts", "minio", "demo"]
+    }
+  ],
+  "defaultInputModes": ["text/plain"],
+  "defaultOutputModes": ["text/plain", "application/octet-stream"]
+}

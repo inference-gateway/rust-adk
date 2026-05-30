@@ -1,0 +1,105 @@
+---
+services:
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"   # MinIO API
+      - "9001:9001"   # MinIO web console
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - --fail
+        - --silent
+        - http://localhost:9000/minio/health/live
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    networks:
+      - a2a-network
+
+  createbucket:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        /usr/bin/mc alias set local http://minio:9000 minioadmin minioadmin &&
+        /usr/bin/mc mb --ignore-existing local/artifacts &&
+        /usr/bin/mc anonymous set download local/artifacts &&
+        exit 0
+    networks:
+      - a2a-network
+
+  server:
+    build:
+      context: ../..
+      dockerfile: examples/Dockerfile.server
+      args:
+        BIN_NAME: artifacts-minio-server
+        EXAMPLE_PATH: examples/artifacts-minio
+        CARGO_FEATURES: minio
+    ports:
+      - "8089:8089"   # A2A JSON-RPC
+      - "8090:8090"   # Artifacts HTTP (unused for downloads; URIs go direct to MinIO)
+    depends_on:
+      minio:
+        condition: service_healthy
+      createbucket:
+        condition: service_completed_successfully
+    environment:
+      RUST_LOG: info
+      ARTIFACTS_STORAGE_ENDPOINT: http://minio:9000
+      ARTIFACTS_STORAGE_ACCESS_KEY: minioadmin
+      ARTIFACTS_STORAGE_SECRET_KEY: minioadmin
+      ARTIFACTS_STORAGE_BUCKET_NAME: artifacts
+      # Baked into FilePart.fileWithUri. Points at MinIO via the Docker
+      # service name so the client container can reach it; downloads
+      # bypass the artifacts HTTP server entirely. The bucket has an
+      # anonymous-download policy (set by `createbucket` above).
+      ARTIFACTS_STORAGE_BASE_URL: http://minio:9000
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - --fail
+        - --silent
+        - http://localhost:8089/health
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    networks:
+      - a2a-network
+
+  client:
+    build:
+      context: ../..
+      dockerfile: examples/Dockerfile.client
+      args:
+        BIN_NAME: artifacts-minio-client
+    depends_on:
+      server:
+        condition: service_healthy
+    environment:
+      RUST_LOG: info
+      SERVER_URL: http://server:8089
+    networks:
+      - a2a-network
+
+volumes:
+  minio-data:
+
+networks:
+  a2a-network:
+    driver: bridge
