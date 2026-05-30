@@ -66,6 +66,7 @@
   - [Artifacts](#artifacts)
     - [Environment variables](#environment-variables)
     - [Quick start](#quick-start-1)
+  - [Usage Metadata](#usage-metadata)
   - [Environment Configuration](#environment-configuration)
 - [A2A Ecosystem](#a2a-ecosystem)
   - [Related Projects](#related-projects)
@@ -267,6 +268,7 @@ suggested learning path.
 - **[Default Handlers](./examples/default-handlers/)** - LLM agent + `with_default_task_handlers()`, no custom handler code
 - **[AI Powered](./examples/ai-powered/)** - LLM agent with custom function tools (weather, math, search)
 - **[AI Powered Streaming](./examples/ai-powered-streaming/)** - LLM agent streamed over `message/stream`
+- **[Usage Metadata](./examples/usage-metadata/)** - Default handlers attach token `usage` + `execution_stats` to `task.metadata` on terminal states
 
 **Storage & protocol coverage:**
 
@@ -1307,6 +1309,49 @@ A runnable end-to-end demo lives at
 the streaming handler emits a small text report as a file artifact and
 the client downloads it directly from the artifacts server.
 
+### Usage Metadata
+
+When an LLM agent is wired in via `with_default_task_handlers()`, the
+bundled handlers can tally token usage and agent-loop statistics across a
+task's lifetime and attach them to `task.metadata` on the **terminal**
+transition (`completed` / `failed` / `cancelled`) - never mid-flight. Both
+the background (`message/send`) and streaming (`message/stream`) default
+handlers emit the same two blocks:
+
+```jsonc
+{
+  "usage": { "prompt_tokens": 123, "completion_tokens": 45, "total_tokens": 168 },
+  "execution_stats": { "iterations": 2, "messages": 1, "tool_calls": 1, "failed_tools": 0 }
+}
+```
+
+- `usage` sums the gateway's `CompletionUsage` responses over every chat
+  completion the agent loop issues (omitted when the gateway returns no
+  usage at all).
+- `execution_stats` counts the agent loop itself: `iterations` (chat
+  completion round-trips), `messages` (tool-result messages fed back),
+  `tool_calls`, and `failed_tools` (handler errors or calls with no
+  registered handler).
+
+The feature is controlled by a single flag, `AgentConfig::enable_usage_metadata`
+(env `A2A_AGENT_CLIENT_ENABLE_USAGE_METADATA`, default `true`). `AgentBuilder`
+reads it from the `AgentConfig`, and `with_enable_usage_metadata(bool)`
+overrides whatever the config supplied:
+
+```rust
+let agent = AgentBuilder::new()
+    .with_config(&config.agent_config)
+    .with_enable_usage_metadata(true) // optional override; defaults to the config value
+    .build()
+    .await?;
+```
+
+`A2AServerBuilder` forwards the resolved flag to the default handlers, so a
+server built from a `Config` with `enable_usage_metadata = false` attaches
+no metadata. See [`examples/usage-metadata/`](./examples/usage-metadata/)
+for a runnable demo that sends a tool-triggering prompt, polls the task to
+terminal, and prints both blocks client-side.
+
 ### Environment Configuration
 
 Runtime config flows in via the `A2A_*` env-var family. The library
@@ -1336,6 +1381,7 @@ A2A_AGENT_CLIENT_BASE_URL="http://inference-gateway:8080/v1"
 A2A_AGENT_CLIENT_MAX_TOKENS="4096"
 A2A_AGENT_CLIENT_TEMPERATURE="0.7"
 A2A_AGENT_CLIENT_SYSTEM_PROMPT="You are a helpful assistant"
+A2A_AGENT_CLIENT_ENABLE_USAGE_METADATA="true"  # attach token usage + execution_stats to task.metadata on terminal states
 
 # Capabilities (surfaced in the agent card)
 A2A_CAPABILITIES_STREAMING="true"

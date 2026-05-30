@@ -352,6 +352,15 @@ pub struct AgentConfig {
 
     #[serde(rename = "agent_client_system_prompt")]
     pub system_prompt: Option<String>,
+
+    /// Whether the default task handlers attach usage metadata (token counts
+    /// and execution statistics) to a task's `metadata` once it reaches a
+    /// terminal state. Loaded from `A2A_AGENT_CLIENT_ENABLE_USAGE_METADATA`.
+    #[serde(
+        rename = "agent_client_enable_usage_metadata",
+        deserialize_with = "de::boolean::deserialize"
+    )]
+    pub enable_usage_metadata: bool,
 }
 
 impl AgentConfig {
@@ -743,6 +752,7 @@ impl Default for AgentConfig {
             max_tokens: 4096,
             temperature: 0.7,
             system_prompt: None,
+            enable_usage_metadata: true,
         }
     }
 }

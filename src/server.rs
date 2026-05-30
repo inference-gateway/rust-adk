@@ -19,6 +19,7 @@ mod storage_redis;
 mod task_handler;
 mod task_manager;
 mod tls;
+mod usage_tracker;
 
 pub use agent::Agent;
 pub use agent_builder::AgentBuilder;
@@ -42,3 +43,4 @@ pub use task_handler::{
 };
 pub use task_manager::{DefaultTaskManager, TaskManagerRunner};
 pub use tls::{ClientCertPrincipal, PeerCert};
+pub use usage_tracker::UsageTracker;

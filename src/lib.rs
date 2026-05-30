@@ -21,7 +21,7 @@ pub use server::{
     FilesystemArtifactStorage, FunctionToolHandler, InMemoryStorage, LLMClient, OidcJwtVerifier,
     OpenAICompatibleLLMClient, PeerCert, QueuedTask, Storage, StorageStats, StoredArtifactInfo,
     StreamEmitter, StreamableTaskHandler, TaskFilter, TaskHandler, TaskManagerRunner, ToolHandler,
-    create_storage, infer_mime_type, spawn_retention_task,
+    UsageTracker, create_storage, infer_mime_type, spawn_retention_task,
 };
 
 #[cfg(test)]

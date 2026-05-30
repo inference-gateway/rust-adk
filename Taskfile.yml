@@ -104,6 +104,18 @@ tasks:
     cmds:
       - cargo run -p ai-powered-streaming-client
 
+  examples:usage-metadata-server:
+    desc: Run the usage-metadata server example (requires Inference Gateway at localhost:8080)
+    dir: examples/usage-metadata/server
+    cmds:
+      - cargo run -p usage-metadata-server
+
+  examples:usage-metadata-client:
+    desc: Run the usage-metadata client example (requires the server at localhost:8080)
+    dir: examples/usage-metadata
+    cmds:
+      - cargo run -p usage-metadata-client
+
   examples:default-handlers-server:
     desc: Run the default-handlers server example (requires Inference Gateway at localhost:8080)
     dir: examples/default-handlers

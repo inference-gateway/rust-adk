@@ -1,14 +1,15 @@
 use super::agent::Agent;
 use super::artifact_service::ArtifactService;
 use super::storage::Storage;
+use super::usage_tracker::UsageTracker;
 use crate::a2a_types::{
-    Artifact, Message as A2AMessage, Part, Role, StreamResponse, Task, TaskArtifactUpdateEvent,
-    TaskState, TaskStatus, TaskStatusUpdateEvent, Timestamp,
+    Artifact, Message as A2AMessage, Part, Role, StreamResponse, Struct, Task,
+    TaskArtifactUpdateEvent, TaskState, TaskStatus, TaskStatusUpdateEvent, Timestamp,
 };
 use anyhow::{Result, anyhow};
 use futures_util::stream::StreamExt;
-use inference_gateway_sdk::{Message, MessageContent, MessageRole};
-use serde_json::Value;
+use inference_gateway_sdk::{CompletionUsage, Message, MessageContent, MessageRole};
+use serde_json::{Map, Value};
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tracing::{debug, warn};
@@ -275,6 +276,40 @@ impl StreamEmitter {
         })
         .await
     }
+
+    /// Merge the accumulated usage/execution statistics from `tracker` into the
+    /// stored task's `metadata` field. Streaming handlers call this once, just
+    /// before emitting the terminal status update, so the persisted task
+    /// (returned by later `tasks/get` calls) carries the same `usage` /
+    /// `execution_stats` blocks the background handler attaches.
+    pub async fn populate_usage_metadata(&self, task_id: &str, tracker: &UsageTracker) {
+        let usage = tracker.metadata();
+        if usage.is_empty() {
+            return;
+        }
+        if let Some(mut task) = self.storage.get_task(task_id).await {
+            merge_usage_metadata(&mut task, usage);
+            self.storage.put_task(task).await;
+        }
+    }
+}
+
+/// Merge a usage-metadata map into `task.metadata`, preserving any existing
+/// keys. Used by both default handlers so the emitted `usage` /
+/// `execution_stats` blocks are identical across the streaming and background
+/// paths.
+fn merge_usage_metadata(task: &mut Task, usage: Map<String, Value>) {
+    if usage.is_empty() {
+        return;
+    }
+    match task.metadata.as_mut() {
+        Some(existing) => {
+            for (key, value) in usage {
+                existing.0.insert(key, value);
+            }
+        }
+        None => task.metadata = Some(Struct(usage)),
+    }
 }
 
 pub(super) fn build_agent_text_message(task: &Task, text: &str) -> A2AMessage {
@@ -371,16 +406,26 @@ struct ToolLoopOutcome {
 /// only debug-logs tool lifecycle events from inside its
 /// `DefaultBackgroundTaskHandler` instead of forwarding them as A2A
 /// `TaskStatusUpdate` events (the A2A spec has no tool-event variant).
-async fn run_tool_loop(agent: &Agent, mut messages: Vec<Message>) -> Result<ToolLoopOutcome> {
+async fn run_tool_loop(
+    agent: &Agent,
+    mut messages: Vec<Message>,
+    tracker: &UsageTracker,
+) -> Result<ToolLoopOutcome> {
     let llm = agent.llm_client();
     let tools = agent.toolbox.clone();
     let max_iterations = agent.max_chat_completion().max(1) as usize;
 
     for _ in 0..max_iterations {
+        tracker.increment_iteration();
+
         let response = llm
             .create_chat_completion(messages.clone(), tools.clone())
             .await
             .map_err(|e| anyhow!("llm call failed: {e}"))?;
+
+        if let Some(usage) = response.usage.as_ref() {
+            tracker.add_token_usage(usage);
+        }
 
         let Some(choice) = response.choices.into_iter().next() else {
             return Ok(ToolLoopOutcome {
@@ -412,19 +457,27 @@ async fn run_tool_loop(agent: &Agent, mut messages: Vec<Message>) -> Result<Tool
             });
         }
 
+        let num_tool_calls = tool_calls.len();
         for tool_call in tool_calls {
             let tool_name = tool_call.function.name.clone();
             let args: Value = serde_json::from_str(&tool_call.function.arguments)
                 .unwrap_or_else(|_| Value::String(tool_call.function.arguments.clone()));
 
             debug!("tool dispatch: {tool_name}");
+            tracker.increment_tool_calls();
 
             let tool_result = match agent.tool_handler(&tool_name) {
                 Some(handler) => match handler.handle(args).await {
                     Ok(value) => value,
-                    Err(e) => format!("tool `{tool_name}` failed: {e}"),
+                    Err(e) => {
+                        tracker.increment_failed_tools();
+                        format!("tool `{tool_name}` failed: {e}")
+                    }
                 },
-                None => format!("no handler registered for tool `{tool_name}`"),
+                None => {
+                    tracker.increment_failed_tools();
+                    format!("no handler registered for tool `{tool_name}`")
+                }
             };
 
             messages.push(Message {
@@ -436,6 +489,7 @@ async fn run_tool_loop(agent: &Agent, mut messages: Vec<Message>) -> Result<Tool
                 tool_calls: Vec::new(),
             });
         }
+        tracker.add_messages(num_tool_calls);
     }
 
     Ok(ToolLoopOutcome {
@@ -456,21 +510,42 @@ async fn run_tool_loop(agent: &Agent, mut messages: Vec<Message>) -> Result<Tool
 #[derive(Debug)]
 pub struct DefaultBackgroundTaskHandler {
     agent: Option<Arc<Agent>>,
+    enable_usage_metadata: bool,
 }
 
 impl DefaultBackgroundTaskHandler {
     pub fn new(agent: Option<Arc<Agent>>) -> Self {
-        Self { agent }
+        let enable_usage_metadata = agent
+            .as_ref()
+            .map(|a| a.usage_metadata_enabled())
+            .unwrap_or(true);
+        Self {
+            agent,
+            enable_usage_metadata,
+        }
+    }
+
+    /// Override whether terminal tasks carry `usage` / `execution_stats`
+    /// metadata. [`A2AServerBuilder`](crate::A2AServerBuilder) calls this to
+    /// honour [`AgentConfig::enable_usage_metadata`](crate::AgentConfig).
+    pub fn set_enable_usage_metadata(&mut self, enable: bool) {
+        self.enable_usage_metadata = enable;
+    }
+
+    /// Whether terminal tasks will carry usage/execution metadata.
+    pub fn is_usage_metadata_enabled(&self) -> bool {
+        self.enable_usage_metadata
     }
 }
 
 #[async_trait::async_trait]
 impl TaskHandler for DefaultBackgroundTaskHandler {
     async fn handle_task(&self, mut task: Task, _message: Option<A2AMessage>) -> Result<Task> {
+        let tracker = UsageTracker::new();
         let (reply_text, terminal_state) = match self.agent.as_ref() {
             Some(agent) => {
                 let messages = build_sdk_messages(agent, &task);
-                match run_tool_loop(agent, messages).await {
+                match run_tool_loop(agent, messages, &tracker).await {
                     Ok(outcome) if outcome.exhausted => {
                         warn!(
                             "default background handler: tool loop exhausted \
@@ -511,6 +586,11 @@ impl TaskHandler for DefaultBackgroundTaskHandler {
             state: terminal_state,
             timestamp: Some(Timestamp(chrono::Utc::now())),
         };
+
+        if self.enable_usage_metadata && tracker.has_usage() {
+            merge_usage_metadata(&mut task, tracker.metadata());
+        }
+
         Ok(task)
     }
 }
@@ -531,11 +611,31 @@ impl TaskHandler for DefaultBackgroundTaskHandler {
 #[derive(Debug)]
 pub struct DefaultStreamingTaskHandler {
     agent: Option<Arc<Agent>>,
+    enable_usage_metadata: bool,
 }
 
 impl DefaultStreamingTaskHandler {
     pub fn new(agent: Option<Arc<Agent>>) -> Self {
-        Self { agent }
+        let enable_usage_metadata = agent
+            .as_ref()
+            .map(|a| a.usage_metadata_enabled())
+            .unwrap_or(true);
+        Self {
+            agent,
+            enable_usage_metadata,
+        }
+    }
+
+    /// Override whether terminal tasks carry `usage` / `execution_stats`
+    /// metadata. [`A2AServerBuilder`](crate::A2AServerBuilder) calls this to
+    /// honour [`AgentConfig::enable_usage_metadata`](crate::AgentConfig).
+    pub fn set_enable_usage_metadata(&mut self, enable: bool) {
+        self.enable_usage_metadata = enable;
+    }
+
+    /// Whether terminal tasks will carry usage/execution metadata.
+    pub fn is_usage_metadata_enabled(&self) -> bool {
+        self.enable_usage_metadata
     }
 }
 
@@ -557,8 +657,9 @@ impl StreamableTaskHandler for DefaultStreamingTaskHandler {
             )
             .await?;
 
+        let tracker = UsageTracker::new();
         let final_text = match self.agent.as_ref() {
-            Some(agent) => stream_agent_deltas(agent, &task, &emitter).await?,
+            Some(agent) => stream_agent_deltas(agent, &task, &emitter, &tracker).await?,
             None => {
                 emitter
                     .emit_text_artifact(&task.id, &task.context_id, NO_AGENT_REPLY, true)
@@ -566,6 +667,10 @@ impl StreamableTaskHandler for DefaultStreamingTaskHandler {
                 NO_AGENT_REPLY.to_string()
             }
         };
+
+        if self.enable_usage_metadata && tracker.has_usage() {
+            emitter.populate_usage_metadata(&task.id, &tracker).await;
+        }
 
         let reply_message = build_agent_text_message(&task, &final_text);
         emitter
@@ -595,11 +700,12 @@ async fn stream_agent_deltas(
     agent: &Agent,
     task: &Task,
     emitter: &StreamEmitter,
+    tracker: &UsageTracker,
 ) -> Result<String> {
     let base_messages = build_sdk_messages(agent, task);
 
     let messages = if agent.toolbox().is_some() {
-        match run_tool_loop(agent, base_messages).await {
+        match run_tool_loop(agent, base_messages, tracker).await {
             Ok(outcome) if outcome.exhausted => {
                 let msg = "Tool loop exhausted before the model produced a \
                            final answer."
@@ -639,6 +745,10 @@ async fn stream_agent_deltas(
 
     let llm = agent.llm_client();
     let tools = agent.toolbox.clone();
+    // The streaming tail is one more model round-trip; count it so a turn that
+    // never entered the tool loop (e.g. an agent without tools) still reports
+    // at least one iteration, matching the Go ADK.
+    tracker.increment_iteration();
     let mut stream = llm.create_streaming_chat_completion(messages, tools);
 
     let artifact_id = uuid::Uuid::new_v4().to_string();
@@ -669,6 +779,13 @@ async fn stream_agent_deltas(
             Ok(v) => v,
             Err(_) => continue,
         };
+
+        if let Some(usage_value) = parsed.get("usage").filter(|v| !v.is_null())
+            && let Ok(usage) = serde_json::from_value::<CompletionUsage>(usage_value.clone())
+        {
+            tracker.add_token_usage(&usage);
+        }
+
         let Some(text) = parsed
             .get("choices")
             .and_then(|c| c.as_array())
@@ -1333,5 +1450,209 @@ mod tests {
             .expect("last event is a status update");
         assert_eq!(last_status.status.state, TaskState::TaskStateCompleted);
         assert!(last_status.final_);
+    }
+
+    // ----- usage-metadata coverage ------------------------------------------
+
+    fn submitted_usage_task(text: &str) -> Task {
+        Task {
+            artifacts: vec![],
+            context_id: "ctx-usage".to_string(),
+            history: vec![A2AMessage {
+                context_id: Some("ctx-usage".to_string()),
+                extensions: vec![],
+                message_id: "u-usage".to_string(),
+                metadata: None,
+                parts: vec![Part {
+                    data: None,
+                    file: None,
+                    metadata: None,
+                    text: Some(text.to_string()),
+                }],
+                reference_task_ids: vec![],
+                role: Role::RoleUser,
+                task_id: Some("task-usage".to_string()),
+            }],
+            id: "task-usage".to_string(),
+            metadata: None,
+            status: TaskStatus {
+                message: None,
+                state: TaskState::TaskStateSubmitted,
+                timestamp: None,
+            },
+        }
+    }
+
+    async fn build_toolless_agent(gateway_url: String) -> Agent {
+        use crate::config::AgentConfig;
+        let cfg = AgentConfig {
+            provider: "openai".to_string(),
+            model: "test-model".to_string(),
+            base_url: Some(gateway_url),
+            ..AgentConfig::default()
+        };
+        AgentBuilder::new()
+            .with_config(&cfg)
+            .build()
+            .await
+            .expect("agent builds")
+    }
+
+    /// Mock non-streaming `/chat/completions` returning a final answer that
+    /// carries a `usage` block, so the tool loop records token counts.
+    async fn mock_final_with_usage() -> Json<Value> {
+        Json(serde_json::json!({
+            "id": "chatcmpl-usage",
+            "object": "chat.completion",
+            "created": 0,
+            "model": "test-model",
+            "choices": [{
+                "index": 0,
+                "finish_reason": "stop",
+                "message": {"role": "assistant", "content": "All done", "tool_calls": []},
+            }],
+            "usage": {"prompt_tokens": 11, "completion_tokens": 4, "total_tokens": 15},
+        }))
+    }
+
+    /// Mock streaming `/chat/completions` that emits two content deltas, then a
+    /// trailing usage-only chunk (empty `choices`), then `[DONE]`.
+    async fn mock_stream_with_usage() -> axum::response::sse::Sse<
+        impl futures_util::Stream<
+            Item = std::result::Result<axum::response::sse::Event, std::convert::Infallible>,
+        >,
+    > {
+        use axum::response::sse::{Event as SseEvent, KeepAlive as SseKeepAlive, Sse as SseResp};
+        let chunks = [
+            serde_json::json!({"choices":[{"delta":{"content":"Hi "}}]}).to_string(),
+            serde_json::json!({"choices":[{"delta":{"content":"there"}}]}).to_string(),
+            serde_json::json!({
+                "choices": [],
+                "usage": {"prompt_tokens": 7, "completion_tokens": 2, "total_tokens": 9},
+            })
+            .to_string(),
+            "[DONE]".to_string(),
+        ];
+        let stream = futures_util::stream::iter(
+            chunks
+                .into_iter()
+                .map(|d| Ok::<_, std::convert::Infallible>(SseEvent::default().data(d))),
+        );
+        SseResp::new(stream).keep_alive(SseKeepAlive::default())
+    }
+
+    #[tokio::test]
+    async fn default_background_handler_attaches_usage_metadata() {
+        let gateway_listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+        let gateway_addr = gateway_listener.local_addr().expect("addr");
+        let gateway_app = Router::new().route("/chat/completions", post(mock_final_with_usage));
+        tokio::spawn(async move {
+            axum::serve(gateway_listener, gateway_app).await.ok();
+        });
+
+        let agent = build_toolless_agent(format!("http://{gateway_addr}")).await;
+        let handler = DefaultBackgroundTaskHandler::new(Some(Arc::new(agent)));
+        assert!(
+            handler.is_usage_metadata_enabled(),
+            "usage metadata defaults on"
+        );
+
+        let task = handler
+            .handle_task(submitted_usage_task("hi"), None)
+            .await
+            .expect("handle_task");
+        assert_eq!(task.status.state, TaskState::TaskStateCompleted);
+
+        let meta = task
+            .metadata
+            .expect("usage metadata attached on completion");
+        assert_eq!(meta.0["usage"]["prompt_tokens"], 11);
+        assert_eq!(meta.0["usage"]["completion_tokens"], 4);
+        assert_eq!(meta.0["usage"]["total_tokens"], 15);
+        let stats = &meta.0["execution_stats"];
+        assert_eq!(stats["iterations"], 1);
+        assert_eq!(stats["messages"], 0);
+        assert_eq!(stats["tool_calls"], 0);
+        assert_eq!(stats["failed_tools"], 0);
+    }
+
+    #[tokio::test]
+    async fn default_background_handler_omits_usage_metadata_when_disabled() {
+        let gateway_listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+        let gateway_addr = gateway_listener.local_addr().expect("addr");
+        let gateway_app = Router::new().route("/chat/completions", post(mock_final_with_usage));
+        tokio::spawn(async move {
+            axum::serve(gateway_listener, gateway_app).await.ok();
+        });
+
+        let agent = build_toolless_agent(format!("http://{gateway_addr}")).await;
+        let mut handler = DefaultBackgroundTaskHandler::new(Some(Arc::new(agent)));
+        handler.set_enable_usage_metadata(false);
+        assert!(!handler.is_usage_metadata_enabled());
+
+        let task = handler
+            .handle_task(submitted_usage_task("hi"), None)
+            .await
+            .expect("handle_task");
+        assert_eq!(task.status.state, TaskState::TaskStateCompleted);
+        assert!(
+            task.metadata.is_none(),
+            "metadata must be absent when usage metadata is disabled"
+        );
+    }
+
+    /// Drive the streaming handler directly against a mock that returns a usage
+    /// chunk, then return the task as persisted in storage (where the handler
+    /// writes the merged metadata before the terminal status update).
+    async fn run_streaming_usage_case(enable: bool) -> Task {
+        use crate::{InMemoryStorage, Storage};
+
+        let gateway_listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+        let gateway_addr = gateway_listener.local_addr().expect("addr");
+        let gateway_app = Router::new().route("/chat/completions", post(mock_stream_with_usage));
+        tokio::spawn(async move {
+            axum::serve(gateway_listener, gateway_app).await.ok();
+        });
+
+        let agent = build_toolless_agent(format!("http://{gateway_addr}")).await;
+        let storage: Arc<dyn Storage> = Arc::new(InMemoryStorage::new());
+        let task = submitted_usage_task("hi");
+        storage.put_task(task.clone()).await;
+
+        let (tx, mut rx) = tokio::sync::mpsc::channel::<StreamResponse>(64);
+        let drain = tokio::spawn(async move { while rx.recv().await.is_some() {} });
+        let emitter = StreamEmitter::new(tx, Arc::clone(&storage));
+
+        let mut handler = DefaultStreamingTaskHandler::new(Some(Arc::new(agent)));
+        handler.set_enable_usage_metadata(enable);
+        handler
+            .handle_streaming_task(task.clone(), None, emitter)
+            .await
+            .expect("handle_streaming_task");
+        drain.await.ok();
+
+        storage.get_task(&task.id).await.expect("task persisted")
+    }
+
+    #[tokio::test]
+    async fn default_streaming_handler_attaches_usage_metadata() {
+        let stored = run_streaming_usage_case(true).await;
+        let meta = stored
+            .metadata
+            .expect("usage metadata attached to the stored task");
+        assert_eq!(meta.0["usage"]["prompt_tokens"], 7);
+        assert_eq!(meta.0["usage"]["completion_tokens"], 2);
+        assert_eq!(meta.0["usage"]["total_tokens"], 9);
+        // The streaming tail counts as one iteration even without a tool loop.
+        assert_eq!(meta.0["execution_stats"]["iterations"], 1);
+    }
+
+    #[tokio::test]
+    async fn default_streaming_handler_omits_usage_metadata_when_disabled() {
+        let stored = run_streaming_usage_case(false).await;
+        assert!(
+            stored.metadata.is_none(),
+            "metadata must be absent when usage metadata is disabled"
+        );
     }
 }
