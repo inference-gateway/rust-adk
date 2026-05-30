@@ -438,7 +438,6 @@ mod tests {
             ..Default::default()
         };
 
-        // Default config enables usage metadata.
         let agent = AgentBuilder::new()
             .with_config(&base())
             .build()
@@ -449,7 +448,6 @@ mod tests {
             "AgentConfig defaults usage metadata on"
         );
 
-        // A config that disables it propagates to the built agent.
         let disabled_cfg = AgentConfig {
             enable_usage_metadata: false,
             ..base()
@@ -464,7 +462,6 @@ mod tests {
             "config flag should disable usage metadata"
         );
 
-        // An explicit builder override wins over the config value.
         let agent = AgentBuilder::new()
             .with_config(&disabled_cfg)
             .with_enable_usage_metadata(true)
