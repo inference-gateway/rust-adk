@@ -4,15 +4,15 @@
 //! Axum router to [`axum_server`] backed by [`rustls`] instead of the
 //! plaintext `axum::serve` path. When [`TlsConfig::client_ca_path`] is
 //! also set, the server requires every TLS client to present a
-//! certificate signed by one of the configured CAs — i.e. mutual TLS
-//! ([`MutualTlsSecurityScheme`] in the A2A spec) — and the peer's leaf
+//! certificate signed by one of the configured CAs - i.e. mutual TLS
+//! ([`MutualTlsSecurityScheme`] in the A2A spec) - and the peer's leaf
 //! certificate is exposed to downstream handlers as a
 //! [`ClientCertPrincipal`] request extension.
 //!
 //! The TLS stack is [`rustls`] 0.23 with the [`ring`] crypto provider.
 //! Rustls is widely deployed, has a pure-Rust audit trail, and gives us
 //! direct access to peer certificates without going through an opaque
-//! C-level TLS library — which is what makes the mTLS subject extraction
+//! C-level TLS library - which is what makes the mTLS subject extraction
 //! below tractable.
 //!
 //! [`MutualTlsSecurityScheme`]: crate::a2a_types::MutualTlsSecurityScheme
@@ -172,7 +172,7 @@ pub(crate) fn build_server_config(tls: &TlsConfig) -> Result<Arc<RustlsServerCon
 }
 
 /// Best-effort extraction of a [`ClientCertPrincipal`] from a leaf
-/// certificate. `None` when the DER refuses to parse — the surrounding
+/// certificate. `None` when the DER refuses to parse - the surrounding
 /// acceptor logs and downgrades to "anonymous mTLS" rather than failing
 /// the connection, because rustls has already validated the certificate
 /// chain by the time we get here.

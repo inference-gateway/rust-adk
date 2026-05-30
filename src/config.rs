@@ -5,7 +5,7 @@ use std::time::Duration;
 /// Deserialization helpers that accept both native types AND string
 /// representations of those types. Needed because `serde(flatten)` buffers
 /// fields via `deserialize_any`, and `envy` exposes every env var as a
-/// string — without these helpers, `A2A_SERVER_PORT=8080` fails to coerce
+/// string - without these helpers, `A2A_SERVER_PORT=8080` fails to coerce
 /// into the `port: u16` field that lives inside a flattened sub-struct.
 ///
 /// All helpers fall back to native deserialization too, so JSON / YAML /

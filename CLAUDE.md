@@ -2,82 +2,153 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## What this crate is
+## What this repo is
 
-`inference-gateway-adk` is a Rust Agent Development Kit for building servers and clients that speak the **Agent-to-Agent (A2A) JSON-RPC protocol**. It is one of several sibling ADKs (Go, TypeScript) maintained under `inference-gateway/`. The wire types in `src/a2a_types.rs` are **generated** from `schema.json` via `cargo typify` - do not hand-edit; regenerate via `task a2a:generate-types` and run `cargo fmt` (the task already does this).
+`inference-gateway-adk` is the **Rust** Agent Development Kit (ADK) for building servers and
+clients that speak the A2A (Agent-to-Agent) JSON-RPC protocol. It is the Rust counterpart to
+the Go and TypeScript ADKs in the same org and shares their `A2A_*` env-var conventions, agent
+card shape, and JSON-RPC surface.
 
-Rust edition is **2024** and toolchain pinned to **1.94.1** in CI (`README` advertises 1.94+). The `redis` feature is optional and gates `RedisStorage`.
+It is a Cargo **workspace**: the library lives at the repo root; the 22 packages under
+`examples/<scenario>/{server,client}/` are workspace members, each with its own `Cargo.toml`.
 
 ## Common commands
 
+The project uses [`task`](https://taskfile.dev) (Taskfile.yml) as the canonical entry point;
+each task wraps a `cargo` command:
+
+| Task               | Underlying command                                              |
+| ------------------ | --------------------------------------------------------------- |
+| `task lint`        | `cargo fmt --all -- --check`                                    |
+| `task lint:fix`    | `cargo fmt --all`                                               |
+| `task analyse`     | `cargo clippy --all-targets --all-features -- -D warnings`      |
+| `task test`        | `cargo test --all-targets --all-features`                       |
+
+CI runs `lint` → `analyse` → `build` → `test` on **Rust 1.95.0** (`actions-rust-lang/setup-rust-toolchain`);
+`clippy -- -D warnings` means any new warning fails CI.
+
+**Run a single test:** `cargo test --all-features <test_name>` (e.g.
+`cargo test --all-features build_fails_when_no_handler_configured`). For an integration test
+file: `cargo test --all-features --test a2a_server_test`.
+
+**Run an example pair:** examples expose `<name>-server` and `<name>-client` Cargo packages, e.g.
+`task examples:minimal-server` then in another shell `task examples:minimal-client`. Servers that
+load `.well-known/agent.json` resolve it **relative to CWD** — the task definitions `cd` into
+`examples/<name>/`, so prefer the task targets over raw `cargo run -p ...` from the repo root.
+See `examples/README.md` for the matrix of with-AI vs. without-AI scenarios and Compose profiles.
+
+### Regenerating A2A types
+
+`src/a2a_types.rs` is **generated** by [`cargo-typify`](https://crates.io/crates/cargo-typify) from
+`schema.json` (mirrored from `inference-gateway/schemas`). Do not hand-edit it.
+
 ```bash
-task lint        # cargo fmt --all -- --check
-task lint:fix    # cargo fmt --all
-task analyse     # cargo clippy --all-targets --all-features -- -D warnings
-task test        # cargo test --all-targets --all-features
+task a2a:download-schema      # refresh schema.{json,yaml}
+task a2a:generate-types       # cargo typify + prepend allow-attrs + cargo fmt
 ```
 
-Run a single test: `cargo test --all-features <test_name>` (e.g. `cargo test --all-features test_a2a_types_serialization`). Use `--all-features` so the Redis-gated paths compile.
-
-Run a single example (Cargo example names are flat - see the `[[example]]` table in `Cargo.toml`):
-
-```bash
-cargo run --example minimal-server
-cargo run --example a2a-methods-tasks-list
-```
-
-Examples that load `.well-known/agent.json` resolve the path **relative to CWD**. Run those from inside the example's `server/` directory, or pass an absolute path to `with_agent_card_from_file(...)`.
-
-Pre-commit/CI gate: `task lint && task analyse && task test` (this is what `.github/workflows/ci.yml` runs).
+The `generate-types` task also prepends a block of `#![allow(...)]` attributes the generator
+otherwise trips on — they live in the task itself, not in source, so they must be re-applied
+every regeneration. Don't paste them in by hand.
 
 ## Architecture
 
-The crate's public surface is re-exported from `lib.rs`; everything server-side lives under `src/server/` and is fan-out via `src/server.rs`.
+### Crate layout
 
-**Request flow for `message/send`** (and similarly for `message/stream`):
+- `src/lib.rs` re-exports a small, deliberately flat public API from `client`, `config`,
+  and `server`. The generated `a2a_types` module is exported as-is.
+- `src/server.rs` is a façade that only declares submodules and re-exports their public
+  items; real logic lives under `src/server/*.rs`.
+- `examples/` are workspace members (one binary per directory); their `Cargo.toml` lists
+  each binary's exact dependencies so a reader can see what a given scenario actually needs.
 
-1. `axum` router in `server_core.rs` exposes three routes: `GET /health`, `GET /.well-known/agent.json`, `POST /a2a`.
-2. `protocol.rs::a2a_handler` parses the JSON-RPC envelope, validates `jsonrpc == "2.0"`, dispatches by `method` to typed request structs from `a2a_types`.
-3. For `message/send`, the server builds a `Task` in `TaskStateSubmitted`, persists it via `Storage`, then either invokes the registered `TaskHandler` inline OR enqueues onto the storage queue for the background workers depending on configuration.
-4. `DefaultTaskManager` (`task_manager.rs`) spawns N workers (`QueueConfig::workers`) that block on `Storage::dequeue_task` (Redis: `BRPOP`; in-memory: `Notify`), run the handler to a terminal state, then route to active store or dead-letter store based on `status.state`.
-5. `message/stream` uses `StreamableTaskHandler` + `StreamEmitter` (an `mpsc::Sender<StreamResponse>`-backed object). The emitter both writes to the SSE channel AND keeps the stored task in sync. The handler MUST emit a final `TaskStatusUpdateEvent` with `final: true` - callers will hang otherwise.
+### Server pipeline (`A2AServerBuilder` → `A2AServer::serve`)
 
-**Key trait boundaries** (these are the extension points):
+`A2AServerBuilder` is a fluent builder that wires together five pluggable subsystems before
+producing an `A2AServer`:
 
-- `Storage` (`src/server/storage.rs`) - queue + active-task store + dead-letter store + context bookkeeping + push-config store. `InMemoryStorage` is the default. `RedisStorage` is feature-gated. The factory is `create_storage(&QueueConfig)`.
-- `TaskHandler` - synchronous-style handler for `message/send`. Built-in: `DefaultBackgroundTaskHandler` (delegates to `Agent`).
-- `StreamableTaskHandler` - streaming handler for `message/stream`. Built-in: `DefaultStreamingTaskHandler`.
-- `LLMClient` - pluggable LLM transport. `OpenAICompatibleLLMClient` wraps `inference-gateway-sdk` and is what `AgentBuilder` constructs by default.
-- `ToolHandler` (`agent_toolbox.rs`) - sync (`FunctionToolHandler`) and async (`AsyncFunctionToolHandler`) wrappers exist for closures.
+1. **Agent card** (required) — `with_agent_card(...)` / `with_agent_card_from_file(...)`.
+   `build()` returns `Err` if no card is configured. `AgentCardOverrides` is layered on top of
+   the file-loaded baseline.
+2. **Agent** (optional) — built via `AgentBuilder`, holds the LLM client + toolbox + tool
+   handlers + system prompt. `AgentBuilder::build()` fails fast when `provider` or `model` is
+   unset.
+3. **Task handlers**:
+   - `TaskHandler` drives `message/send` (background queue path).
+   - `StreamableTaskHandler` drives `message/stream` (SSE path).
+   - `with_default_task_handlers()` wires bundled defaults that delegate to the registered
+     `Agent` (or echo when none is present).
+   - **Validation matrix in `build()`**: streaming-enabled card requires a streaming handler;
+     streaming-disabled card requires a background handler; both-absent is rejected. Mismatches
+     fail at startup, not at the first request.
+4. **Storage** — `Arc<dyn Storage>`. `InMemoryStorage` is the default; `RedisStorage` is gated
+   behind the `redis` Cargo feature (`Cargo.toml`). The trait covers queue (enqueue/blocking
+   dequeue), active store, dead-letter, contexts, push-notification configs, and stats.
+5. **Auth** — `AuthVerifier` trait. `OidcJwtVerifier` is auto-constructed when `auth_config.enable`
+   is true; `with_auth_verifier(...)` overrides regardless of config. The middleware gates `POST /a2a`
+   only — `GET /health` and `GET /.well-known/agent.json` are always public.
 
-**Construction pattern**: builders, not raw struct literals. `A2AServerBuilder::new().with_agent(...).with_storage(...).with_task_handler(...).build().await` returns an `A2AServer`. Likewise `AgentBuilder` for the `Agent`. Calling `.serve(addr)` on `A2AServer` consumes it, spawns the task manager, and blocks on Axum until SIGINT, then drains workers via `TaskManagerRunner::shutdown`.
+`A2AServer::serve` spawns the `DefaultTaskManager` worker pool (one per `with_workers(n)` slot),
+mounts a public router (`/health`, `/.well-known/agent.json`) and an optionally-auth-gated
+protected router (`/a2a`), and binds either a plain Axum listener or `axum-server` + `rustls`
+(when `tls_config.enable`). SIGINT triggers graceful drain of both the HTTP server and the
+queue workers.
 
-**Config** (`src/config.rs`): `Config::from_env()` is the entry point. Nested sub-configs: `AgentConfig` (`AGENT_CLIENT_*`), `CapabilitiesConfig`, `TlsConfig`, `AuthConfig`, `QueueConfig` (`QUEUE_*` - `provider` picks `Memory` vs `Redis`), `ServerConfig`, `TelemetryConfig`.
+### JSON-RPC dispatch
 
-## Schema regeneration
+`src/server/protocol.rs::a2a_handler` is the single entry point for `POST /a2a`. It validates
+the envelope (`jsonrpc == "2.0"`), then dispatches `params` to per-method handlers for:
 
-`src/a2a_types.rs` is generated. Workflow:
-
-```bash
-task a2a:download-schema   # pulls latest schema.json / schema.yaml
-task a2a:generate-types    # cargo typify + prepends allow-lints + cargo fmt
+```
+message/send, message/stream,
+tasks/get, tasks/list, tasks/cancel, tasks/resubscribe,
+tasks/pushNotificationConfig/{set,get,list,delete},
+agent/getAuthenticatedExtendedCard
 ```
 
-The generated file has several `#![allow(...)]` attributes prepended by the task - keep them when regenerating.
+`message/stream` and `tasks/resubscribe` return SSE; the rest return JSON-RPC envelopes.
+`StreamEmitter` (`src/server/task_handler.rs`) is how streaming handlers push events back to
+clients while also keeping `Storage` in sync — terminal events **must** carry `final: true`.
 
-## Examples layout
+### Background task manager
 
-Examples are split into "without AI" (no provider key needed: `minimal`, `static-agent-card`, `streaming`, `input-required`) and "with AI" (Inference Gateway container + provider key: `default-handlers`, `ai-powered`, `ai-powered-streaming`). Each scenario has `server/`, `client/`, and a `docker-compose.yaml`. `a2a-methods/` exposes one client binary per JSON-RPC method. `queue-storage/` demonstrates `InMemoryStorage` vs `RedisStorage` via Compose profiles.
+`DefaultTaskManager` is spawned only when a background `TaskHandler` is configured. Each worker
+loops on `Storage::dequeue_task` (blocking), moves the task into the active store, drives the
+handler to a terminal state, and routes the result to the dead-letter store on terminal states
+or back to the active store otherwise. Workers cooperate via a `CancellationToken`; an
+in-flight handler call is allowed to finish before shutdown.
 
-## Testing conventions (from CONTRIBUTING.md)
+### Config
 
-- **Table-driven tests** with isolated mocks per case
-- Use `tokio::test` for async tests
-- Mock external dependencies via the trait abstractions above (`Storage`, `LLMClient`, `TaskHandler`) - don't hit the network
+`Config` (`src/config.rs`) is a plain `serde` struct composed of nested sub-configs
+(`agent_config`, `tls_config`, `auth_config`, `queue_config`, `server_config`, …). The library
+**does not** read env vars itself — every example uses `envy::prefixed("A2A_").from_env::<Config>()`,
+but any serde loader works.
 
-## Notes that bite
+The `de` module at the top of `src/config.rs` is **load-bearing**: it defines string-or-native
+deserializers for `u16`/`u32`/`u64`/`usize`/`bool`/`f32`/`Duration`. `serde(flatten)` buffers
+fields via `deserialize_any`, and `envy` exposes every env var as a string — without these
+helpers, `A2A_SERVER_PORT=8080` cannot coerce into a `u16` inside a flattened sub-struct. Don't
+remove or simplify them without verifying env-driven examples still load.
 
-- Generated `a2a_types.rs` is large (~50k lines). Avoid loading it in full; grep for the specific struct/enum you need.
-- The `redis` dependency is `optional` and pinned at `0.27.6` with only `tokio-comp` + `connection-manager` features. Don't enable extra features without checking compile times.
-- The crate's `Cargo.toml` lists every example explicitly with both a flat `name` (e.g. `a2a-methods-tasks-get`) and a `path` - add new examples there or Cargo won't pick them up.
-- Tracing is set up via `tracing-subscriber` with env-filter; examples typically call `tracing_subscriber::init()` at the top of `main`.
+### Client (`src/client.rs`)
+
+`A2AClient` provides one typed helper per JSON-RPC method (`send_message`, `get_task`,
+`list_tasks`, `cancel_task`, `resubscribe_task`, the four `*_push_notification_config` helpers,
+and `get_authenticated_extended_card`) backed by `reqwest`. SSE methods return
+`Stream<StreamResponse>`. Each helper has a runnable counterpart in `examples/a2a-methods/`.
+
+## Conventions to know
+
+- **Conventional Commits** with semantic-release (`.releaserc.yaml`). In addition to the standard
+  types, the release pipeline recognizes `impr` (improvements → patch release).
+  `chore(release): 🔖 X.Y.Z [skip ci]` commits are produced by `@semantic-release/git` — don't
+  author them manually.
+- **Table-driven tests** with isolated per-case mocks/servers (see `tests/a2a_server_test.rs` and
+  `src/server/server_builder.rs::tests`). When adding tests, follow that shape rather than
+  spawning a shared global fixture.
+- `task analyse` before pushing — clippy warnings break CI.
+- Workspace example deps are pinned centrally under `[workspace.dependencies]` in the root
+  `Cargo.toml`; per-example `Cargo.toml`s should refer to those rather than re-pinning.
+- The `redis` feature is **off by default**; enable it explicitly (`--features redis`) in
+  packages that import `RedisStorage`.
