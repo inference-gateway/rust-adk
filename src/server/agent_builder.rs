@@ -25,6 +25,7 @@ pub struct AgentBuilder {
     max_tokens: Option<u32>,
     temperature: Option<f32>,
     system_prompt: Option<String>,
+    enable_usage_metadata: Option<bool>,
     max_chat_completion: u32,
     max_conversation_history: u32,
     toolbox: Option<Vec<ChatCompletionTool>>,
@@ -46,6 +47,7 @@ impl AgentBuilder {
             max_tokens: None,
             temperature: None,
             system_prompt: None,
+            enable_usage_metadata: None,
             max_chat_completion: 10,
             max_conversation_history: 20,
             toolbox: None,
@@ -111,6 +113,14 @@ impl AgentBuilder {
 
     pub fn with_system_prompt(mut self, prompt: impl Into<String>) -> Self {
         self.system_prompt = Some(prompt.into());
+        self
+    }
+
+    /// Override whether the built [`Agent`] prefers usage metadata to be
+    /// attached to terminal tasks. Overrides the value from any
+    /// [`AgentConfig`] supplied via [`with_config`](Self::with_config).
+    pub fn with_enable_usage_metadata(mut self, enable: bool) -> Self {
+        self.enable_usage_metadata = Some(enable);
         self
     }
 
@@ -193,6 +203,9 @@ impl AgentBuilder {
         if let Some(v) = self.system_prompt.clone() {
             effective.system_prompt = Some(v);
         }
+        if let Some(v) = self.enable_usage_metadata {
+            effective.enable_usage_metadata = v;
+        }
 
         let llm_client: Arc<dyn LLMClient> = match self.llm_client {
             Some(client) => client,
@@ -206,6 +219,7 @@ impl AgentBuilder {
             max_conversation_history: self.max_conversation_history,
             toolbox: self.toolbox,
             tool_handlers: self.tool_handlers,
+            enable_usage_metadata: effective.enable_usage_metadata,
         })
     }
 }
@@ -414,5 +428,52 @@ mod tests {
                 _ => {}
             }
         }
+    }
+
+    #[tokio::test]
+    async fn enable_usage_metadata_round_trips_from_config_and_override() {
+        let base = || AgentConfig {
+            provider: "openai".to_string(),
+            model: "gpt-4".to_string(),
+            ..Default::default()
+        };
+
+        // Default config enables usage metadata.
+        let agent = AgentBuilder::new()
+            .with_config(&base())
+            .build()
+            .await
+            .expect("agent builds");
+        assert!(
+            agent.usage_metadata_enabled(),
+            "AgentConfig defaults usage metadata on"
+        );
+
+        // A config that disables it propagates to the built agent.
+        let disabled_cfg = AgentConfig {
+            enable_usage_metadata: false,
+            ..base()
+        };
+        let agent = AgentBuilder::new()
+            .with_config(&disabled_cfg)
+            .build()
+            .await
+            .expect("agent builds");
+        assert!(
+            !agent.usage_metadata_enabled(),
+            "config flag should disable usage metadata"
+        );
+
+        // An explicit builder override wins over the config value.
+        let agent = AgentBuilder::new()
+            .with_config(&disabled_cfg)
+            .with_enable_usage_metadata(true)
+            .build()
+            .await
+            .expect("agent builds");
+        assert!(
+            agent.usage_metadata_enabled(),
+            "with_enable_usage_metadata should override the config flag"
+        );
     }
 }

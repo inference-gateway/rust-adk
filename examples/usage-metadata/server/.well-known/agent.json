@@ -1,0 +1,27 @@
+{
+  "name": "Rust A2A Usage-Metadata Server",
+  "description": "A2A server that attaches token usage + execution stats to terminal tasks, built with the Rust ADK",
+  "version": "0.1.0",
+  "protocolVersion": "0.2.6",
+  "url": "http://localhost:8080",
+  "preferredTransport": "JSONRPC",
+  "capabilities": {
+    "streaming": true,
+    "pushNotifications": false,
+    "stateTransitionHistory": false
+  },
+  "provider": {
+    "organization": "Inference Gateway",
+    "url": "https://github.com/inference-gateway/rust-adk"
+  },
+  "skills": [
+    {
+      "id": "calculate_sum",
+      "name": "calculate_sum",
+      "description": "Add a list of numbers together",
+      "tags": ["math", "tool"]
+    }
+  ],
+  "defaultInputModes": ["text/plain"],
+  "defaultOutputModes": ["text/plain"]
+}

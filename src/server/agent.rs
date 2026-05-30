@@ -14,6 +14,7 @@ pub struct Agent {
     #[allow(dead_code)]
     pub(super) toolbox: Option<Vec<ChatCompletionTool>>,
     pub(super) tool_handlers: HashMap<String, Box<dyn ToolHandler>>,
+    pub(super) enable_usage_metadata: bool,
 }
 
 impl std::fmt::Debug for Agent {
@@ -28,6 +29,7 @@ impl std::fmt::Debug for Agent {
                 "tool_handlers",
                 &format!("{} handlers", self.tool_handlers.len()),
             )
+            .field("enable_usage_metadata", &self.enable_usage_metadata)
             .finish()
     }
 }
@@ -51,5 +53,13 @@ impl Agent {
     /// The LLM client this agent dispatches chat completions through.
     pub fn llm_client(&self) -> &Arc<dyn LLMClient> {
         &self.llm_client
+    }
+
+    /// Whether the agent prefers usage metadata to be attached to terminal
+    /// tasks. The default task handlers seed their own flag from this value;
+    /// [`A2AServerBuilder`](crate::A2AServerBuilder) may further override it
+    /// from [`AgentConfig`](crate::AgentConfig).
+    pub fn usage_metadata_enabled(&self) -> bool {
+        self.enable_usage_metadata
     }
 }

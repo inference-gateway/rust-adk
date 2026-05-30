@@ -236,18 +236,20 @@ impl A2AServerBuilder {
 
         let background_task_handler = match self.background_task_handler {
             Some(h) => Some(h),
-            None if self.use_default_background_task_handler => Some(Arc::new(
-                DefaultBackgroundTaskHandler::new(self.agent.clone()),
-            )
-                as Arc<dyn TaskHandler>),
+            None if self.use_default_background_task_handler => {
+                let mut handler = DefaultBackgroundTaskHandler::new(self.agent.clone());
+                handler.set_enable_usage_metadata(config.agent_config.enable_usage_metadata);
+                Some(Arc::new(handler) as Arc<dyn TaskHandler>)
+            }
             None => None,
         };
         let streaming_task_handler = match self.streaming_task_handler {
             Some(h) => Some(h),
-            None if self.use_default_streaming_task_handler => Some(Arc::new(
-                DefaultStreamingTaskHandler::new(self.agent.clone()),
-            )
-                as Arc<dyn StreamableTaskHandler>),
+            None if self.use_default_streaming_task_handler => {
+                let mut handler = DefaultStreamingTaskHandler::new(self.agent.clone());
+                handler.set_enable_usage_metadata(config.agent_config.enable_usage_metadata);
+                Some(Arc::new(handler) as Arc<dyn StreamableTaskHandler>)
+            }
             None => None,
         };
 

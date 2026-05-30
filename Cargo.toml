@@ -87,6 +87,8 @@ members = [
     "examples/ai-powered/client",
     "examples/ai-powered-streaming/server",
     "examples/ai-powered-streaming/client",
+    "examples/usage-metadata/server",
+    "examples/usage-metadata/client",
     "examples/default-handlers/server",
     "examples/default-handlers/client",
     "examples/streaming/server",

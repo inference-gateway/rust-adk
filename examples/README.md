@@ -36,6 +36,7 @@ override via `.env` to use any other provider supported by the gateway
 | [`default-handlers/`](./default-handlers) | LLM agent + `with_default_task_handlers()`, no custom handler code |
 | [`ai-powered/`](./ai-powered) | LLM agent with custom function tools (weather, math, search) |
 | [`ai-powered-streaming/`](./ai-powered-streaming) | LLM agent streamed over `message/stream` |
+| [`usage-metadata/`](./usage-metadata) | Default handlers attach token `usage` + `execution_stats` to `task.metadata` on terminal states |
 
 ### Storage & Protocol
 
@@ -155,12 +156,15 @@ the top-level [README](../README.md) for the full env var reference.
    tool-loop via `message/send`.
 9. **`ai-powered-streaming/`** - the same LLM agent shape streamed over
    `message/stream`.
-10. **`queue-storage/`** - swap the in-memory storage backend for Redis
+10. **`usage-metadata/`** - let the default handlers tally token usage and
+    agent-loop stats, attaching them to `task.metadata` on the terminal
+    transition.
+11. **`queue-storage/`** - swap the in-memory storage backend for Redis
     and scale workers horizontally.
-11. **`a2a-methods/`** - every JSON-RPC method exposed by the A2A
+12. **`a2a-methods/`** - every JSON-RPC method exposed by the A2A
     specification, exercised one client at a time.
-12. **`artifacts-filesystem/`** — produce file artifacts via the
+13. **`artifacts-filesystem/`** — produce file artifacts via the
     standalone artifacts HTTP server with a filesystem-backed store.
-13. **`artifacts-minio/`** — same shape with `MinioArtifactStorage`
+14. **`artifacts-minio/`** — same shape with `MinioArtifactStorage`
     against a MinIO container; demonstrates the `minio` Cargo feature
     and direct-to-MinIO downloads.
