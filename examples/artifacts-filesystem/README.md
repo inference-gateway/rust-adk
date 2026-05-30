@@ -104,7 +104,8 @@ working directory the server was launched from.
 
 ## Environment variables
 
-When `ARTIFACTS_ENABLE=true`, `Config::from_env()` reads:
+The server loads these via `envy::prefixed("ARTIFACTS_").from_env::<ArtifactsConfig>()`
+and assigns the result onto `Config::artifacts_config`:
 
 | Variable | Default | Description |
 | --- | --- | --- |

@@ -16,7 +16,7 @@
 //! [`A2AServerBuilder`]: super::server_builder::A2AServerBuilder
 
 use super::artifact_storage::ArtifactStorage;
-use crate::a2a_types::{Artifact, FilePart, Part, Struct, Task};
+use crate::a2a_types::{Artifact, DataPart, FilePart, Part, Struct, Task};
 use anyhow::Result;
 use async_trait::async_trait;
 use std::sync::Arc;
@@ -232,22 +232,24 @@ impl ArtifactService for DefaultArtifactService {
         description: &str,
         data: serde_json::Value,
     ) -> Artifact {
-        let metadata_struct = match data {
-            serde_json::Value::Object(map) => Some(Struct(map)),
+        // `DataPart.data` is a `Struct` (a JSON object), so a non-object
+        // payload is wrapped under a `value` key rather than dropped.
+        let data_struct = match data {
+            serde_json::Value::Object(map) => Struct(map),
             other => {
                 let mut wrapper = serde_json::Map::new();
                 wrapper.insert("value".to_string(), other);
-                Some(Struct(wrapper))
+                Struct(wrapper)
             }
         };
         Artifact {
             artifact_id: uuid::Uuid::new_v4().to_string(),
             description: Some(description.to_string()),
             extensions: vec![],
-            metadata: metadata_struct,
+            metadata: None,
             name: Some(name.to_string()),
             parts: vec![Part {
-                data: None,
+                data: Some(DataPart { data: data_struct }),
                 file: None,
                 metadata: None,
                 text: None,
@@ -489,11 +491,32 @@ mod tests {
     }
 
     #[test]
-    fn create_data_artifact_emits_metadata() {
+    fn create_data_artifact_emits_data_part() {
         let svc = DefaultArtifactService::without_storage();
         let art =
             svc.create_data_artifact("stats", "summary", serde_json::json!({"a": 1, "b": "two"}));
-        let meta = art.metadata.as_ref().expect("metadata");
-        assert_eq!(meta.0.get("a").and_then(|v| v.as_i64()), Some(1));
+        assert!(
+            art.metadata.is_none(),
+            "structured payload belongs in the DataPart, not artifact metadata"
+        );
+        assert_eq!(art.parts.len(), 1);
+        let part = &art.parts[0];
+        assert!(part.text.is_none());
+        assert!(part.file.is_none());
+        let data_part = part.data.as_ref().expect("data part");
+        assert_eq!(data_part.data.0.get("a").and_then(|v| v.as_i64()), Some(1));
+        assert_eq!(
+            data_part.data.0.get("b").and_then(|v| v.as_str()),
+            Some("two")
+        );
+    }
+
+    #[test]
+    fn create_data_artifact_wraps_non_object_payload() {
+        let svc = DefaultArtifactService::without_storage();
+        let art = svc.create_data_artifact("nums", "list", serde_json::json!([1, 2, 3]));
+        let data_part = art.parts[0].data.as_ref().expect("data part");
+        let value = data_part.data.0.get("value").expect("wrapped value");
+        assert!(value.is_array());
     }
 }

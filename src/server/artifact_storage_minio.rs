@@ -33,7 +33,9 @@ use minio::s3::types::{S3Api, ToStream, minio_error_response::MinioErrorCode};
 
 use crate::config::ArtifactsStorageConfig;
 
-use super::artifact_storage::{ArtifactStorage, StoredArtifactInfo, sanitize_segment};
+use super::artifact_storage::{
+    ArtifactStorage, StoredArtifactInfo, sanitize_segment, urlencode_segment,
+};
 
 /// MinIO-backed [`ArtifactStorage`].
 ///
@@ -305,21 +307,4 @@ impl ArtifactStorage for MinioArtifactStorage {
         }
         Ok(out)
     }
-}
-
-fn urlencode_segment(input: &str) -> String {
-    let mut out = String::with_capacity(input.len());
-    for byte in input.as_bytes() {
-        let b = *byte;
-        let is_safe = matches!(
-            b,
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~'
-        );
-        if is_safe {
-            out.push(b as char);
-        } else {
-            out.push_str(&format!("%{b:02X}"));
-        }
-    }
-    out
 }

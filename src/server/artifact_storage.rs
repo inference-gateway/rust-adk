@@ -314,7 +314,7 @@ impl ArtifactStorage for FilesystemArtifactStorage {
 /// characters that would break URL parsing or path semantics (space,
 /// `#`, `?`, control chars). Everything else is preserved so generated
 /// URLs remain readable.
-fn urlencode_segment(input: &str) -> String {
+pub(crate) fn urlencode_segment(input: &str) -> String {
     let mut out = String::with_capacity(input.len());
     for byte in input.as_bytes() {
         let b = *byte;

@@ -18,11 +18,10 @@
 
 use inference_gateway_adk::a2a_types::{Message as A2AMessage, Task, TaskState};
 use inference_gateway_adk::{
-    A2AServerBuilder, ArtifactsConfig, ArtifactsServerConfig, ArtifactsStorageConfig,
-    ArtifactsStorageProvider, Config, StreamEmitter, StreamableTaskHandler,
+    A2AServerBuilder, ArtifactsConfig, ArtifactsStorageProvider, Config, StreamEmitter,
+    StreamableTaskHandler,
 };
 use std::env;
-use std::time::Duration;
 use tracing::{error, info};
 
 /// Streaming handler that emits a fixed text report as a downloadable
@@ -82,40 +81,42 @@ impl StreamableTaskHandler for ReportHandler {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt().init();
 
-    let endpoint = env::var("ARTIFACTS_STORAGE_ENDPOINT")
-        .unwrap_or_else(|_| "http://localhost:9000".to_string());
-    let access_key =
-        env::var("ARTIFACTS_STORAGE_ACCESS_KEY").unwrap_or_else(|_| "minioadmin".to_string());
-    let secret_key =
-        env::var("ARTIFACTS_STORAGE_SECRET_KEY").unwrap_or_else(|_| "minioadmin".to_string());
-    let bucket_name =
-        env::var("ARTIFACTS_STORAGE_BUCKET_NAME").unwrap_or_else(|_| "artifacts".to_string());
-    let base_url = env::var("ARTIFACTS_STORAGE_BASE_URL")
-        .unwrap_or_else(|_| "http://localhost:9000".to_string());
+    // MinIO connection settings load from the `ARTIFACTS_STORAGE_*` env
+    // surface (see docker-compose.yaml). This example always runs the
+    // MinIO backend on :8090; anything the env surface leaves unset falls
+    // back to a local-friendly default so `cargo run` works out of the box.
+    let mut artifacts_config = envy::prefixed("ARTIFACTS_")
+        .from_env::<ArtifactsConfig>()
+        .map_err(|e| format!("failed to load ARTIFACTS_* config: {e}"))?;
+    artifacts_config.enable = true;
+    artifacts_config.server.port = 8090;
+    artifacts_config.storage.provider = ArtifactsStorageProvider::Minio;
+
+    let storage = &mut artifacts_config.storage;
+    let endpoint = storage
+        .endpoint
+        .get_or_insert_with(|| "http://localhost:9000".to_string())
+        .clone();
+    storage
+        .access_key
+        .get_or_insert_with(|| "minioadmin".to_string());
+    storage
+        .secret_key
+        .get_or_insert_with(|| "minioadmin".to_string());
+    let bucket_name = storage
+        .bucket_name
+        .get_or_insert_with(|| "artifacts".to_string())
+        .clone();
+    storage
+        .region
+        .get_or_insert_with(|| "us-east-1".to_string());
+    if env::var_os("ARTIFACTS_STORAGE_BASE_URL").is_none() {
+        storage.base_url = "http://localhost:9000".to_string();
+    }
+    storage.use_ssl = endpoint.starts_with("https://");
 
     let config = Config {
-        artifacts_config: ArtifactsConfig {
-            enable: true,
-            server: ArtifactsServerConfig {
-                host: "0.0.0.0".to_string(),
-                port: 8090,
-                read_timeout: Duration::from_secs(30),
-                write_timeout: Duration::from_secs(30),
-                tls: None,
-            },
-            storage: ArtifactsStorageConfig {
-                provider: ArtifactsStorageProvider::Minio,
-                base_path: String::new(),
-                base_url,
-                endpoint: Some(endpoint.clone()),
-                access_key: Some(access_key),
-                secret_key: Some(secret_key),
-                bucket_name: Some(bucket_name.clone()),
-                region: Some("us-east-1".to_string()),
-                use_ssl: endpoint.starts_with("https://"),
-            },
-            retention: Default::default(),
-        },
+        artifacts_config,
         ..Config::default()
     };
 
@@ -123,7 +124,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_config(config)
         .with_agent_card_from_file(".well-known/agent.json", None)
         .with_streaming_task_handler(ReportHandler)
-        .with_default_background_task_handler()
         .build()
         .await?;
 

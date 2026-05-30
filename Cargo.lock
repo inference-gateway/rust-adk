@@ -1626,6 +1626,7 @@ dependencies = [
  "axum-server",
  "bytes",
  "chrono",
+ "envy",
  "eventsource-stream",
  "futures",
  "futures-util",

@@ -14,11 +14,9 @@
 
 use inference_gateway_adk::a2a_types::{Message as A2AMessage, Task, TaskState};
 use inference_gateway_adk::{
-    A2AServerBuilder, ArtifactsConfig, ArtifactsServerConfig, ArtifactsStorageConfig, Config,
-    StreamEmitter, StreamableTaskHandler,
+    A2AServerBuilder, ArtifactsConfig, Config, StreamEmitter, StreamableTaskHandler,
 };
 use std::env;
-use std::time::Duration;
 use tracing::{error, info};
 
 /// Streaming handler that emits a fixed text report as a downloadable
@@ -77,34 +75,23 @@ impl StreamableTaskHandler for ReportHandler {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt().init();
 
-    let artifacts_host =
-        env::var("ARTIFACTS_SERVER_HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
-    let artifacts_port: u16 = env::var("ARTIFACTS_SERVER_PORT")
-        .ok()
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(8088);
-    let base_path =
-        env::var("ARTIFACTS_STORAGE_BASE_PATH").unwrap_or_else(|_| "./artifacts-data".to_string());
-    let base_url = env::var("ARTIFACTS_STORAGE_BASE_URL")
-        .unwrap_or_else(|_| format!("http://localhost:{artifacts_port}"));
+    // The artifacts subsystem loads from the `ARTIFACTS_*` env surface
+    // (see docker-compose.yaml). Running the example directly without
+    // those vars falls back to local-friendly defaults so it still
+    // serves artifacts on :8088.
+    let mut artifacts_config = envy::prefixed("ARTIFACTS_")
+        .from_env::<ArtifactsConfig>()
+        .map_err(|e| format!("failed to load ARTIFACTS_* config: {e}"))?;
+    if env::var_os("ARTIFACTS_ENABLE").is_none() {
+        artifacts_config.enable = true;
+        artifacts_config.server.port = 8088;
+        artifacts_config.storage.base_path = "./artifacts-data".to_string();
+        artifacts_config.storage.base_url = "http://localhost:8088".to_string();
+    }
 
+    let base_url = artifacts_config.storage.base_url.clone();
     let config = Config {
-        artifacts_config: ArtifactsConfig {
-            enable: true,
-            server: ArtifactsServerConfig {
-                host: artifacts_host,
-                port: artifacts_port,
-                read_timeout: Duration::from_secs(30),
-                write_timeout: Duration::from_secs(30),
-                tls: None,
-            },
-            storage: ArtifactsStorageConfig {
-                base_path,
-                base_url: base_url.clone(),
-                ..ArtifactsStorageConfig::default()
-            },
-            retention: Default::default(),
-        },
+        artifacts_config,
         ..Config::default()
     };
 
@@ -112,7 +99,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_config(config)
         .with_agent_card_from_file(".well-known/agent.json", None)
         .with_streaming_task_handler(ReportHandler)
-        .with_default_background_task_handler()
         .build()
         .await?;
 
