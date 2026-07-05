@@ -197,9 +197,91 @@ pub(super) fn parse_provider(provider_str: &str) -> Result<Provider> {
         "cloudflare" => Ok(Provider::Cloudflare),
         "deepseek" => Ok(Provider::Deepseek),
         "ollama" => Ok(Provider::Ollama),
+        "nvidia" => Ok(Provider::Nvidia),
         _ => Err(anyhow!(
-            "Unsupported provider: {}. Supported providers: groq, google, openai, anthropic, cohere, cloudflare, deepseek, ollama",
+            "Unsupported provider: {}. Supported providers: groq, google, openai, anthropic, cohere, cloudflare, deepseek, ollama, nvidia",
             provider_str
         )),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[derive(Debug)]
+    struct ProviderCase {
+        input: &'static str,
+        expected: Provider,
+    }
+
+    #[test]
+    fn parse_provider_maps_known_providers() {
+        let cases = vec![
+            ProviderCase {
+                input: "groq",
+                expected: Provider::Groq,
+            },
+            ProviderCase {
+                input: "google",
+                expected: Provider::Google,
+            },
+            ProviderCase {
+                input: "openai",
+                expected: Provider::Openai,
+            },
+            ProviderCase {
+                input: "anthropic",
+                expected: Provider::Anthropic,
+            },
+            ProviderCase {
+                input: "cohere",
+                expected: Provider::Cohere,
+            },
+            ProviderCase {
+                input: "cloudflare",
+                expected: Provider::Cloudflare,
+            },
+            ProviderCase {
+                input: "deepseek",
+                expected: Provider::Deepseek,
+            },
+            ProviderCase {
+                input: "ollama",
+                expected: Provider::Ollama,
+            },
+            ProviderCase {
+                input: "nvidia",
+                expected: Provider::Nvidia,
+            },
+        ];
+
+        for case in cases {
+            let parsed = parse_provider(case.input)
+                .unwrap_or_else(|e| panic!("provider {} should parse: {e}", case.input));
+            assert_eq!(
+                parsed, case.expected,
+                "provider {} mapped to the wrong variant",
+                case.input
+            );
+        }
+    }
+
+    #[test]
+    fn parse_provider_is_case_insensitive() {
+        assert_eq!(parse_provider("NVIDIA").unwrap(), Provider::Nvidia);
+        assert_eq!(parse_provider("Nvidia").unwrap(), Provider::Nvidia);
+    }
+
+    #[test]
+    fn parse_provider_rejects_unknown() {
+        let err = parse_provider("does-not-exist")
+            .expect_err("unknown provider should be rejected")
+            .to_string();
+        assert!(err.contains("Unsupported provider"));
+        assert!(
+            err.contains("nvidia"),
+            "error should advertise nvidia support"
+        );
     }
 }

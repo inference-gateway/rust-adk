@@ -284,7 +284,7 @@ suggested learning path.
 ### Core Capabilities
 
 - 🤖 **A2A Protocol Compliance**: Full implementation of the Agent-to-Agent communication standard
-- 🔌 **Multi-Provider Support**: Works with OpenAI, Ollama, Groq, Cohere, and other LLM providers
+- 🔌 **Multi-Provider Support**: Works with OpenAI, Ollama, Groq, Cohere, NVIDIA, and other LLM providers
 - 🌊 **Real-time Streaming**: Stream responses as they're generated from language models
 - 🔧 **Custom Tools**: Easy integration of custom tools and capabilities
 - 🔐 **Secure Authentication**: Built-in OIDC/OAuth2 authentication support
@@ -1374,7 +1374,7 @@ AGENT_VERSION="1.0.0"
 AGENT_CARD_FILE_PATH="./.well-known/agent.json"
 
 # LLM client (the ADK fails fast at AgentBuilder::build if provider/model are unset)
-A2A_AGENT_CLIENT_PROVIDER="deepseek"            # groq, google, openai, anthropic, cohere, cloudflare, deepseek, ollama
+A2A_AGENT_CLIENT_PROVIDER="deepseek"            # groq, google, openai, anthropic, cohere, cloudflare, deepseek, ollama, nvidia
 A2A_AGENT_CLIENT_MODEL="deepseek-v4-flash"
 A2A_AGENT_CLIENT_API_KEY="your-api-key"
 A2A_AGENT_CLIENT_BASE_URL="http://inference-gateway:8080/v1"

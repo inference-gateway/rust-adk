@@ -18,7 +18,7 @@ redis = ["dep:redis"]
 minio = ["dep:minio", "dep:bytes"]
 
 [dependencies]
-inference-gateway-sdk = "0.13.3"
+inference-gateway-sdk = "0.14.1"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
 tokio = { version = "1.52.3", features = ["full"] }
@@ -106,7 +106,7 @@ members = [
 ]
 
 [workspace.dependencies]
-inference-gateway-sdk = "0.13.4"
+inference-gateway-sdk = "0.14.1"
 tokio = { version = "1.52.3", features = ["full", "signal"] }
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter", "json"] }
