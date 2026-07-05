@@ -49,7 +49,7 @@ The stack starts three services on a private Docker network:
 Defaults: `AGENT_CLIENT_PROVIDER=deepseek`, `AGENT_CLIENT_MODEL=deepseek-v4-flash`.
 Override via `.env` to switch to any other provider supported by the gateway
 (`groq`, `google`, `openai`, `anthropic`, `cohere`, `cloudflare`, `ollama`,
-`nvidia`). For NVIDIA (the build.nvidia.com API catalog), set
+`nvidia`). For Nvidia (the build.nvidia.com API catalog), set
 `A2A_AGENT_CLIENT_PROVIDER=nvidia` and e.g.
 `A2A_AGENT_CLIENT_MODEL=nvidia/meta/llama-3.1-8b-instruct`.
 

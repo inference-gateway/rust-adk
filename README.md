@@ -284,7 +284,7 @@ suggested learning path.
 ### Core Capabilities
 
 - 🤖 **A2A Protocol Compliance**: Full implementation of the Agent-to-Agent communication standard
-- 🔌 **Multi-Provider Support**: Works with OpenAI, Ollama, Groq, Cohere, NVIDIA, and other LLM providers
+- 🔌 **Multi-Provider Support**: Works with OpenAI, Ollama, Groq, Cohere, Nvidia, and other LLM providers
 - 🌊 **Real-time Streaming**: Stream responses as they're generated from language models
 - 🔧 **Custom Tools**: Easy integration of custom tools and capabilities
 - 🔐 **Secure Authentication**: Built-in OIDC/OAuth2 authentication support
