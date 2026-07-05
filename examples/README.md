@@ -29,7 +29,10 @@ These scenarios start an `inference-gateway:latest` container alongside the
 server and client. Defaults target DeepSeek
 (`AGENT_CLIENT_PROVIDER=deepseek`, `AGENT_CLIENT_MODEL=deepseek-v4-flash`);
 override via `.env` to use any other provider supported by the gateway
-(`groq`, `google`, `openai`, `anthropic`, `cohere`, `cloudflare`, `ollama`).
+(`groq`, `google`, `openai`, `anthropic`, `cohere`, `cloudflare`, `ollama`,
+`nvidia`). To target NVIDIA (the build.nvidia.com API catalog), set
+`A2A_AGENT_CLIENT_PROVIDER=nvidia` and
+`A2A_AGENT_CLIENT_MODEL=nvidia/meta/llama-3.1-8b-instruct`.
 
 | Example | What it shows |
 |---|---|
