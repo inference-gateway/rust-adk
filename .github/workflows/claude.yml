@@ -48,7 +48,7 @@ jobs:
       issues: write
       id-token: write
       actions: read
-    uses: inference-gateway/.github/.github/workflows/claude.yml@v0.16.1
+    uses: inference-gateway/.github/.github/workflows/claude.yml@v0.20.2
     with:
       language: "rust"
       browser: ${{ inputs.browser || false }}
