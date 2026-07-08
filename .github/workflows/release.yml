@@ -8,6 +8,9 @@ env:
   CARGO_TERM_COLOR: always
   REGISTRY: crates.io
 
+permissions:
+  contents: read
+
 jobs:
   github_release:
     name: GitHub Release
