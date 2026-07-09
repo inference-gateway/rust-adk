@@ -51,6 +51,8 @@ jobs:
     uses: inference-gateway/.github/.github/workflows/claude.yml@main
     with:
       language: "rust"
+      plugins: |
+        DietrichGebert/ponytail
       browser: ${{ inputs.browser || false }}
       prompt: ${{ inputs.prompt }}
     secrets: inherit
