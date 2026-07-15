@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.0](https://github.com/inference-gateway/rust-adk/compare/0.6.0...0.7.0) (2026-07-15)
+
+### ✨ Features
+
+* single-gate trace export via A2A_OTEL_TRACES_EXPORTER ([#102](https://github.com/inference-gateway/rust-adk/issues/102)) ([3106e6b](https://github.com/inference-gateway/rust-adk/commit/3106e6bc6d846f724296687c0519573ff44bb25e)), closes [#101](https://github.com/inference-gateway/rust-adk/issues/101)
+
+### 👷 CI
+
+* **claude:** centralize claude.yml via reusable workflow ([#98](https://github.com/inference-gateway/rust-adk/issues/98)) ([64df6dd](https://github.com/inference-gateway/rust-adk/commit/64df6ddb2010e1c8837e8aa94e241940aa087813))
+* **infer:** centralize infer.yml via reusable workflow ([#93](https://github.com/inference-gateway/rust-adk/issues/93)) ([8fc01f0](https://github.com/inference-gateway/rust-adk/commit/8fc01f052fa3518cd42a58938858e3c4f929fe37))
+* **infer:** centralize infer.yml via reusable workflow ([#94](https://github.com/inference-gateway/rust-adk/issues/94)) ([c7e565a](https://github.com/inference-gateway/rust-adk/commit/c7e565ab738da9f028bfc38305a1b0f018be57e2))
+* **release:** update semantic release and plugins to latest versions with local installation ([af23474](https://github.com/inference-gateway/rust-adk/commit/af23474398e1ce47fe7da0975ffcdc458af8cf6e))
+* restrict default workflow token permissions to contents: read ([#92](https://github.com/inference-gateway/rust-adk/issues/92)) ([5dd02f3](https://github.com/inference-gateway/rust-adk/commit/5dd02f3f13c9b469c620c9442cedcce6443653e8))
+
+### 🔧 Miscellaneous
+
+* **deps:** bump claude-code 2.1.197 -> 2.1.201 ([#87](https://github.com/inference-gateway/rust-adk/issues/87)) ([617177a](https://github.com/inference-gateway/rust-adk/commit/617177a016ecc098dcda658cae0973766c6ca53f))
+* **deps:** bump claude-code-action v1.0.168 -> v1.0.169 ([#97](https://github.com/inference-gateway/rust-adk/issues/97)) ([ccb58b0](https://github.com/inference-gateway/rust-adk/commit/ccb58b0f18c5adbde0925fb4d647ae2591193b7a))
+* **deps:** bump infer CLI v0.130.1 -> v0.133.0, infer-action v0.23.1 -> v0.26.0 ([#88](https://github.com/inference-gateway/rust-adk/issues/88)) ([d8adabe](https://github.com/inference-gateway/rust-adk/commit/d8adabe43d6fb3eaab1d2076edc21dc410da5913))
+* **deps:** bump infer CLI v0.133.0 -> v0.133.1, infer-action v0.26.0 -> v0.27.1 ([#89](https://github.com/inference-gateway/rust-adk/issues/89)) ([45f00c1](https://github.com/inference-gateway/rust-adk/commit/45f00c116c61388d0cafca9e4489457a6332a662))
+* **deps:** bump infer CLI v0.133.1 -> v0.137.0, infer-action v0.27.1 -> v0.29.0 ([#90](https://github.com/inference-gateway/rust-adk/issues/90)) ([a812430](https://github.com/inference-gateway/rust-adk/commit/a8124307e01ddd94b4770b8f8e9b27a3826a39fb))
+* **deps:** bump infer CLI v0.137.0 -> v0.138.0, infer-action v0.29.0 -> v0.30.1 ([#91](https://github.com/inference-gateway/rust-adk/issues/91)) ([a491d34](https://github.com/inference-gateway/rust-adk/commit/a491d348998255a042ed6771028dc2233dd0f991))
+* **deps:** bump infer CLI v0.138.0 -> v0.141.0 ([#99](https://github.com/inference-gateway/rust-adk/issues/99)) ([1694ae8](https://github.com/inference-gateway/rust-adk/commit/1694ae89da96fa137b5512b735e2ce6412249875))
+* **deps:** bump inference-gateway/.github/.github/workflows/claude.yml ([#95](https://github.com/inference-gateway/rust-adk/issues/95)) ([c8220db](https://github.com/inference-gateway/rust-adk/commit/c8220db741bbe0f8e5922fdf676eea087cbcb3e2))
+* **deps:** bump the cargo group with 2 updates ([#96](https://github.com/inference-gateway/rust-adk/issues/96)) ([9746038](https://github.com/inference-gateway/rust-adk/commit/974603824ce3cddab631f8000de9c1f52ede7472))
+* **release:** use dynamic GitHub App user details for commit author and committer ([a2768da](https://github.com/inference-gateway/rust-adk/commit/a2768da2db1880dc4f211b1f349a57f7d12f6584))
+
 ## [0.6.0](https://github.com/inference-gateway/rust-adk/compare/0.5.0...0.6.0) (2026-07-05)
 
 ## [0.5.0](https://github.com/inference-gateway/rust-adk/compare/0.4.3...0.5.0) (2026-06-18)
