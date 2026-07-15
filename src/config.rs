@@ -243,6 +243,30 @@ mod de {
             d.deserialize_any(V)
         }
     }
+
+    pub mod traces_exporter {
+        use crate::config::TracesExporter;
+        use std::str::FromStr;
+        pub fn deserialize<'de, D>(d: D) -> Result<TracesExporter, D::Error>
+        where
+            D: serde::Deserializer<'de>,
+        {
+            struct V;
+            impl<'de> serde::de::Visitor<'de> for V {
+                type Value = TracesExporter;
+                fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                    f.write_str("`otlp` or `none`")
+                }
+                fn visit_str<E: serde::de::Error>(self, v: &str) -> Result<TracesExporter, E> {
+                    TracesExporter::from_str(v).map_err(serde::de::Error::custom)
+                }
+                fn visit_string<E: serde::de::Error>(self, v: String) -> Result<TracesExporter, E> {
+                    self.visit_str(&v)
+                }
+            }
+            d.deserialize_any(V)
+        }
+    }
 }
 
 /// Top-level ADK configuration.
@@ -505,6 +529,32 @@ pub struct ServerConfig {
     pub port: u16,
 }
 
+/// Selects the OpenTelemetry traces exporter, mirroring the standard
+/// `OTEL_TRACES_EXPORTER` env var (here under the `A2A_` prefix). When
+/// telemetry is enabled, traces default to the OTLP exporter; `none`
+/// opts the trace signal out. See [`TelemetryConfig::traces_enabled`].
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum TracesExporter {
+    #[default]
+    Otlp,
+    None,
+}
+
+impl FromStr for TracesExporter {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "otlp" | "" => Ok(TracesExporter::Otlp),
+            "none" => Ok(TracesExporter::None),
+            other => Err(format!(
+                "OTEL_TRACES_EXPORTER must be `otlp` or `none` (got {other:?})"
+            )),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default)]
 pub struct TelemetryConfig {
@@ -516,6 +566,24 @@ pub struct TelemetryConfig {
 
     #[serde(rename = "telemetry_endpoint")]
     pub endpoint: Option<String>,
+
+    /// Trace exporter selection. Defaults to OTLP; set `A2A_OTEL_TRACES_EXPORTER=none`
+    /// to opt the trace signal out even while telemetry is enabled.
+    #[serde(
+        rename = "otel_traces_exporter",
+        deserialize_with = "de::traces_exporter::deserialize"
+    )]
+    pub traces_exporter: TracesExporter,
+}
+
+impl TelemetryConfig {
+    /// Single gate for trace export: traces are active when telemetry is
+    /// enabled AND the traces exporter is not `none`. Mirrors the Go ADK,
+    /// where `A2A_TELEMETRY_ENABLE` is the sole telemetry switch and
+    /// `A2A_OTEL_TRACES_EXPORTER=none` opts the trace signal out.
+    pub fn traces_enabled(&self) -> bool {
+        self.enable && self.traces_exporter != TracesExporter::None
+    }
 }
 
 /// Top-level configuration for the artifacts subsystem - the optional
@@ -923,5 +991,59 @@ mod tests {
             )])
             .expect("Config should load");
         assert!(!config.artifacts_config.enable);
+    }
+
+    fn load_config(vars: &[(&str, &str)]) -> Config {
+        let owned = vars
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect::<Vec<_>>();
+        envy::prefixed("A2A_")
+            .from_iter::<_, Config>(owned)
+            .expect("Config should load from A2A_* vars")
+    }
+
+    #[test]
+    fn telemetry_traces_default_to_otlp_and_gate_on_enable() {
+        // Single gate: A2A_TELEMETRY_ENABLE + exporter != none.
+        let table = [
+            // (enable, exporter, expected traces_enabled)
+            (None, None, false),                  // disabled by default
+            (Some("true"), None, true),           // enabled -> defaults to otlp
+            (Some("true"), Some("otlp"), true),   // explicit otlp
+            (Some("true"), Some("none"), false),  // exporter opts out
+            (Some("false"), Some("otlp"), false), // enable is the gate
+            (None, Some("otlp"), false),          // exporter alone is not enough
+        ];
+        for (enable, exporter, expected) in table {
+            let mut vars = Vec::new();
+            if let Some(e) = enable {
+                vars.push(("A2A_TELEMETRY_ENABLE", e));
+            }
+            if let Some(x) = exporter {
+                vars.push(("A2A_OTEL_TRACES_EXPORTER", x));
+            }
+            let cfg = load_config(&vars);
+            assert_eq!(
+                cfg.telemetry_config.traces_enabled(),
+                expected,
+                "enable={enable:?} exporter={exporter:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn telemetry_exporter_defaults_to_otlp() {
+        let cfg = load_config(&[]);
+        assert_eq!(cfg.telemetry_config.traces_exporter, TracesExporter::Otlp);
+    }
+
+    #[test]
+    fn telemetry_exporter_rejects_unknown_value() {
+        let err = envy::prefixed("A2A_").from_iter::<_, Config>(vec![(
+            "A2A_OTEL_TRACES_EXPORTER".to_string(),
+            "jaeger".to_string(),
+        )]);
+        assert!(err.is_err(), "`jaeger` is not a supported exporter");
     }
 }

@@ -7,7 +7,7 @@ pub use client::{A2AClient, HealthStatus};
 pub use config::{
     AgentConfig, ArtifactRetentionConfig, ArtifactsConfig, ArtifactsServerConfig,
     ArtifactsStorageConfig, ArtifactsStorageProvider, AuthConfig, CapabilitiesConfig, ClientConfig,
-    Config, QueueConfig, QueueProvider, ServerConfig, TelemetryConfig, TlsConfig,
+    Config, QueueConfig, QueueProvider, ServerConfig, TelemetryConfig, TlsConfig, TracesExporter,
 };
 #[cfg(feature = "minio")]
 pub use server::MinioArtifactStorage;

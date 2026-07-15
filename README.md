@@ -727,7 +727,7 @@ pub struct Config {
     pub auth_config: AuthConfig,                 // A2A_AUTH_*
     pub queue_config: QueueConfig,               // A2A_QUEUE_*
     pub server_config: ServerConfig,             // A2A_SERVER_*
-    pub telemetry_config: TelemetryConfig,       // A2A_TELEMETRY_*
+    pub telemetry_config: TelemetryConfig,       // A2A_TELEMETRY_* + A2A_OTEL_TRACES_EXPORTER
 }
 ```
 
@@ -1405,6 +1405,11 @@ A2A_SERVER_TLS_ENABLE="false"                   # when true, A2AServer::serve bi
 A2A_SERVER_TLS_CERT_PATH="/path/to/cert.pem"    # PEM-encoded server certificate chain
 A2A_SERVER_TLS_KEY_PATH="/path/to/key.pem"      # PEM-encoded private key (PKCS#1, PKCS#8, or SEC1)
 A2A_SERVER_TLS_CLIENT_CA_PATH=""                # optional: when set, the server requires mTLS and trusts client certs signed by the CAs in this PEM bundle
+
+# Telemetry (optional, OpenTelemetry)
+A2A_TELEMETRY_ENABLE="false"                    # single gate for telemetry; when true, traces default to the OTLP exporter
+A2A_TELEMETRY_ENDPOINT=""                        # OTLP collector endpoint
+A2A_OTEL_TRACES_EXPORTER="otlp"                 # `otlp` (default) or `none` to opt the trace signal out while telemetry stays enabled
 ```
 
 ## A2A Ecosystem
