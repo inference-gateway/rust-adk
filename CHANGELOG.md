@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.0](https://github.com/inference-gateway/rust-adk/compare/0.7.0...0.8.0) (2026-07-18)
+
+### ✨ Features
+
+* add llamacpp provider support ([#107](https://github.com/inference-gateway/rust-adk/issues/107)) ([b81600c](https://github.com/inference-gateway/rust-adk/commit/b81600cb77f7f3dac7a37c60b5cd257c1c9f679a))
+
+### 🔧 Miscellaneous
+
+* **deps:** bump actions/setup-node in the github-actions group ([#103](https://github.com/inference-gateway/rust-adk/issues/103)) ([81f04cd](https://github.com/inference-gateway/rust-adk/commit/81f04cd44a7c59e88108cc08aa9936e91864f421))
+* **deps:** bump infer CLI v0.141.0 -> v0.147.1 ([#105](https://github.com/inference-gateway/rust-adk/issues/105)) ([a1e289e](https://github.com/inference-gateway/rust-adk/commit/a1e289e1b94a9e287c9fc0c1ac580597ac7f8b38))
+* **deps:** bump the cargo group with 4 updates ([#104](https://github.com/inference-gateway/rust-adk/issues/104)) ([03298f7](https://github.com/inference-gateway/rust-adk/commit/03298f7326a8f770e748e3782e64e7826a558982))
+* **release:** update GitHub App credentials to use RELEASER_APP_ID and RELEASER_APP_PRIVATE_KEY ([f0942ce](https://github.com/inference-gateway/rust-adk/commit/f0942ce2f86f9693be4a83d62b447b188e24b7e6))
+
 ## [0.7.0](https://github.com/inference-gateway/rust-adk/compare/0.6.0...0.7.0) (2026-07-15)
 
 ### ✨ Features
