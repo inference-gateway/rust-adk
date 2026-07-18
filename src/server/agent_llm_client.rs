@@ -198,8 +198,9 @@ pub(super) fn parse_provider(provider_str: &str) -> Result<Provider> {
         "deepseek" => Ok(Provider::Deepseek),
         "ollama" => Ok(Provider::Ollama),
         "nvidia" => Ok(Provider::Nvidia),
+        "llamacpp" => Ok(Provider::Llamacpp),
         _ => Err(anyhow!(
-            "Unsupported provider: {}. Supported providers: groq, google, openai, anthropic, cohere, cloudflare, deepseek, ollama, nvidia",
+            "Unsupported provider: {}. Supported providers: groq, google, openai, anthropic, cohere, cloudflare, deepseek, ollama, nvidia, llamacpp",
             provider_str
         )),
     }
@@ -253,6 +254,10 @@ mod tests {
             ProviderCase {
                 input: "nvidia",
                 expected: Provider::Nvidia,
+            },
+            ProviderCase {
+                input: "llamacpp",
+                expected: Provider::Llamacpp,
             },
         ];
 
