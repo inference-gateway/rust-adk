@@ -103,6 +103,8 @@ members = [
     "examples/tls/client",
     "examples/a2a-methods/server",
     "examples/a2a-methods/client",
+    "examples/mcp/server",
+    "examples/mcp/client",
 ]
 
 [workspace.dependencies]

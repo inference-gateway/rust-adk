@@ -7,7 +7,8 @@ pub use client::{A2AClient, HealthStatus};
 pub use config::{
     AgentConfig, ArtifactRetentionConfig, ArtifactsConfig, ArtifactsServerConfig,
     ArtifactsStorageConfig, ArtifactsStorageProvider, AuthConfig, CapabilitiesConfig, ClientConfig,
-    Config, QueueConfig, QueueProvider, ServerConfig, TelemetryConfig, TlsConfig, TracesExporter,
+    Config, McpConfig, QueueConfig, QueueProvider, ServerConfig, TelemetryConfig, TlsConfig,
+    TracesExporter,
 };
 #[cfg(feature = "minio")]
 pub use server::MinioArtifactStorage;
@@ -17,11 +18,12 @@ pub use server::{
     A2AServer, A2AServerBuilder, Agent, AgentBuilder, AgentCardOverrides, ArtifactService,
     ArtifactStorage, ArtifactsServer, AsyncFunctionToolHandler, AuthError, AuthVerifier,
     AuthenticatedPrincipal, ClientCertPrincipal, DefaultArtifactService,
-    DefaultBackgroundTaskHandler, DefaultStreamingTaskHandler, DefaultTaskManager,
-    FilesystemArtifactStorage, FunctionToolHandler, InMemoryStorage, LLMClient, OidcJwtVerifier,
-    OpenAICompatibleLLMClient, PeerCert, QueuedTask, Storage, StorageStats, StoredArtifactInfo,
-    StreamEmitter, StreamableTaskHandler, TaskFilter, TaskHandler, TaskManagerRunner, ToolHandler,
-    UsageTracker, create_storage, infer_mime_type, spawn_retention_task,
+    DefaultBackgroundTaskHandler, DefaultStreamingTaskHandler, DefaultTaskManager, DiscoveredTool,
+    FilesystemArtifactStorage, FunctionToolHandler, InMemoryStorage, LLMClient, McpClient,
+    OidcJwtVerifier, OpenAICompatibleLLMClient, PeerCert, QueuedTask, Storage, StorageStats,
+    StoredArtifactInfo, StreamEmitter, StreamableTaskHandler, TaskFilter, TaskHandler,
+    TaskManagerRunner, ToolHandler, UsageTracker, create_storage, infer_mime_type,
+    spawn_retention_task,
 };
 
 #[cfg(test)]

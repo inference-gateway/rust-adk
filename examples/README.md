@@ -39,6 +39,7 @@ override via `.env` to use any other provider supported by the gateway
 | [`default-handlers/`](./default-handlers) | LLM agent + `with_default_task_handlers()`, no custom handler code |
 | [`ai-powered/`](./ai-powered) | LLM agent with custom function tools (weather, math, search) |
 | [`ai-powered-streaming/`](./ai-powered-streaming) | LLM agent streamed over `message/stream` |
+| [`mcp/`](./mcp) | LLM agent that discovers/invokes MCP tools via `mcp_list_tools` / `mcp_call_tool` selector tools (`MCP_ENABLE`, `MCP_SERVERS`) |
 | [`usage-metadata/`](./usage-metadata) | Default handlers attach token `usage` + `execution_stats` to `task.metadata` on terminal states |
 
 ### Storage & Protocol

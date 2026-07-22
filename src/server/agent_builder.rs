@@ -1,6 +1,7 @@
 use super::agent::Agent;
 use super::agent_llm_client::{LLMClient, OpenAICompatibleLLMClient};
 use super::agent_toolbox::{AsyncFunctionToolHandler, FunctionToolHandler, ToolHandler};
+use super::mcp::McpClient;
 use crate::config::AgentConfig;
 use anyhow::Result;
 use inference_gateway_sdk::ChatCompletionTool;
@@ -169,6 +170,31 @@ impl AgentBuilder {
     pub fn with_llm_client<C: LLMClient + 'static>(mut self, client: C) -> Self {
         self.llm_client = Some(Arc::new(client));
         self
+    }
+
+    /// Register an [`McpClient`]'s two selector tools (`mcp_list_tools` and
+    /// `mcp_call_tool`) on the agent: their definitions are appended to the
+    /// toolbox and handlers wired to delegate to `client`. Regardless of how
+    /// many tools the MCP servers expose, only these two enter the LLM context.
+    ///
+    /// Call [`McpClient::start`] to kick off background discovery (order
+    /// relative to this call does not matter). Build the client with
+    /// [`McpClient::from_config`], which returns `None` when MCP is disabled.
+    pub fn with_mcp_client(mut self, client: Arc<McpClient>) -> Self {
+        let mut toolbox = self.toolbox.take().unwrap_or_default();
+        toolbox.extend(McpClient::selector_tools());
+        self.toolbox = Some(toolbox);
+
+        let list_client = Arc::clone(&client);
+        let call_client = client;
+        self.with_async_function_tool("mcp_list_tools".to_string(), move |args| {
+            let c = Arc::clone(&list_client);
+            async move { c.handle_list(args).await }
+        })
+        .with_async_function_tool("mcp_call_tool".to_string(), move |args| {
+            let c = Arc::clone(&call_client);
+            async move { c.handle_call(args).await }
+        })
     }
 
     pub async fn build(self) -> Result<Agent> {
