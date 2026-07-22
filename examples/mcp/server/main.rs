@@ -5,8 +5,6 @@ use tracing::{error, info};
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt().init();
 
-    // The A2A surface loads under `A2A_*`; the MCP client loads under its own
-    // `MCP_*` prefix (like the artifacts subsystem), matching the Go ADK.
     let config: Config = envy::prefixed("A2A_").from_env()?;
     let mcp_config: McpConfig = envy::prefixed("MCP_").from_env().unwrap_or_default();
 
@@ -27,8 +25,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
         .with_max_chat_completion(15);
 
-    // Gate on MCP_ENABLE: from_config returns None when disabled or no servers
-    // are set, so the two selector tools are only registered when MCP is on.
     match McpClient::from_config(&mcp_config) {
         Some(client) => {
             client.start();
