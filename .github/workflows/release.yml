@@ -45,7 +45,7 @@ jobs:
           git config --global commit.gpgsign false
           git config --global commit.signoff true
 
-      - uses: actions/checkout@v7.0.0
+      - uses: actions/checkout@v7.0.1
         with:
           ref: ${{ github.ref }}
           fetch-depth: 0
@@ -127,7 +127,7 @@ jobs:
     permissions:
       id-token: write
     steps:
-      - uses: actions/checkout@v7.0.0
+      - uses: actions/checkout@v7.0.1
         with:
           ref: ${{ github.ref }}
 
