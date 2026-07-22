@@ -10,6 +10,7 @@ mod artifact_storage_minio;
 mod artifacts_server;
 mod auth;
 mod errors;
+mod mcp;
 mod protocol;
 mod server_builder;
 mod server_core;
@@ -32,6 +33,7 @@ pub use artifact_storage::{ArtifactStorage, FilesystemArtifactStorage, StoredArt
 pub use artifact_storage_minio::MinioArtifactStorage;
 pub use artifacts_server::{ArtifactsServer, spawn_retention_task};
 pub use auth::{AuthError, AuthVerifier, AuthenticatedPrincipal, OidcJwtVerifier};
+pub use mcp::{DiscoveredTool, McpClient};
 pub use server_builder::A2AServerBuilder;
 pub use server_core::A2AServer;
 pub use storage::{InMemoryStorage, QueuedTask, Storage, StorageStats, TaskFilter, create_storage};

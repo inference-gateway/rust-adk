@@ -586,6 +586,75 @@ impl TelemetryConfig {
     }
 }
 
+/// Configuration for the optional MCP (Model Context Protocol) client.
+///
+/// Like [`ArtifactsConfig`], this loads under its own `MCP_` prefix (matching
+/// the Go ADK and the bundled example) rather than the `A2A_` surface, so load
+/// it independently and hand the result to
+/// [`McpClient::from_config`](crate::McpClient::from_config):
+///
+/// ```no_run
+/// # use inference_gateway_adk::McpConfig;
+/// let mcp = envy::prefixed("MCP_").from_env::<McpConfig>().unwrap_or_default();
+/// ```
+///
+/// When [`enable`](McpConfig::enable) is false (the default) the client is
+/// never constructed, so no selector tools are registered on the agent.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct McpConfig {
+    /// Master switch. `MCP_ENABLE`.
+    #[serde(rename = "enable", deserialize_with = "de::boolean::deserialize")]
+    pub enable: bool,
+
+    /// Comma-separated MCP server base URLs. `MCP_SERVERS`.
+    pub servers: String,
+
+    /// Path appended to each server base URL. `MCP_ENDPOINT`.
+    pub endpoint: String,
+
+    /// Tool-catalog refresh interval. `MCP_REFRESH_INTERVAL`.
+    #[serde(deserialize_with = "de::duration::deserialize")]
+    pub refresh_interval: Duration,
+
+    /// Init / list-tools timeout. `MCP_DIAL_TIMEOUT`.
+    #[serde(deserialize_with = "de::duration::deserialize")]
+    pub dial_timeout: Duration,
+
+    /// Single tool-invocation timeout. `MCP_CALL_TIMEOUT`.
+    #[serde(deserialize_with = "de::duration::deserialize")]
+    pub call_timeout: Duration,
+
+    /// Max initial connection attempts per server (0 = retry forever).
+    /// `MCP_MAX_RETRIES`.
+    #[serde(deserialize_with = "de::u32::deserialize")]
+    pub max_retries: u32,
+
+    /// Initial connect/refresh backoff (doubles on failure). `MCP_RETRY_INTERVAL`.
+    #[serde(deserialize_with = "de::duration::deserialize")]
+    pub retry_interval: Duration,
+
+    /// Backoff ceiling. `MCP_RETRY_MAX_INTERVAL`.
+    #[serde(deserialize_with = "de::duration::deserialize")]
+    pub retry_max_interval: Duration,
+}
+
+impl Default for McpConfig {
+    fn default() -> Self {
+        Self {
+            enable: false,
+            servers: String::new(),
+            endpoint: "/mcp".to_string(),
+            refresh_interval: Duration::from_secs(5 * 60),
+            dial_timeout: Duration::from_secs(30),
+            call_timeout: Duration::from_secs(30),
+            max_retries: 0,
+            retry_interval: Duration::from_secs(2),
+            retry_max_interval: Duration::from_secs(30),
+        }
+    }
+}
+
 /// Top-level configuration for the artifacts subsystem - the optional
 /// HTTP server that serves persisted task artifacts, the pluggable
 /// storage backend behind it, and the retention policy applied to
@@ -1045,5 +1114,52 @@ mod tests {
             "jaeger".to_string(),
         )]);
         assert!(err.is_err(), "`jaeger` is not a supported exporter");
+    }
+
+    fn load_mcp(vars: &[(&str, &str)]) -> McpConfig {
+        let owned = vars
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect::<Vec<_>>();
+        envy::prefixed("MCP_")
+            .from_iter::<_, McpConfig>(owned)
+            .expect("McpConfig should load from MCP_* vars")
+    }
+
+    #[test]
+    fn mcp_config_defaults_match_go_adk() {
+        let cfg = load_mcp(&[]);
+        assert!(!cfg.enable);
+        assert_eq!(cfg.endpoint, "/mcp");
+        assert_eq!(cfg.refresh_interval, Duration::from_secs(5 * 60));
+        assert_eq!(cfg.dial_timeout, Duration::from_secs(30));
+        assert_eq!(cfg.call_timeout, Duration::from_secs(30));
+        assert_eq!(cfg.max_retries, 0);
+        assert_eq!(cfg.retry_interval, Duration::from_secs(2));
+        assert_eq!(cfg.retry_max_interval, Duration::from_secs(30));
+    }
+
+    #[test]
+    fn mcp_config_loads_env_surface() {
+        let cfg = load_mcp(&[
+            ("MCP_ENABLE", "true"),
+            ("MCP_SERVERS", "http://a:3000,http://b:3000"),
+            ("MCP_ENDPOINT", "/rpc"),
+            ("MCP_REFRESH_INTERVAL", "10m"),
+            ("MCP_DIAL_TIMEOUT", "5s"),
+            ("MCP_CALL_TIMEOUT", "45s"),
+            ("MCP_MAX_RETRIES", "3"),
+            ("MCP_RETRY_INTERVAL", "1s"),
+            ("MCP_RETRY_MAX_INTERVAL", "60s"),
+        ]);
+        assert!(cfg.enable);
+        assert_eq!(cfg.servers, "http://a:3000,http://b:3000");
+        assert_eq!(cfg.endpoint, "/rpc");
+        assert_eq!(cfg.refresh_interval, Duration::from_secs(10 * 60));
+        assert_eq!(cfg.dial_timeout, Duration::from_secs(5));
+        assert_eq!(cfg.call_timeout, Duration::from_secs(45));
+        assert_eq!(cfg.max_retries, 3);
+        assert_eq!(cfg.retry_interval, Duration::from_secs(1));
+        assert_eq!(cfg.retry_max_interval, Duration::from_secs(60));
     }
 }

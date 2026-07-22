@@ -1,0 +1,33 @@
+{
+  "name": "Rust MCP Agent",
+  "description": "A2A server that discovers and invokes MCP tools via selector tools, built with the Rust ADK",
+  "version": "0.1.0",
+  "protocolVersion": "0.2.6",
+  "url": "http://localhost:8086",
+  "preferredTransport": "JSONRPC",
+  "capabilities": {
+    "streaming": true,
+    "pushNotifications": false,
+    "stateTransitionHistory": false
+  },
+  "provider": {
+    "organization": "Inference Gateway",
+    "url": "https://github.com/inference-gateway/rust-adk"
+  },
+  "skills": [
+    {
+      "id": "mcp_list_tools",
+      "name": "mcp_list_tools",
+      "description": "List tools discovered from configured MCP servers, optionally filtered by search",
+      "tags": ["mcp", "tool"]
+    },
+    {
+      "id": "mcp_call_tool",
+      "name": "mcp_call_tool",
+      "description": "Invoke a discovered MCP tool by name with an arguments object",
+      "tags": ["mcp", "tool"]
+    }
+  ],
+  "defaultInputModes": ["text/plain"],
+  "defaultOutputModes": ["text/plain"]
+}
