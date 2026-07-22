@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.0](https://github.com/inference-gateway/rust-adk/compare/0.8.0...0.9.0) (2026-07-22)
+
+### ✨ Features
+
+* add optional MCP client with selector tools ([#111](https://github.com/inference-gateway/rust-adk/issues/111)) ([de85390](https://github.com/inference-gateway/rust-adk/commit/de85390f0eda156757ca14413055b864f15c6570))
+
+### 🔧 Miscellaneous
+
+* **deps:** bump actions/checkout in the github-actions group ([#109](https://github.com/inference-gateway/rust-adk/issues/109)) ([b285ede](https://github.com/inference-gateway/rust-adk/commit/b285ede178181d092df801e2077f9f1eba3bccb0))
+* **deps:** bump the cargo group with 14 updates ([#110](https://github.com/inference-gateway/rust-adk/issues/110)) ([8993ce1](https://github.com/inference-gateway/rust-adk/commit/8993ce157c977ada62fc8ed4d257d60fb3333512))
+
 ## [0.8.0](https://github.com/inference-gateway/rust-adk/compare/0.7.0...0.8.0) (2026-07-18)
 
 ### ✨ Features
