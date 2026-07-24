@@ -83,9 +83,6 @@ impl A2AServer {
             .route("/.well-known/agent.json", get(agent_card_handler))
             .with_state(Arc::clone(&state));
 
-        // Protected JSON-RPC route. The middleware is a no-op when
-        // `AppState::auth_verifier` is `None`, but we attach it
-        // unconditionally so the protected sub-router has a consistent
         let protected = Router::new().route("/a2a", post(a2a_handler)).route_layer(
             middleware::from_fn_with_state(Arc::clone(&state), auth_middleware),
         );
