@@ -77,7 +77,6 @@ impl A2AServer {
             None => AppState::new(self),
         });
 
-        // Public routes - never gated by the auth middleware so health
         let public = Router::new()
             .route("/health", get(health_handler))
             .route("/.well-known/agent.json", get(agent_card_handler))
