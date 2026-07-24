@@ -9,10 +9,6 @@ pub struct Agent {
     pub(super) llm_client: Arc<dyn LLMClient>,
     #[allow(dead_code)]
     pub(super) max_chat_completion: u32,
-    /// Cap on how many trailing task-history messages the default task
-    /// handlers replay into the prompt (0 = unbounded). Enforced by
-    /// `build_sdk_messages` so long conversations don't grow the prompt
-    /// without bound.
     pub(super) max_conversation_history: u32,
     #[allow(dead_code)]
     pub(super) toolbox: Option<Vec<ChatCompletionTool>>,

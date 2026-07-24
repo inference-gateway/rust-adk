@@ -1690,7 +1690,6 @@ mod tests {
                 _ => String::new(),
             })
             .collect();
-        // No system prompt configured, so only the last 2 history messages survive.
         assert_eq!(texts, vec!["m3".to_string(), "m4".to_string()]);
     }
 }
