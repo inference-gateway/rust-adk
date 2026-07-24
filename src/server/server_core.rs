@@ -30,7 +30,6 @@ use tracing::{debug, error, info, warn};
 
 #[derive(Debug)]
 pub struct A2AServer {
-    #[allow(dead_code)]
     pub(super) config: Config,
     pub(super) agent_card: Option<AgentCard>,
     pub(super) agent: Option<Arc<Agent>>,

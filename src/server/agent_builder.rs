@@ -261,40 +261,15 @@ mod tests {
     use super::*;
     use inference_gateway_sdk::{ChatCompletionToolType, FunctionObject, FunctionParameters};
 
-    #[derive(Debug)]
-    struct TestCase {
-        name: &'static str,
-        #[allow(dead_code)]
-        description: &'static str,
-    }
-
     #[tokio::test]
     async fn test_agent_builder() {
-        let test_cases = vec![
-            TestCase {
-                name: "default_agent",
-                description: "Should create agent with default configuration",
-            },
-            TestCase {
-                name: "with_system_prompt",
-                description: "Should create agent with custom system prompt",
-            },
-            TestCase {
-                name: "with_toolbox",
-                description: "Should create agent with toolbox",
-            },
-            TestCase {
-                name: "with_tool_handlers",
-                description: "Should create agent with tool handlers",
-            },
-            TestCase {
-                name: "empty_model_error",
-                description: "Should fail when model is empty",
-            },
-            TestCase {
-                name: "invalid_provider_error",
-                description: "Should fail when provider is invalid",
-            },
+        let test_cases = [
+            "default_agent",
+            "with_system_prompt",
+            "with_toolbox",
+            "with_tool_handlers",
+            "empty_model_error",
+            "invalid_provider_error",
         ];
 
         let valid_config = || AgentConfig {
@@ -303,8 +278,8 @@ mod tests {
             ..Default::default()
         };
 
-        for test_case in test_cases {
-            match test_case.name {
+        for name in test_cases {
+            match name {
                 "default_agent" => {
                     let agent = AgentBuilder::new().build().await;
                     assert!(
