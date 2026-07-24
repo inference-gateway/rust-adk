@@ -142,9 +142,6 @@ async fn run_worker(
         }
 
         let last_message = task.history.last().cloned();
-        // Fresh `task.process` root span per task (no cross-process context
-        // through the queue - matches the Go ADK). Feeds the OTLP exporter
-        // when the `telemetry` feature is on; a plain tracing span otherwise.
         let span = tracing::info_span!("task.process", task_id = %task_id);
         match handler
             .handle_task(task.clone(), last_message)

@@ -9,8 +9,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = envy::prefixed("A2A_")
         .from_env::<Config>()
         .unwrap_or_default();
-    // Bound with `let _guard` so batched spans flush on SIGINT (needs
-    // `--features telemetry` on the ADK crate to actually export).
     let _guard = telemetry::init(
         &config.telemetry_config,
         "minimal-server",

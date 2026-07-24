@@ -83,7 +83,6 @@ pub fn init(
         opentelemetry::global::set_tracer_provider(provider.clone());
 
         let otel_layer = tracing_opentelemetry::layer().with_tracer(tracer);
-        // `try_init` (not `init`) so repeated calls in tests don't panic.
         let _ = tracing_subscriber::registry()
             .with(env_filter)
             .with(fmt_layer)
