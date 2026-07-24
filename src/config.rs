@@ -190,82 +190,34 @@ mod de {
         }
     }
 
-    pub mod artifacts_storage_provider {
-        use crate::config::ArtifactsStorageProvider;
-        use std::str::FromStr;
-        pub fn deserialize<'de, D>(d: D) -> Result<ArtifactsStorageProvider, D::Error>
+    /// Deserialize any `FromStr` type (e.g. the string-backed provider enums)
+    /// via `deserialize_any`, so it works both with envy's all-strings env
+    /// surface and with native string values from other loaders. Replaces the
+    /// per-enum copies that were byte-identical apart from the target type.
+    pub fn from_str<'de, T, D>(d: D) -> Result<T, D::Error>
+    where
+        T: std::str::FromStr,
+        T::Err: std::fmt::Display,
+        D: serde::Deserializer<'de>,
+    {
+        struct V<T>(std::marker::PhantomData<T>);
+        impl<T> serde::de::Visitor<'_> for V<T>
         where
-            D: serde::Deserializer<'de>,
+            T: std::str::FromStr,
+            T::Err: std::fmt::Display,
         {
-            struct V;
-            impl<'de> serde::de::Visitor<'de> for V {
-                type Value = ArtifactsStorageProvider;
-                fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                    f.write_str("`filesystem` or `minio`")
-                }
-                fn visit_str<E: serde::de::Error>(
-                    self,
-                    v: &str,
-                ) -> Result<ArtifactsStorageProvider, E> {
-                    ArtifactsStorageProvider::from_str(v).map_err(serde::de::Error::custom)
-                }
-                fn visit_string<E: serde::de::Error>(
-                    self,
-                    v: String,
-                ) -> Result<ArtifactsStorageProvider, E> {
-                    self.visit_str(&v)
-                }
+            type Value = T;
+            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                f.write_str("a string")
             }
-            d.deserialize_any(V)
-        }
-    }
-
-    pub mod queue_provider {
-        use crate::config::QueueProvider;
-        use std::str::FromStr;
-        pub fn deserialize<'de, D>(d: D) -> Result<QueueProvider, D::Error>
-        where
-            D: serde::Deserializer<'de>,
-        {
-            struct V;
-            impl<'de> serde::de::Visitor<'de> for V {
-                type Value = QueueProvider;
-                fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                    f.write_str("`memory` or `redis`")
-                }
-                fn visit_str<E: serde::de::Error>(self, v: &str) -> Result<QueueProvider, E> {
-                    QueueProvider::from_str(v).map_err(serde::de::Error::custom)
-                }
-                fn visit_string<E: serde::de::Error>(self, v: String) -> Result<QueueProvider, E> {
-                    self.visit_str(&v)
-                }
+            fn visit_str<E: serde::de::Error>(self, v: &str) -> Result<T, E> {
+                T::from_str(v).map_err(serde::de::Error::custom)
             }
-            d.deserialize_any(V)
-        }
-    }
-
-    pub mod traces_exporter {
-        use crate::config::TracesExporter;
-        use std::str::FromStr;
-        pub fn deserialize<'de, D>(d: D) -> Result<TracesExporter, D::Error>
-        where
-            D: serde::Deserializer<'de>,
-        {
-            struct V;
-            impl<'de> serde::de::Visitor<'de> for V {
-                type Value = TracesExporter;
-                fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                    f.write_str("`otlp` or `none`")
-                }
-                fn visit_str<E: serde::de::Error>(self, v: &str) -> Result<TracesExporter, E> {
-                    TracesExporter::from_str(v).map_err(serde::de::Error::custom)
-                }
-                fn visit_string<E: serde::de::Error>(self, v: String) -> Result<TracesExporter, E> {
-                    self.visit_str(&v)
-                }
+            fn visit_string<E: serde::de::Error>(self, v: String) -> Result<T, E> {
+                self.visit_str(&v)
             }
-            d.deserialize_any(V)
         }
+        d.deserialize_any(V(std::marker::PhantomData))
     }
 }
 
@@ -481,10 +433,7 @@ impl FromStr for QueueProvider {
 #[serde(default)]
 pub struct QueueConfig {
     /// Selects which `Storage` backend the server factory wires up.
-    #[serde(
-        rename = "queue_provider",
-        deserialize_with = "de::queue_provider::deserialize"
-    )]
+    #[serde(rename = "queue_provider", deserialize_with = "de::from_str")]
     pub provider: QueueProvider,
 
     /// Connection URL for the provider (e.g. `redis://host:6379`).
@@ -499,24 +448,6 @@ pub struct QueueConfig {
     /// Number of `DefaultTaskManager` workers draining the queue.
     #[serde(rename = "queue_workers", deserialize_with = "de::usize::deserialize")]
     pub workers: usize,
-
-    /// Max number of in-flight queue entries the in-memory backend will
-    /// accept (advisory; current impl does not enforce).
-    #[serde(rename = "queue_max_size", deserialize_with = "de::usize::deserialize")]
-    pub max_size: usize,
-
-    /// Per-operation timeout for backend calls, in seconds.
-    #[serde(
-        rename = "queue_timeout_secs",
-        deserialize_with = "de::u64::deserialize"
-    )]
-    pub timeout_secs: u64,
-}
-
-impl QueueConfig {
-    pub fn timeout(&self) -> Duration {
-        Duration::from_secs(self.timeout_secs)
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -569,10 +500,7 @@ pub struct TelemetryConfig {
 
     /// Trace exporter selection. Defaults to OTLP; set `A2A_OTEL_TRACES_EXPORTER=none`
     /// to opt the trace signal out even while telemetry is enabled.
-    #[serde(
-        rename = "otel_traces_exporter",
-        deserialize_with = "de::traces_exporter::deserialize"
-    )]
+    #[serde(rename = "otel_traces_exporter", deserialize_with = "de::from_str")]
     pub traces_exporter: TracesExporter,
 }
 
@@ -756,10 +684,7 @@ impl FromStr for ArtifactsStorageProvider {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct ArtifactsStorageConfig {
-    #[serde(
-        rename = "storage_provider",
-        deserialize_with = "de::artifacts_storage_provider::deserialize"
-    )]
+    #[serde(rename = "storage_provider", deserialize_with = "de::from_str")]
     pub provider: ArtifactsStorageProvider,
 
     /// Filesystem root for the `Filesystem` provider.
@@ -911,8 +836,6 @@ impl Default for QueueConfig {
             url: None,
             namespace: "a2a".to_string(),
             workers: 1,
-            max_size: 1000,
-            timeout_secs: 30,
         }
     }
 }
