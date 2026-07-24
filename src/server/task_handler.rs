@@ -353,7 +353,13 @@ fn build_sdk_messages(agent: &Agent, task: &Task) -> Vec<Message> {
             tool_calls: Vec::new(),
         });
     }
-    for a2a_msg in &task.history {
+    let max_history = agent.max_conversation_history as usize;
+    let history = if max_history > 0 && task.history.len() > max_history {
+        &task.history[task.history.len() - max_history..]
+    } else {
+        &task.history[..]
+    };
+    for a2a_msg in history {
         let text = a2a_msg
             .parts
             .iter()
@@ -1654,5 +1660,36 @@ mod tests {
             stored.metadata.is_none(),
             "metadata must be absent when usage metadata is disabled"
         );
+    }
+
+    #[tokio::test]
+    async fn build_sdk_messages_trims_to_max_conversation_history() {
+        let mut task = submitted_usage_task("m0");
+        for i in 1..5 {
+            let mut msg = task.history[0].clone();
+            msg.parts[0].text = Some(format!("m{i}"));
+            task.history.push(msg);
+        }
+
+        let agent = AgentBuilder::new()
+            .with_config(&crate::config::AgentConfig {
+                provider: "openai".to_string(),
+                model: "test-model".to_string(),
+                ..Default::default()
+            })
+            .with_max_conversation_history(2)
+            .build()
+            .await
+            .expect("agent builds");
+
+        let messages = build_sdk_messages(&agent, &task);
+        let texts: Vec<String> = messages
+            .iter()
+            .map(|m| match &m.content {
+                MessageContent::String(s) => s.clone(),
+                _ => String::new(),
+            })
+            .collect();
+        assert_eq!(texts, vec!["m3".to_string(), "m4".to_string()]);
     }
 }

@@ -7,11 +7,8 @@ use std::sync::Arc;
 pub struct Agent {
     pub(super) system_prompt: Option<String>,
     pub(super) llm_client: Arc<dyn LLMClient>,
-    #[allow(dead_code)]
     pub(super) max_chat_completion: u32,
-    #[allow(dead_code)]
     pub(super) max_conversation_history: u32,
-    #[allow(dead_code)]
     pub(super) toolbox: Option<Vec<ChatCompletionTool>>,
     pub(super) tool_handlers: HashMap<String, Box<dyn ToolHandler>>,
     pub(super) enable_usage_metadata: bool,

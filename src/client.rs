@@ -26,16 +26,25 @@ pub struct HealthStatus {
 pub struct A2AClient {
     http_client: reqwest::Client,
     base_url: String,
-    #[allow(dead_code)]
     config: ClientConfig,
+}
+
+/// Build a reqwest client honoring the request timeout from [`ClientConfig`].
+///
+/// `config.max_retries` is not applied here: reqwest has no built-in retry, so
+/// it remains an advisory knob for callers that layer their own retry policy.
+fn build_http_client(config: &ClientConfig) -> Result<reqwest::Client> {
+    reqwest::Client::builder()
+        .timeout(config.timeout)
+        .build()
+        .map_err(|e| anyhow!("failed to build HTTP client: {e}"))
 }
 
 impl A2AClient {
     pub fn new(base_url: impl Into<String>) -> Result<Self> {
         let base_url = base_url.into();
         let config = ClientConfig::new(base_url.clone());
-
-        let http_client = reqwest::Client::new();
+        let http_client = build_http_client(&config)?;
 
         Ok(Self {
             http_client,
@@ -45,13 +54,18 @@ impl A2AClient {
     }
 
     pub fn with_config(config: ClientConfig) -> Result<Self> {
-        let http_client = reqwest::Client::new();
+        let http_client = build_http_client(&config)?;
 
         Ok(Self {
             http_client,
             base_url: config.base_url.clone(),
             config,
         })
+    }
+
+    /// The [`ClientConfig`] this client was built with.
+    pub fn config(&self) -> &ClientConfig {
+        &self.config
     }
 
     pub async fn get_health(&self) -> Result<HealthStatus> {

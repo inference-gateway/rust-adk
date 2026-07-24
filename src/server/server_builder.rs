@@ -385,13 +385,6 @@ impl Default for A2AServerBuilder {
 mod tests {
     use super::*;
 
-    #[derive(Debug)]
-    struct TestCase {
-        name: &'static str,
-        #[allow(dead_code)]
-        description: &'static str,
-    }
-
     fn agent_card_with_streaming(streaming: bool) -> AgentCard {
         serde_json::from_value(serde_json::json!({
             "name": "Validation Agent",
@@ -416,19 +409,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_server_builder() {
-        let test_cases = vec![
-            TestCase {
-                name: "default_builder",
-                description: "Should create server with default configuration",
-            },
-            TestCase {
-                name: "with_config",
-                description: "Should create server with custom configuration",
-            },
-        ];
-
-        for test_case in test_cases {
-            match test_case.name {
+        for name in ["default_builder", "with_config"] {
+            match name {
                 "default_builder" => {
                     let agent_card_json = serde_json::json!({
                         "name": "Test Agent",
