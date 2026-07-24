@@ -115,9 +115,8 @@ mod tests {
 
     #[test]
     fn init_disabled_returns_inert_guard_without_collector() {
-        // Default config = telemetry off: no exporter, no collector needed.
         let cfg = TelemetryConfig::default();
         let guard = init(&cfg, "test-service", "0.0.0").expect("init should succeed");
-        drop(guard); // must not hang or panic without a collector
+        drop(guard);
     }
 }
