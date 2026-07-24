@@ -1406,11 +1406,38 @@ A2A_SERVER_TLS_CERT_PATH="/path/to/cert.pem"    # PEM-encoded server certificate
 A2A_SERVER_TLS_KEY_PATH="/path/to/key.pem"      # PEM-encoded private key (PKCS#1, PKCS#8, or SEC1)
 A2A_SERVER_TLS_CLIENT_CA_PATH=""                # optional: when set, the server requires mTLS and trusts client certs signed by the CAs in this PEM bundle
 
-# Telemetry (optional, OpenTelemetry)
+# Telemetry (optional, OpenTelemetry). Standard OTEL_* env vars (e.g.
+# OTEL_EXPORTER_OTLP_ENDPOINT) are honored by the SDK as usual.
 A2A_TELEMETRY_ENABLE="false"                    # single gate for telemetry; when true, traces default to the OTLP exporter
-A2A_TELEMETRY_ENDPOINT=""                        # OTLP collector endpoint
+A2A_TELEMETRY_ENDPOINT=""                        # OTLP collector endpoint; overrides OTEL_EXPORTER_OTLP_ENDPOINT (default http://localhost:4318)
 A2A_OTEL_TRACES_EXPORTER="otlp"                 # `otlp` (default) or `none` to opt the trace signal out while telemetry stays enabled
 ```
+
+### Telemetry (OTLP trace export)
+
+Span export is gated behind the optional `telemetry` Cargo feature so the
+default build stays lean:
+
+```bash
+cargo build --features telemetry
+```
+
+Call `telemetry::init(&config.telemetry_config, service_name, service_version)`
+early in `main` and hold the returned guard for the process lifetime so batched
+spans flush on shutdown:
+
+```rust
+use inference_gateway_adk::{Config, telemetry};
+
+let config = envy::prefixed("A2A_").from_env::<Config>().unwrap_or_default();
+let _guard = telemetry::init(&config.telemetry_config, "my-agent", env!("CARGO_PKG_VERSION"))?;
+```
+
+`init` always installs the `tracing` fmt layer; when `A2A_TELEMETRY_ENABLE=true`
+**and** the feature is compiled in, it also installs a `tracing-opentelemetry`
+layer that batches spans to an OTLP collector over HTTP/protobuf. With the
+feature compiled out, enabling telemetry logs a `warn!` and export is skipped.
+See `examples/minimal/server` for a runnable wiring.
 
 ## A2A Ecosystem
 

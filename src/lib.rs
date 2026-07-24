@@ -2,6 +2,7 @@ pub mod a2a_types;
 pub mod client;
 pub mod config;
 pub mod server;
+pub mod telemetry;
 
 pub use client::{A2AClient, HealthStatus};
 pub use config::{
