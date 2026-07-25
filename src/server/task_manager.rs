@@ -25,7 +25,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
-use tracing::{debug, warn};
+use tracing::{Instrument, debug, warn};
 
 /// Drains the storage queue and dispatches each dequeued task to the
 /// configured background [`TaskHandler`]. Construct via
@@ -142,7 +142,12 @@ async fn run_worker(
         }
 
         let last_message = task.history.last().cloned();
-        match handler.handle_task(task.clone(), last_message).await {
+        let span = tracing::info_span!("task.process", task_id = %task_id);
+        match handler
+            .handle_task(task.clone(), last_message)
+            .instrument(span)
+            .await
+        {
             Ok(result) => route_terminal_or_active(&storage, worker_id, result).await,
             Err(e) => {
                 warn!(worker_id, task_id = %task_id, error = %e, "task handler failed");

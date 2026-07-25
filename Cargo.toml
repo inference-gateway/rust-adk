@@ -16,6 +16,12 @@ categories = ["api-bindings", "development-tools"]
 default = []
 redis = ["dep:redis"]
 minio = ["dep:minio", "dep:bytes"]
+telemetry = [
+    "dep:opentelemetry",
+    "dep:opentelemetry_sdk",
+    "dep:opentelemetry-otlp",
+    "dep:tracing-opentelemetry",
+]
 
 [dependencies]
 inference-gateway-sdk = "0.15.0"
@@ -48,10 +54,15 @@ x509-parser = "0.18.1"
 redis = { version = "1.2.1", default-features = false, features = ["tokio-comp", "connection-manager"], optional = true }
 minio = { version = "0.4.0", default-features = false, features = ["rustls-tls", "ring"], optional = true }
 bytes = { version = "1.11", optional = true }
+opentelemetry = { version = "0.31", optional = true }
+opentelemetry_sdk = { version = "0.31", optional = true }
+opentelemetry-otlp = { version = "0.31", default-features = false, features = ["http-proto", "reqwest-client"], optional = true }
+tracing-opentelemetry = { version = "0.32", optional = true }
 
 [dev-dependencies]
 rcgen = { version = "0.14.8", default-features = false, features = ["pem", "ring"] }
 envy = "0.4.2"
+tower = { version = "0.5.3", features = ["util"] }
 
 # The artifacts examples are root-crate `[[example]]` targets (rather than workspace
 # members) so the `minio` variant can be gated behind the crate's `minio` feature via

@@ -77,24 +77,17 @@ impl A2AServer {
             None => AppState::new(self),
         });
 
-        // Public routes - never gated by the auth middleware so health
-        // probes and discovery clients keep working without a token.
         let public = Router::new()
             .route("/health", get(health_handler))
             .route("/.well-known/agent.json", get(agent_card_handler))
             .with_state(Arc::clone(&state));
 
-        // Protected JSON-RPC route. The middleware is a no-op when
-        // `AppState::auth_verifier` is `None`, but we attach it
-        // unconditionally so the protected sub-router has a consistent
-        // type regardless of configuration.
-        let protected = Router::new()
-            .route("/a2a", post(a2a_handler))
-            .route_layer(middleware::from_fn_with_state(
-                Arc::clone(&state),
-                auth_middleware,
-            ))
-            .with_state(Arc::clone(&state));
+        let protected = Router::new().route("/a2a", post(a2a_handler)).route_layer(
+            middleware::from_fn_with_state(Arc::clone(&state), auth_middleware),
+        );
+        #[cfg(feature = "telemetry")]
+        let protected = protected.route_layer(middleware::from_fn(telemetry_middleware));
+        let protected = protected.with_state(Arc::clone(&state));
 
         let app = public.merge(protected).layer(
             ServiceBuilder::new()
@@ -234,6 +227,56 @@ async fn serve_tls(app: Router, addr: SocketAddr, tls: &crate::config::TlsConfig
     }
 }
 
+/// `a2a.request` server span for `POST /a2a`. Extracts the caller's remote
+/// W3C trace context from request headers, records method/route/status, and
+/// flags an error status on 5xx responses. Only compiled with the
+/// `telemetry` feature; a no-op otherwise.
+#[cfg(feature = "telemetry")]
+async fn telemetry_middleware(
+    req: axum::extract::Request,
+    next: middleware::Next,
+) -> axum::response::Response {
+    use opentelemetry::trace::Status;
+    use tracing::Instrument;
+    use tracing_opentelemetry::OpenTelemetrySpanExt;
+
+    /// Minimal `Extractor` over Axum's `HeaderMap` - avoids an extra
+    /// `opentelemetry-http` dependency for four lines of glue.
+    struct HeaderExtractor<'a>(&'a axum::http::HeaderMap);
+    impl opentelemetry::propagation::Extractor for HeaderExtractor<'_> {
+        fn get(&self, key: &str) -> Option<&str> {
+            self.0.get(key).and_then(|v| v.to_str().ok())
+        }
+        fn keys(&self) -> Vec<&str> {
+            self.0.keys().map(|k| k.as_str()).collect()
+        }
+    }
+
+    let method = req.method().clone();
+    let route = req.uri().path().to_string();
+    let parent_cx = opentelemetry::global::get_text_map_propagator(|propagator| {
+        propagator.extract(&HeaderExtractor(req.headers()))
+    });
+
+    let span = tracing::info_span!(
+        "a2a.request",
+        otel.name = "a2a.request",
+        http.request.method = %method,
+        http.route = %route,
+        http.response.status_code = tracing::field::Empty,
+    );
+    let _ = span.set_parent(parent_cx);
+
+    let response = next.run(req).instrument(span.clone()).await;
+
+    let status = response.status();
+    span.record("http.response.status_code", status.as_u16());
+    if status.is_server_error() {
+        span.set_status(Status::error(status.to_string()));
+    }
+    response
+}
+
 async fn health_handler(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<HealthStatus>, StatusCode> {
@@ -280,4 +323,81 @@ async fn agent_card_handler(
 
     error!("No agent card configured - server should not have started without one");
     Err(StatusCode::INTERNAL_SERVER_ERROR)
+}
+
+#[cfg(all(test, feature = "telemetry"))]
+mod telemetry_tests {
+    use super::*;
+    use std::collections::HashMap;
+    use std::sync::{Arc, Mutex};
+    use tower::ServiceExt;
+    use tracing::field::{Field, Visit};
+    use tracing_subscriber::layer::{Context, Layer};
+    use tracing_subscriber::prelude::*;
+
+    type CapturedSpans = Arc<Mutex<Vec<(String, HashMap<String, String>)>>>;
+
+    /// Records each new span's name + string-rendered fields so the test can
+    /// assert what `telemetry_middleware` attached to the `a2a.request` span.
+    #[derive(Default, Clone)]
+    struct CaptureLayer {
+        spans: CapturedSpans,
+    }
+
+    struct FieldVisitor<'a>(&'a mut HashMap<String, String>);
+    impl Visit for FieldVisitor<'_> {
+        fn record_debug(&mut self, field: &Field, value: &dyn std::fmt::Debug) {
+            self.0
+                .insert(field.name().to_string(), format!("{value:?}"));
+        }
+    }
+
+    impl<S> Layer<S> for CaptureLayer
+    where
+        S: tracing::Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>,
+    {
+        fn on_new_span(
+            &self,
+            attrs: &tracing::span::Attributes<'_>,
+            _id: &tracing::span::Id,
+            _ctx: Context<'_, S>,
+        ) {
+            let mut fields = HashMap::new();
+            attrs.record(&mut FieldVisitor(&mut fields));
+            self.spans
+                .lock()
+                .expect("mutex")
+                .push((attrs.metadata().name().to_string(), fields));
+        }
+    }
+
+    #[tokio::test]
+    async fn a2a_request_span_records_method_and_route() {
+        let capture = CaptureLayer::default();
+        let subscriber = tracing_subscriber::registry().with(capture.clone());
+        let _guard = tracing::subscriber::set_default(subscriber);
+
+        let app = Router::new()
+            .route("/a2a", post(|| async { "ok" }))
+            .route_layer(middleware::from_fn(telemetry_middleware));
+
+        let req = axum::http::Request::builder()
+            .method("POST")
+            .uri("/a2a")
+            .body(axum::body::Body::empty())
+            .expect("request");
+        let resp = app.oneshot(req).await.expect("response");
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        let spans = capture.spans.lock().expect("mutex");
+        let (_, fields) = spans
+            .iter()
+            .find(|(name, _)| name == "a2a.request")
+            .expect("a2a.request span should be recorded");
+        assert_eq!(
+            fields.get("http.request.method").map(String::as_str),
+            Some("POST")
+        );
+        assert_eq!(fields.get("http.route").map(String::as_str), Some("/a2a"));
+    }
 }

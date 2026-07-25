@@ -1,11 +1,19 @@
 use inference_gateway_adk::A2AServerBuilder;
 use inference_gateway_adk::a2a_types::AgentCard;
+use inference_gateway_adk::{Config, telemetry};
 use serde_json::json;
 use tracing::{error, info};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    tracing_subscriber::fmt().init();
+    let config = envy::prefixed("A2A_")
+        .from_env::<Config>()
+        .unwrap_or_default();
+    let _guard = telemetry::init(
+        &config.telemetry_config,
+        "minimal-server",
+        env!("CARGO_PKG_VERSION"),
+    )?;
 
     let agent_card: AgentCard = serde_json::from_value(json!({
         "name": "Minimal Rust A2A Agent",
