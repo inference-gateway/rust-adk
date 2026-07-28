@@ -56,7 +56,7 @@ version = "0.1.0"
 dependencies = [
  "envy",
  "inference-gateway-adk",
- "inference-gateway-sdk 0.17.0",
+ "inference-gateway-sdk",
  "serde_json",
  "tokio",
  "tracing",
@@ -1651,12 +1651,12 @@ dependencies = [
  "eventsource-stream",
  "futures",
  "futures-util",
- "inference-gateway-sdk 0.15.0",
+ "inference-gateway-sdk",
  "jsonwebtoken",
  "minio",
- "opentelemetry 0.31.0",
+ "opentelemetry",
  "opentelemetry-otlp",
- "opentelemetry_sdk 0.32.1",
+ "opentelemetry_sdk",
  "rcgen",
  "redis",
  "regress",
@@ -1681,24 +1681,9 @@ dependencies = [
 
 [[package]]
 name = "inference-gateway-sdk"
-version = "0.15.0"
+version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b77696211c371de714b29dbee246c5226ff1123771da0206b3c3aa4900a28f26"
-dependencies = [
- "async-stream",
- "futures-util",
- "reqwest 0.13.4",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
-]
-
-[[package]]
-name = "inference-gateway-sdk"
-version = "0.17.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ae4fe821a7187f1a6329ba089a103295afa862949d833b9b663885fa4ab7c437"
+checksum = "eb6e7cf82e21e3544eafca8d6a487b32af48bf50b24e6c2a31360c1da0287296"
 dependencies = [
  "async-stream",
  "chrono",
@@ -2218,20 +2203,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "opentelemetry"
-version = "0.32.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b0142c63252a9e054e68a4c61a5778f7b14f576274d593f8ce883d191a099682"
-dependencies = [
- "futures-core",
- "futures-sink",
- "js-sys",
- "pin-project-lite",
- "thiserror",
- "tracing",
-]
-
-[[package]]
 name = "opentelemetry-http"
 version = "0.31.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2240,7 +2211,7 @@ dependencies = [
  "async-trait",
  "bytes",
  "http",
- "opentelemetry 0.31.0",
+ "opentelemetry",
  "reqwest 0.12.28",
 ]
 
@@ -2251,10 +2222,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f69cd6acbb9af919df949cd1ec9e5e7fdc2ef15d234b6b795aaa525cc02f71f"
 dependencies = [
  "http",
- "opentelemetry 0.31.0",
+ "opentelemetry",
  "opentelemetry-http",
  "opentelemetry-proto",
- "opentelemetry_sdk 0.31.0",
+ "opentelemetry_sdk",
  "prost",
  "reqwest 0.12.28",
  "thiserror",
@@ -2266,8 +2237,8 @@ version = "0.31.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a7175df06de5eaee9909d4805a3d07e28bb752c34cab57fa9cff549da596b30f"
 dependencies = [
- "opentelemetry 0.31.0",
- "opentelemetry_sdk 0.31.0",
+ "opentelemetry",
+ "opentelemetry_sdk",
  "prost",
  "tonic",
  "tonic-prost",
@@ -2282,24 +2253,8 @@ dependencies = [
  "futures-channel",
  "futures-executor",
  "futures-util",
- "opentelemetry 0.31.0",
+ "opentelemetry",
  "percent-encoding",
- "rand 0.9.4",
- "thiserror",
-]
-
-[[package]]
-name = "opentelemetry_sdk"
-version = "0.32.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9b59f80e1ac4d5ff7a2db8fb6c80badb7f0f3f858211fba08dd9aaec750894f9"
-dependencies = [
- "futures-channel",
- "futures-executor",
- "futures-util",
- "opentelemetry 0.32.0",
- "percent-encoding",
- "portable-atomic",
  "rand 0.9.4",
  "thiserror",
 ]
@@ -3790,7 +3745,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1ac28f2d093c6c477eaa76b23525478f38de514fa9aeb1285738d4b97a9552fc"
 dependencies = [
  "js-sys",
- "opentelemetry 0.31.0",
+ "opentelemetry",
  "smallvec",
  "tracing",
  "tracing-core",
@@ -3916,7 +3871,7 @@ version = "0.1.0"
 dependencies = [
  "envy",
  "inference-gateway-adk",
- "inference-gateway-sdk 0.17.0",
+ "inference-gateway-sdk",
  "serde_json",
  "tokio",
  "tracing",
