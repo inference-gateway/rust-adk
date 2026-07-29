@@ -125,6 +125,8 @@ mod tests {
             prompt_tokens: prompt,
             completion_tokens: completion,
             total_tokens: total,
+            completion_tokens_details: None,
+            prompt_tokens_details: None,
         }
     }
 
