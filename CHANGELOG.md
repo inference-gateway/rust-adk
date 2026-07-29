@@ -2,6 +2,34 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.10.0](https://github.com/inference-gateway/rust-adk/compare/0.9.0...0.10.0) (2026-07-29)
+
+### ✨ Features
+
+* **telemetry:** wire up OTLP trace export behind feature ([#117](https://github.com/inference-gateway/rust-adk/issues/117)) ([2311b7b](https://github.com/inference-gateway/rust-adk/commit/2311b7b90ae0039f99e9e10091c2e6eadf159765))
+
+### ♻️ Improvements
+
+* **config:** wire up or delete dead config knobs ([#116](https://github.com/inference-gateway/rust-adk/issues/116)) ([23c2a8c](https://github.com/inference-gateway/rust-adk/commit/23c2a8c29e1baae849a3f6be47c7c0f249d08651)), closes [#113](https://github.com/inference-gateway/rust-adk/issues/113)
+
+### 🐛 Bug Fixes
+
+* **ci:** update maintainer app ID to client ID in workflows and documentation ([11bafbe](https://github.com/inference-gateway/rust-adk/commit/11bafbedeea8780c5b73ce87ff69e3be7dfc2694))
+
+### 👷 CI
+
+* **claude:** centralize claude.yml via reusable workflow ([#114](https://github.com/inference-gateway/rust-adk/issues/114)) ([745474f](https://github.com/inference-gateway/rust-adk/commit/745474f7e4fe77606f88f2cf945c0b100e5391da))
+* **claude:** centralize claude.yml via reusable workflow ([#115](https://github.com/inference-gateway/rust-adk/issues/115)) ([9a9224d](https://github.com/inference-gateway/rust-adk/commit/9a9224d0f6896364ffcd8e9b5a5dd3f38af76d90))
+* **claude:** centralize claude.yml via reusable workflow ([#121](https://github.com/inference-gateway/rust-adk/issues/121)) ([4ec8789](https://github.com/inference-gateway/rust-adk/commit/4ec8789a08a1dbd33d7e350b4271b7443f1e9647))
+* **claude:** centralize claude.yml via reusable workflow ([#123](https://github.com/inference-gateway/rust-adk/issues/123)) ([095f751](https://github.com/inference-gateway/rust-adk/commit/095f75131dfe7f7198fab84831a5bd2076dd50c6))
+
+### 🔧 Miscellaneous
+
+* **deps:** bump infer CLI v0.147.1 -> v0.153.1 ([#120](https://github.com/inference-gateway/rust-adk/issues/120)) ([6684b31](https://github.com/inference-gateway/rust-adk/commit/6684b3111010f21a563e1a1fef9c7d06de97c250))
+* **deps:** bump inference-gateway-sdk from 0.15.0/0.17.0 to 0.19.0 ([#122](https://github.com/inference-gateway/rust-adk/issues/122)) ([0b77b40](https://github.com/inference-gateway/rust-adk/commit/0b77b40e8f13783b0b21fe7fd41f7c7aa2be4f39))
+* **deps:** bump opentelemetry_sdk from 0.31.0 to 0.32.1 ([#119](https://github.com/inference-gateway/rust-adk/issues/119)) ([b040936](https://github.com/inference-gateway/rust-adk/commit/b040936925fb8f037cc3ebad245d6cf98dcf54fc))
+* **deps:** bump quinn-proto from 0.11.14 to 0.11.16 ([#118](https://github.com/inference-gateway/rust-adk/issues/118)) ([b04d3a5](https://github.com/inference-gateway/rust-adk/commit/b04d3a536e432c381dbe5e2fa4b970266eb9049e))
+
 ## [0.9.0](https://github.com/inference-gateway/rust-adk/compare/0.8.0...0.9.0) (2026-07-22)
 
 ### ✨ Features
