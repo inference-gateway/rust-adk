@@ -687,7 +687,7 @@ async fn get_authenticated_extended_card_rejects_when_not_supported() {
         .and_then(|c| c.as_i64());
     assert_eq!(
         code,
-        Some(-32601),
-        "expected METHOD_NOT_FOUND, got {response}"
+        Some(-32004),
+        "expected UNSUPPORTED_OPERATION, got {response}"
     );
 }

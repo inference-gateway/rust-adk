@@ -796,10 +796,13 @@ async fn handle_tasks_resubscribe(state: Arc<AppState>, id: Value, params: Value
 }
 
 /// `agent/getAuthenticatedExtendedCard` - return the authenticated extended
-/// [`AgentCard`] for the calling tenant. The server returns the configured
-/// agent card when the card advertises `supportsExtendedAgentCard: true`;
-/// otherwise it responds with `METHOD_NOT_FOUND` so callers can fall back
-/// to the unauthenticated `.well-known/agent.json` card.
+/// [`AgentCard`] for the calling tenant, following the A2A spec (8.2) contract:
+///
+/// - `supportsExtendedAgentCard` absent or false -> `-32004`
+///   (UnsupportedOperationError)
+/// - flag true but no extended card configured -> `-32007`
+///   (AuthenticatedExtendedCardNotConfiguredError)
+/// - otherwise -> the configured extended card
 async fn handle_get_authenticated_extended_card(
     state: &Arc<AppState>,
     id: Value,
@@ -824,17 +827,31 @@ async fn handle_get_authenticated_extended_card(
     if !agent_card.supports_extended_agent_card.unwrap_or(false) {
         return json_rpc_error(
             id,
-            jsonrpc_errors::METHOD_NOT_FOUND,
-            "Method not found",
+            jsonrpc_errors::UNSUPPORTED_OPERATION,
+            "This operation is not supported",
             Some(Value::String(
                 "agent/getAuthenticatedExtendedCard is not supported by this agent \
-                 (set supportsExtendedAgentCard=true on the agent card to enable it)"
+                 (set supportsExtendedAgentCard=true and configure an extended card \
+                 to enable it)"
                     .to_string(),
             )),
         );
     }
 
-    match serde_json::to_value(agent_card) {
+    let Some(extended_card) = state.server.extended_agent_card.as_ref() else {
+        return json_rpc_error(
+            id,
+            jsonrpc_errors::AUTHENTICATED_EXTENDED_CARD_NOT_CONFIGURED,
+            "Authenticated extended card not configured",
+            Some(Value::String(
+                "the agent advertises supportsExtendedAgentCard=true but no extended \
+                 card is configured (use A2AServerBuilder::with_extended_agent_card())"
+                    .to_string(),
+            )),
+        );
+    };
+
+    match serde_json::to_value(extended_card) {
         Ok(v) => json_rpc_success(id, v),
         Err(e) => json_rpc_error(
             id,
@@ -1403,6 +1420,7 @@ mod tests {
 
         let server = A2AServerBuilder::new()
             .with_agent_card(agent_card_with_extended(true))
+            .with_extended_agent_card(agent_card_with_extended(true))
             .with_default_streaming_task_handler()
             .build()
             .await
@@ -1443,11 +1461,61 @@ mod tests {
                 tenant: "tests".to_string(),
             })
             .await
-            .expect_err("expected METHOD_NOT_FOUND when extended card disabled");
+            .expect_err("expected UNSUPPORTED_OPERATION when extended card disabled");
         let message = err.to_string();
         assert!(
-            message.contains("Method not found") || message.contains("-32601"),
-            "expected METHOD_NOT_FOUND, got: {message}"
+            message.contains("not supported") || message.contains("-32004"),
+            "expected UNSUPPORTED_OPERATION, got: {message}"
         );
+    }
+
+    #[tokio::test]
+    async fn get_authenticated_extended_card_error_contract() {
+        use crate::A2AClient;
+        use crate::a2a_types::GetExtendedAgentCardRequest;
+
+        // (supports_flag, extended_card_configured, expected_error_code_or_none)
+        let cases = [
+            ("flag_absent_or_false", false, false, Some(-32004_i64)),
+            ("flag_true_no_extended_card", true, false, Some(-32007)),
+            ("flag_true_with_extended_card", true, true, None),
+        ];
+
+        for (name, supports, with_extended, expected) in cases {
+            let mut builder = A2AServerBuilder::new()
+                .with_agent_card(agent_card_with_extended(supports))
+                .with_default_streaming_task_handler();
+            if with_extended {
+                let mut ext = agent_card_with_extended(true);
+                ext.name = "Extended Only".to_string();
+                builder = builder.with_extended_agent_card(ext);
+            }
+            let server = builder.build().await.expect("server builds");
+            let addr = spawn_test_server(server).await;
+            let client = A2AClient::new(format!("http://{addr}")).expect("client");
+
+            let result = client
+                .get_authenticated_extended_card(GetExtendedAgentCardRequest {
+                    tenant: "tests".to_string(),
+                })
+                .await;
+
+            match expected {
+                Some(code) => {
+                    let message = result
+                        .err()
+                        .unwrap_or_else(|| panic!("{name}: expected error {code}"))
+                        .to_string();
+                    assert!(
+                        message.contains(&code.to_string()),
+                        "{name}: expected error {code}, got: {message}"
+                    );
+                }
+                None => {
+                    let card = result.unwrap_or_else(|e| panic!("{name}: expected card, got {e}"));
+                    assert_eq!(card.name, "Extended Only", "{name}: wrong card returned");
+                }
+            }
+        }
     }
 }

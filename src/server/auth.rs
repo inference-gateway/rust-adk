@@ -37,9 +37,43 @@ use serde_json::Value;
 use tokio::sync::RwLock;
 use tracing::{debug, warn};
 
+use crate::a2a_types::{OpenIdConnectSecurityScheme, Security, SecurityScheme, StringList};
 use crate::config::AuthConfig;
 
 use super::protocol::AppState;
+
+/// Key used for the OIDC security scheme on the agent card, matching Go's
+/// `server.OIDCSecuritySchemes` helper.
+const OIDC_SCHEME_KEY: &str = "openId";
+
+/// Derive the `securitySchemes` and `security` an agent card should
+/// advertise from an [`AuthConfig`], mirroring Go's
+/// `server.OIDCSecuritySchemes`.
+///
+/// Returns a single `openIdConnect` scheme keyed `"openId"` whose
+/// `openIdConnectUrl` is the issuer's discovery document
+/// (`<issuer>/.well-known/openid-configuration`, trailing slash trimmed),
+/// plus one matching [`Security`] requirement with an empty scope list.
+/// Callers attach the result to the card before `with_agent_card(...)`.
+///
+/// OIDC/OAuth2 schemes are deliberately excluded from the static ADL
+/// manifest schema because they are runtime concerns; this helper is how
+/// ADL-generated agents derive them at startup from `A2A_AUTH_ISSUER_URL`.
+pub fn oidc_security_schemes(cfg: &AuthConfig) -> (HashMap<String, SecurityScheme>, Vec<Security>) {
+    let issuer = cfg.issuer_url.trim_end_matches('/');
+    let scheme = SecurityScheme {
+        open_id_connect_security_scheme: Some(OpenIdConnectSecurityScheme {
+            description: None,
+            open_id_connect_url: format!("{issuer}/.well-known/openid-configuration"),
+        }),
+        ..SecurityScheme::default()
+    };
+    let schemes = HashMap::from([(OIDC_SCHEME_KEY.to_string(), scheme)]);
+    let security = vec![Security {
+        schemes: HashMap::from([(OIDC_SCHEME_KEY.to_string(), StringList::default())]),
+    }];
+    (schemes, security)
+}
 
 /// Subject claims extracted from a validated bearer token.
 ///
@@ -393,6 +427,44 @@ mod tests {
         let verifier = AcceptToken("good");
         let err = verifier.verify("bad").await.expect_err("must reject");
         assert!(matches!(err, AuthError::InvalidToken(_)));
+    }
+
+    #[test]
+    fn oidc_security_schemes_derivation() {
+        // (issuer_url, expected discovery url) - trailing slash is trimmed.
+        let cases = [
+            (
+                "https://issuer.example",
+                "https://issuer.example/.well-known/openid-configuration",
+            ),
+            (
+                "https://issuer.example/",
+                "https://issuer.example/.well-known/openid-configuration",
+            ),
+        ];
+        for (issuer, expected_url) in cases {
+            let cfg = AuthConfig {
+                enable: true,
+                issuer_url: issuer.to_string(),
+                client_id: String::new(),
+                client_secret: String::new(),
+            };
+            let (schemes, security) = oidc_security_schemes(&cfg);
+
+            let scheme = schemes.get("openId").expect("openId scheme present");
+            let oidc = scheme
+                .open_id_connect_security_scheme
+                .as_ref()
+                .expect("openIdConnect variant set");
+            assert_eq!(oidc.open_id_connect_url, expected_url, "issuer={issuer}");
+
+            assert_eq!(security.len(), 1);
+            assert!(security[0].schemes.contains_key("openId"));
+            assert!(
+                security[0].schemes["openId"].list.is_empty(),
+                "scope list should be empty"
+            );
+        }
     }
 
     #[test]
