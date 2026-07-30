@@ -32,7 +32,9 @@ pub use artifact_storage::{ArtifactStorage, FilesystemArtifactStorage, StoredArt
 #[cfg(feature = "minio")]
 pub use artifact_storage_minio::MinioArtifactStorage;
 pub use artifacts_server::{ArtifactsServer, spawn_retention_task};
-pub use auth::{AuthError, AuthVerifier, AuthenticatedPrincipal, OidcJwtVerifier};
+pub use auth::{
+    AuthError, AuthVerifier, AuthenticatedPrincipal, OidcJwtVerifier, oidc_security_schemes,
+};
 pub use mcp::{DiscoveredTool, McpClient};
 pub use server_builder::A2AServerBuilder;
 pub use server_core::A2AServer;

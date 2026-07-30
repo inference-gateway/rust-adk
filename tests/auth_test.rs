@@ -115,6 +115,10 @@ fn spawn_server(verifier: Option<Arc<dyn AuthVerifier>>, supports_extended: bool
                     .with_agent_card(agent_card(addr_clone, supports_extended))
                     .with_background_task_handler(SubmittedTaskHandler)
                     .with_default_streaming_task_handler();
+                if supports_extended {
+                    builder =
+                        builder.with_extended_agent_card(agent_card(addr_clone, supports_extended));
+                }
                 if let Some(v) = verifier_clone {
                     builder = builder.with_auth_verifier(v);
                 }
@@ -272,7 +276,7 @@ async fn auth_on_health_and_card_endpoints_remain_public() {
 }
 
 #[tokio::test]
-async fn auth_on_method_not_found_still_reaches_handler() {
+async fn auth_on_unsupported_operation_still_reaches_handler() {
     let verifier: Arc<dyn AuthVerifier> = Arc::new(AcceptOneToken { token: "good" });
     let addr = spawn_server(Some(verifier), false);
     let url = format!("http://{addr}/a2a");
@@ -289,5 +293,9 @@ async fn auth_on_method_not_found_still_reaches_handler() {
         .get("error")
         .and_then(|e| e.get("code"))
         .and_then(|c| c.as_i64());
-    assert_eq!(code, Some(-32601), "expected METHOD_NOT_FOUND, got {body}");
+    assert_eq!(
+        code,
+        Some(-32004),
+        "expected UNSUPPORTED_OPERATION, got {body}"
+    );
 }

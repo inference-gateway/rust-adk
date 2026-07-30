@@ -13,13 +13,12 @@ use crate::a2a_types::AgentCard;
 use crate::config::{ArtifactsStorageProvider, Config};
 use anyhow::{Result, anyhow};
 use std::sync::Arc;
-use tracing::info;
-#[cfg(not(feature = "minio"))]
-use tracing::warn;
+use tracing::{info, warn};
 
 pub struct A2AServerBuilder {
     config: Option<Config>,
     agent_card: Option<AgentCard>,
+    extended_agent_card: Option<AgentCard>,
     agent_card_path: Option<String>,
     agent_card_overrides: Option<AgentCardOverrides>,
     agent: Option<Arc<Agent>>,
@@ -39,6 +38,7 @@ impl A2AServerBuilder {
         Self {
             config: None,
             agent_card: None,
+            extended_agent_card: None,
             agent_card_path: None,
             agent_card_overrides: None,
             agent: None,
@@ -61,6 +61,15 @@ impl A2AServerBuilder {
 
     pub fn with_agent_card(mut self, agent_card: AgentCard) -> Self {
         self.agent_card = Some(agent_card);
+        self
+    }
+
+    /// Register a separate extended agent card served over
+    /// `agent/getAuthenticatedExtendedCard` to authenticated callers.
+    /// Setting it forces `supportsExtendedAgentCard: true` on the public
+    /// card, mirroring `WithExtendedAgentCard` in the Go ADK.
+    pub fn with_extended_agent_card(mut self, card: AgentCard) -> Self {
+        self.extended_agent_card = Some(card);
         self
     }
 
@@ -225,6 +234,12 @@ impl A2AServerBuilder {
             }
         }
 
+        if self.extended_agent_card.is_some()
+            && let Some(ref mut card) = agent_card
+        {
+            card.supports_extended_agent_card = Some(true);
+        }
+
         let gateway_url = self
             .gateway_url
             .unwrap_or_else(|| "http://gateway:8080/v1".to_string());
@@ -308,6 +323,24 @@ impl A2AServerBuilder {
             None => None,
         };
 
+        let auth_enabled = auth_verifier.is_some();
+        let declares_schemes = agent_card
+            .as_ref()
+            .map(|c| !c.security_schemes.is_empty())
+            .unwrap_or(false);
+        if auth_enabled && !declares_schemes {
+            warn!(
+                "authentication is enabled on POST /a2a but the agent card declares no \
+                 securitySchemes; clients cannot discover how to authenticate (see \
+                 oidc_security_schemes())"
+            );
+        } else if !auth_enabled && declares_schemes {
+            warn!(
+                "the agent card declares securitySchemes but POST /a2a is unauthenticated; \
+                 clients will present credentials that are never verified"
+            );
+        }
+
         let artifact_service = match self.artifact_service {
             Some(svc) => Some(svc),
             None if config.artifacts_config.enable => {
@@ -363,6 +396,7 @@ impl A2AServerBuilder {
         Ok(A2AServer {
             config,
             agent_card,
+            extended_agent_card: self.extended_agent_card,
             agent: self.agent,
             gateway_url,
             storage,

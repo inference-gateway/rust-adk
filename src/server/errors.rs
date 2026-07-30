@@ -12,6 +12,10 @@ pub(super) mod jsonrpc_errors {
     pub const TASK_NOT_FOUND: i64 = -32001;
     /// Task cannot be cancelled in its current state.
     pub const TASK_NOT_CANCELABLE: i64 = -32002;
+    /// The requested operation is not supported by this agent (A2A spec 8.2).
+    pub const UNSUPPORTED_OPERATION: i64 = -32004;
+    /// The agent supports an extended card but none is configured (A2A spec 8.2).
+    pub const AUTHENTICATED_EXTENDED_CARD_NOT_CONFIGURED: i64 = -32007;
 }
 
 pub(super) fn json_rpc_success(id: Value, result: Value) -> Json<Value> {

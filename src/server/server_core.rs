@@ -32,6 +32,10 @@ use tracing::{debug, error, info, warn};
 pub struct A2AServer {
     pub(super) config: Config,
     pub(super) agent_card: Option<AgentCard>,
+    /// Separate card served over `agent/getAuthenticatedExtendedCard`.
+    /// When `Some`, the public card advertises `supportsExtendedAgentCard:
+    /// true` and this card is returned to authenticated callers.
+    pub(super) extended_agent_card: Option<AgentCard>,
     pub(super) agent: Option<Arc<Agent>>,
     pub(super) gateway_url: String,
     pub(super) storage: Arc<dyn Storage>,
