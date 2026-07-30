@@ -431,7 +431,6 @@ mod tests {
 
     #[test]
     fn oidc_security_schemes_derivation() {
-        // (issuer_url, expected discovery url) - trailing slash is trimmed.
         let cases = [
             (
                 "https://issuer.example",

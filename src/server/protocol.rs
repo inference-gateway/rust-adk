@@ -1474,7 +1474,6 @@ mod tests {
         use crate::A2AClient;
         use crate::a2a_types::GetExtendedAgentCardRequest;
 
-        // (supports_flag, extended_card_configured, expected_error_code_or_none)
         let cases = [
             ("flag_absent_or_false", false, false, Some(-32004_i64)),
             ("flag_true_no_extended_card", true, false, Some(-32007)),

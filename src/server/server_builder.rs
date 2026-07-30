@@ -234,8 +234,6 @@ impl A2AServerBuilder {
             }
         }
 
-        // A configured extended card implies the public card advertises
-        // support for it, mirroring `WithExtendedAgentCard` in Go.
         if self.extended_agent_card.is_some()
             && let Some(ref mut card) = agent_card
         {
@@ -325,9 +323,6 @@ impl A2AServerBuilder {
             None => None,
         };
 
-        // Warn when the auth posture and the card's declared security
-        // schemes disagree in either direction - a common misconfiguration
-        // that otherwise only surfaces at request time.
         let auth_enabled = auth_verifier.is_some();
         let declares_schemes = agent_card
             .as_ref()
