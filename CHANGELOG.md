@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.11.0](https://github.com/inference-gateway/rust-adk/compare/0.10.0...0.11.0) (2026-07-30)
+
+### ✨ Features
+
+* **auth:** align card-driven auth flow with adk PR 267 ([#126](https://github.com/inference-gateway/rust-adk/issues/126)) ([eda5aa8](https://github.com/inference-gateway/rust-adk/commit/eda5aa885765fed5bed75ebd71c448e331ecb13b)), closes [#125](https://github.com/inference-gateway/rust-adk/issues/125)
+
+### 🔧 Miscellaneous
+
+* **deps:** bump the cargo group with 7 updates ([#124](https://github.com/inference-gateway/rust-adk/issues/124)) ([089f439](https://github.com/inference-gateway/rust-adk/commit/089f43924c9407a1c8d83ff7525ccfb7f50d46af))
+
 ## [0.10.0](https://github.com/inference-gateway/rust-adk/compare/0.9.0...0.10.0) (2026-07-29)
 
 ### ✨ Features
