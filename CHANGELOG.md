@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.11.1](https://github.com/inference-gateway/rust-adk/compare/0.11.0...0.11.1) (2026-08-26)
+
+### 🐛 Bug Fixes
+
+* **config:** align enable env vars with the Go ADK's *_ENABLED naming ([#134](https://github.com/inference-gateway/rust-adk/issues/134)) ([257bf0a](https://github.com/inference-gateway/rust-adk/commit/257bf0af1bcf71e34162a6cd866e07f6bfbc38be)), closes [#282](https://github.com/inference-gateway/rust-adk/issues/282)
+
+### 👷 CI
+
+* **claude:** centralize claude.yml via reusable workflow ([#128](https://github.com/inference-gateway/rust-adk/issues/128)) ([5a5f152](https://github.com/inference-gateway/rust-adk/commit/5a5f15253c9adddb0086e6bf36dd02322d655d57))
+* **claude:** centralize claude.yml via reusable workflow ([#129](https://github.com/inference-gateway/rust-adk/issues/129)) ([552fdaa](https://github.com/inference-gateway/rust-adk/commit/552fdaa909aea648effeb967b20bf904900a9400))
+
+### 🔧 Miscellaneous
+
+* **deps:** bump infer CLI v0.153.1 -> v0.155.0 ([#127](https://github.com/inference-gateway/rust-adk/issues/127)) ([53287bc](https://github.com/inference-gateway/rust-adk/commit/53287bc957cb2ee22861a8b0da54b2907088e11c))
+* **deps:** bump infer CLI v0.155.0 -> v0.164.0 ([#131](https://github.com/inference-gateway/rust-adk/issues/131)) ([9a7e1a6](https://github.com/inference-gateway/rust-adk/commit/9a7e1a6ff4698d8e2adb34ec76855efef91c76bb))
+* **deps:** bump the cargo group with 11 updates ([#133](https://github.com/inference-gateway/rust-adk/issues/133)) ([fb53053](https://github.com/inference-gateway/rust-adk/commit/fb53053e43bfa35667343aa2672875e0f4317dd5))
+* **deps:** bump the cargo group with 8 updates ([#130](https://github.com/inference-gateway/rust-adk/issues/130)) ([46e59f8](https://github.com/inference-gateway/rust-adk/commit/46e59f8752a7d3921ac06fc69286e5c10347668c))
+* **deps:** bump the cargo group with 8 updates ([#132](https://github.com/inference-gateway/rust-adk/issues/132)) ([61abf96](https://github.com/inference-gateway/rust-adk/commit/61abf966c58625c3523957533b7a9d8d33239482))
+
 ## [0.11.0](https://github.com/inference-gateway/rust-adk/compare/0.10.0...0.11.0) (2026-07-30)
 
 ### ✨ Features
