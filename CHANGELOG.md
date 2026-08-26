@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.11.2](https://github.com/inference-gateway/rust-adk/compare/0.11.1...0.11.2) (2026-08-26)
+
+### 🐛 Bug Fixes
+
+* **auth:** require full OIDC config and always validate the JWT audience ([#135](https://github.com/inference-gateway/rust-adk/issues/135)) ([30d51aa](https://github.com/inference-gateway/rust-adk/commit/30d51aa8f644f7e0e59b32156fcd7d3cedb1a8c7))
+
 ## [0.11.1](https://github.com/inference-gateway/rust-adk/compare/0.11.0...0.11.1) (2026-08-26)
 
 ### 🐛 Bug Fixes
