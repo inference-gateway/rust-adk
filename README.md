@@ -352,7 +352,7 @@ Build A2A servers with custom configurations using a fluent interface. See
 | `with_streaming_task_handler(h)` | Custom `message/stream` handler. |
 | `with_default_task_handlers()` | Wire in the LLM-backed defaults for both. |
 | `with_workers(n)` | Number of queue workers to spawn. |
-| `with_auth_verifier(v)` | Plug in a custom `AuthVerifier` (overrides `A2A_AUTH_ENABLE`). |
+| `with_auth_verifier(v)` | Plug in a custom `AuthVerifier` (overrides `A2A_AUTH_ENABLED`). |
 
 #### AgentBuilder
 
@@ -1130,7 +1130,7 @@ for a runnable end-to-end demo.
 
 ### Authentication
 
-When `A2A_AUTH_ENABLE=true`, the server gates `POST /a2a` behind an
+When `A2A_AUTH_ENABLED=true`, the server gates `POST /a2a` behind an
 `Authorization: Bearer <token>` header validated against the OIDC issuer
 configured by `A2A_AUTH_ISSUER_URL`. The bundled `OidcJwtVerifier`:
 
@@ -1147,14 +1147,14 @@ Tokens that fail any check produce **HTTP 401** with a
 To plug in a custom backend (static keys, internal identity service,
 mocks for tests) implement `AuthVerifier` and pass it to
 `A2AServerBuilder::with_auth_verifier(...)` - this overrides whatever
-`A2A_AUTH_ENABLE` selects and works the same way `with_storage(...)` does.
+`A2A_AUTH_ENABLED` selects and works the same way `with_storage(...)` does.
 
 The authenticated principal (subject, tenant, all JWT claims) is
 attached to the request via an Axum extension and forwarded to the
 JSON-RPC dispatcher so per-tenant filtering of the extended agent card
 is a future no-op behind a feature flag rather than a breaking change.
 
-**Behaviour when `A2A_AUTH_ENABLE=false`** - the middleware is not attached
+**Behaviour when `A2A_AUTH_ENABLED=false`** - the middleware is not attached
 and `agent/getAuthenticatedExtendedCard` returns the configured card
 whenever `supportsExtendedAgentCard == true` on the agent card. This
 preserves backwards compatibility for callers who have not opted in to
@@ -1167,7 +1167,7 @@ See [`examples/auth/`](./examples/auth/) for a runnable end-to-end demo.
 
 ### TLS and mTLS
 
-When `A2A_SERVER_TLS_ENABLE=true`, `A2AServer::serve` swaps its plaintext
+When `A2A_SERVER_TLS_ENABLED=true`, `A2AServer::serve` swaps its plaintext
 Axum listener for `axum-server` backed by `rustls` (with the `ring`
 crypto provider) and serves the same Axum router over HTTPS. The
 configuration lives on `Config.tls_config` and is populated by whatever
@@ -1176,7 +1176,7 @@ bundled examples:
 
 | Variable | Purpose |
 | --- | --- |
-| `A2A_SERVER_TLS_ENABLE` | Set to `true` to flip `A2AServer::serve` onto the TLS listener. |
+| `A2A_SERVER_TLS_ENABLED` | Set to `true` to flip `A2AServer::serve` onto the TLS listener. |
 | `A2A_SERVER_TLS_CERT_PATH` | PEM file with the server certificate chain. |
 | `A2A_SERVER_TLS_KEY_PATH` | PEM file with the server private key (PKCS#1, PKCS#8, or SEC1). |
 | `A2A_SERVER_TLS_CLIENT_CA_PATH` | Optional. When set, the server requires every TLS client to present a certificate signed by one of the CAs in this PEM bundle - i.e. mutual TLS, the `MutualTlsSecurityScheme` the A2A spec describes. |
@@ -1225,12 +1225,12 @@ deployments can plug in their own backends:
 
 | Layer | Trait / type | Default |
 | --- | --- | --- |
-| Configuration | `ArtifactsConfig` in `src/config.rs` | disabled (`ARTIFACTS_ENABLE=false`) |
+| Configuration | `ArtifactsConfig` in `src/config.rs` | disabled (`ARTIFACTS_ENABLED=false`) |
 | Storage backend | `ArtifactStorage` (`store`, `retrieve`, `exists`, `delete`, `cleanup_*`) | `FilesystemArtifactStorage` |
 | Helper service | `ArtifactService` (`create_*_artifact`, `add_artifact_to_task`, retention) | `DefaultArtifactService` |
 | HTTP surface | `ArtifactsServer` (`GET /health`, `GET /artifacts/:artifact_id/:filename`) | `:8081` listener with range support |
 
-When `ARTIFACTS_ENABLE=true`, `A2AServer::serve(...)` spawns the
+When `ARTIFACTS_ENABLED=true`, `A2AServer::serve(...)` spawns the
 artifacts HTTP server on its own listener alongside the main A2A
 JSON-RPC server and runs a background retention loop that prunes
 expired / over-cap blobs. The TLS layer reuses the same
@@ -1249,7 +1249,7 @@ file directly from the artifacts server.
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `ARTIFACTS_ENABLE` | `false` | Master switch — when `true`, `A2AServer::serve(...)` spawns the artifacts server and retention loop. |
+| `ARTIFACTS_ENABLED` | `false` | Master switch — when `true`, `A2AServer::serve(...)` spawns the artifacts server and retention loop. |
 | `ARTIFACTS_SERVER_HOST` | `0.0.0.0` | Bind address of the artifacts HTTP server. |
 | `ARTIFACTS_SERVER_PORT` | `8081` | Port of the artifacts HTTP server. |
 | `ARTIFACTS_SERVER_READ_TIMEOUT` | `30s` | Per-request read timeout. Accepts Go-style durations (`30s`, `5m`, `2h`, `7d`) or bare seconds. |
@@ -1395,20 +1395,20 @@ A2A_QUEUE_NAMESPACE="a2a"
 A2A_QUEUE_WORKERS="1"
 
 # Authentication (optional, OIDC bearer-token JWT)
-A2A_AUTH_ENABLE="false"                                                   # when true, POST /a2a requires a valid bearer token
+A2A_AUTH_ENABLED="false"                                                   # when true, POST /a2a requires a valid bearer token
 A2A_AUTH_ISSUER_URL="http://keycloak:8080/realms/inference-gateway-realm" # OIDC issuer; the server performs discovery + JWKS lookup
 A2A_AUTH_CLIENT_ID="inference-gateway-client"                             # validated as the JWT audience when set
 A2A_AUTH_CLIENT_SECRET="your-secret"                                      # currently unused server-side (reserved for client-side OAuth2)
 
 # TLS (optional)
-A2A_SERVER_TLS_ENABLE="false"                   # when true, A2AServer::serve binds an HTTPS listener via axum-server + rustls
+A2A_SERVER_TLS_ENABLED="false"                   # when true, A2AServer::serve binds an HTTPS listener via axum-server + rustls
 A2A_SERVER_TLS_CERT_PATH="/path/to/cert.pem"    # PEM-encoded server certificate chain
 A2A_SERVER_TLS_KEY_PATH="/path/to/key.pem"      # PEM-encoded private key (PKCS#1, PKCS#8, or SEC1)
 A2A_SERVER_TLS_CLIENT_CA_PATH=""                # optional: when set, the server requires mTLS and trusts client certs signed by the CAs in this PEM bundle
 
 # Telemetry (optional, OpenTelemetry). Standard OTEL_* env vars (e.g.
 # OTEL_EXPORTER_OTLP_ENDPOINT) are honored by the SDK as usual.
-A2A_TELEMETRY_ENABLE="false"                    # single gate for telemetry; when true, traces default to the OTLP exporter
+A2A_TELEMETRY_ENABLED="false"                    # single gate for telemetry; when true, traces default to the OTLP exporter
 A2A_TELEMETRY_ENDPOINT=""                        # OTLP collector endpoint; overrides OTEL_EXPORTER_OTLP_ENDPOINT (default http://localhost:4318)
 A2A_OTEL_TRACES_EXPORTER="otlp"                 # `otlp` (default) or `none` to opt the trace signal out while telemetry stays enabled
 ```
@@ -1433,7 +1433,7 @@ let config = envy::prefixed("A2A_").from_env::<Config>().unwrap_or_default();
 let _guard = telemetry::init(&config.telemetry_config, "my-agent", env!("CARGO_PKG_VERSION"))?;
 ```
 
-`init` always installs the `tracing` fmt layer; when `A2A_TELEMETRY_ENABLE=true`
+`init` always installs the `tracing` fmt layer; when `A2A_TELEMETRY_ENABLED=true`
 **and** the feature is compiled in, it also installs a `tracing-opentelemetry`
 layer that batches spans to an OTLP collector over HTTP/protobuf. With the
 feature compiled out, enabling telemetry logs a `warn!` and export is skipped.

@@ -109,7 +109,7 @@ and assigns the result onto `Config::artifacts_config`:
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `ARTIFACTS_ENABLE` | `false` | Master switch for the subsystem. |
+| `ARTIFACTS_ENABLED` | `false` | Master switch for the subsystem. |
 | `ARTIFACTS_SERVER_HOST` | `0.0.0.0` | Bind address of the artifacts HTTP server. |
 | `ARTIFACTS_SERVER_PORT` | `8081` | Port of the artifacts HTTP server. |
 | `ARTIFACTS_STORAGE_PROVIDER` | `filesystem` | `filesystem` or `minio`. |

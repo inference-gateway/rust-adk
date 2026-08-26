@@ -9,7 +9,7 @@
 //!    in-process [`AuthVerifier`] accepts one hard-coded token (set
 //!    via `EXAMPLE_BEARER_TOKEN`). Zero external dependencies.
 //! 2. **OIDC mode** (used by `docker-compose.yaml` against a Keycloak
-//!    realm): set `A2A_AUTH_ENABLE=true`, `A2A_AUTH_ISSUER_URL=...`, and
+//!    realm): set `A2A_AUTH_ENABLED=true`, `A2A_AUTH_ISSUER_URL=...`, and
 //!    `A2A_AUTH_CLIENT_ID=...`. The example loads those through
 //!    `envy::prefixed("A2A_").from_env::<Config>()` and the builder
 //!    instantiates the bundled [`OidcJwtVerifier`] which does OIDC
@@ -98,7 +98,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // constructs OidcJwtVerifier from `auth_config.issuer_url` /
         // `auth_config.client_id`.
         info!(
-            "A2A_AUTH_ENABLE=true → using OidcJwtVerifier (issuer={})",
+            "A2A_AUTH_ENABLED=true → using OidcJwtVerifier (issuer={})",
             config.auth_config.issuer_url
         );
         builder = builder.with_config(config);
@@ -108,7 +108,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let bearer_token =
             std::env::var("EXAMPLE_BEARER_TOKEN").unwrap_or_else(|_| "demo-token-123".to_string());
         info!(
-            "A2A_AUTH_ENABLE not set → using StaticTokenVerifier (expected token: {bearer_token})"
+            "A2A_AUTH_ENABLED not set → using StaticTokenVerifier (expected token: {bearer_token})"
         );
         let verifier: Arc<dyn AuthVerifier> = Arc::new(StaticTokenVerifier {
             expected: bearer_token,

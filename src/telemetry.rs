@@ -96,7 +96,7 @@ pub fn init(
     #[cfg(not(feature = "telemetry"))]
     if cfg.traces_enabled() {
         tracing::warn!(
-            "A2A_TELEMETRY_ENABLE=true but the `telemetry` Cargo feature is not compiled in; \
+            "A2A_TELEMETRY_ENABLED=true but the `telemetry` Cargo feature is not compiled in; \
              spans will not be exported. Rebuild with `--features telemetry`."
         );
     }

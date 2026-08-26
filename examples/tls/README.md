@@ -50,7 +50,7 @@ want to rotate them.
 ## Run the server (TLS only)
 
 ```bash
-SERVER_TLS_ENABLE=true \
+SERVER_TLS_ENABLED=true \
 SERVER_TLS_CERT_PATH=examples/tls/certs/server.crt \
 SERVER_TLS_KEY_PATH=examples/tls/certs/server.key \
 PORT=8443 \
@@ -72,7 +72,7 @@ Add `SERVER_TLS_CLIENT_CA_PATH` to require every client to present a
 certificate signed by `ca.crt`:
 
 ```bash
-SERVER_TLS_ENABLE=true \
+SERVER_TLS_ENABLED=true \
 SERVER_TLS_CERT_PATH=examples/tls/certs/server.crt \
 SERVER_TLS_KEY_PATH=examples/tls/certs/server.key \
 SERVER_TLS_CLIENT_CA_PATH=examples/tls/certs/ca.crt \
@@ -133,7 +133,7 @@ cargo run -p tls-client
 
 | Variable | Purpose |
 | --- | --- |
-| `SERVER_TLS_ENABLE` | Required. Set to `true` to flip `A2AServer::serve` onto the TLS listener. |
+| `SERVER_TLS_ENABLED` | Required. Set to `true` to flip `A2AServer::serve` onto the TLS listener. |
 | `SERVER_TLS_CERT_PATH` | PEM file with the server certificate chain. |
 | `SERVER_TLS_KEY_PATH` | PEM file with the server private key (PKCS#1, PKCS#8, or SEC1). |
 | `SERVER_TLS_CLIENT_CA_PATH` | Optional. When set, the server requires mTLS and trusts client certificates signed by any CA in this PEM bundle. |

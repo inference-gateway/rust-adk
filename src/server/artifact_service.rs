@@ -11,7 +11,7 @@
 //!
 //! The default implementation - [`DefaultArtifactService`] - is the one
 //! the [`A2AServerBuilder`] wires up automatically when
-//! `ARTIFACTS_ENABLE=true`.
+//! `ARTIFACTS_ENABLED=true`.
 //!
 //! [`A2AServerBuilder`]: super::server_builder::A2AServerBuilder
 

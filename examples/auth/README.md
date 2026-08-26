@@ -11,7 +11,7 @@ agent card only to authenticated callers.
   [`AuthVerifier`] into the server. The example uses a static-token
   verifier for the zero-deps quick demo and falls back to the bundled
   `OidcJwtVerifier` (OIDC discovery + JWKS validation) when
-  `AUTH_ENABLE=true` is set.
+  `AUTH_ENABLED=true` is set.
 - `POST /a2a` returns **HTTP 401** when the `Authorization` header is
   missing or malformed.
 - `GET /health` and `GET /.well-known/agent.json` remain reachable
@@ -67,7 +67,7 @@ network:
 1. **Keycloak 26.6.1** - pre-imports `keycloak/realm-export.json` on
    start, so the realm, client, and audience mapper are ready before
    any other service launches.
-2. **`auth-server`** - runs with `AUTH_ENABLE=true` so the
+2. **`auth-server`** - runs with `AUTH_ENABLED=true` so the
    `A2AServerBuilder` instantiates `OidcJwtVerifier` from
    `Config::from_env()` and validates incoming JWTs against the
    Keycloak realm's JWKS.
@@ -139,4 +139,4 @@ exec into the container to reach it from the host).
 3. Otherwise no auth middleware is attached and all routes are public.
 
 The example server picks between (1) and (2) at startup based on the
-`AUTH_ENABLE` env var.
+`AUTH_ENABLED` env var.

@@ -184,7 +184,9 @@ impl OidcJwtVerifier {
     /// 5s timeout for discovery + JWKS fetches.
     pub fn from_config(config: &AuthConfig) -> Result<Self> {
         if config.issuer_url.trim().is_empty() {
-            return Err(anyhow!("AUTH_ISSUER_URL is required when AUTH_ENABLE=true"));
+            return Err(anyhow!(
+                "AUTH_ISSUER_URL is required when AUTH_ENABLED=true"
+            ));
         }
         let http = reqwest::Client::builder()
             .timeout(Duration::from_secs(5))

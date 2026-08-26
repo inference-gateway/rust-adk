@@ -93,7 +93,7 @@ tasks:
       - cargo run -p ai-powered-client
 
   examples:mcp-server:
-    desc: Run the MCP-enabled A2A server example (set MCP_ENABLE=true and MCP_SERVERS=<urls>; needs Inference Gateway at localhost:8080)
+    desc: Run the MCP-enabled A2A server example (set MCP_ENABLED=true and MCP_SERVERS=<urls>; needs Inference Gateway at localhost:8080)
     dir: examples/mcp/server
     cmds:
       - cargo run -p mcp-server
