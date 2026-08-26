@@ -153,11 +153,11 @@ pub trait AuthVerifier: Send + Sync + std::fmt::Debug {
 
 /// JWT verifier that pulls the JWKS from an OIDC issuer's discovery
 /// document and caches the keys in memory. Verifies token signature,
-/// `iss`, `exp`, and (when `client_id` is configured) `aud`.
+/// `iss`, `exp`, and `aud` (against `client_id`).
 #[derive(Debug)]
 pub struct OidcJwtVerifier {
     issuer_url: String,
-    audience: Option<String>,
+    audience: String,
     http: reqwest::Client,
     cache: RwLock<JwksCache>,
 }
@@ -183,23 +183,22 @@ impl OidcJwtVerifier {
     /// Build a verifier from the [`AuthConfig`]. The HTTP client uses a
     /// 5s timeout for discovery + JWKS fetches.
     pub fn from_config(config: &AuthConfig) -> Result<Self> {
-        if config.issuer_url.trim().is_empty() {
+        if config.issuer_url.trim().is_empty()
+            || config.client_id.trim().is_empty()
+            || config.client_secret.trim().is_empty()
+        {
             return Err(anyhow!(
-                "AUTH_ISSUER_URL is required when AUTH_ENABLED=true"
+                "AUTH_ISSUER_URL, AUTH_CLIENT_ID, and AUTH_CLIENT_SECRET are required when \
+                 AUTH_ENABLED=true"
             ));
         }
         let http = reqwest::Client::builder()
             .timeout(Duration::from_secs(5))
             .build()
             .map_err(|e| anyhow!("failed to build OIDC HTTP client: {e}"))?;
-        let audience = if config.client_id.trim().is_empty() {
-            None
-        } else {
-            Some(config.client_id.clone())
-        };
         Ok(Self {
             issuer_url: config.issuer_url.trim_end_matches('/').to_string(),
-            audience,
+            audience: config.client_id.clone(),
             http,
             cache: RwLock::new(JwksCache::default()),
         })
@@ -318,11 +317,7 @@ impl AuthVerifier for OidcJwtVerifier {
 
         let mut validation = Validation::new(alg);
         validation.set_issuer(&[self.issuer_url.as_str()]);
-        if let Some(aud) = self.audience.as_ref() {
-            validation.set_audience(&[aud.as_str()]);
-        } else {
-            validation.validate_aud = false;
-        }
+        validation.set_audience(&[self.audience.as_str()]);
 
         let data = decode::<HashMap<String, Value>>(token, &decoding, &validation)
             .map_err(|e| AuthError::InvalidToken(e.to_string()))?;
@@ -478,5 +473,23 @@ mod tests {
         };
         let err = OidcJwtVerifier::from_config(&cfg).expect_err("issuer required");
         assert!(err.to_string().contains("AUTH_ISSUER_URL"));
+    }
+
+    #[test]
+    fn from_config_requires_client_id_and_secret() {
+        let mut cfg = AuthConfig {
+            enable: true,
+            issuer_url: "https://issuer.test".to_string(),
+            client_id: String::new(),
+            client_secret: "secret".to_string(),
+        };
+        OidcJwtVerifier::from_config(&cfg).expect_err("client id required");
+
+        cfg.client_id = "client".to_string();
+        cfg.client_secret = String::new();
+        OidcJwtVerifier::from_config(&cfg).expect_err("client secret required");
+
+        cfg.client_secret = "secret".to_string();
+        OidcJwtVerifier::from_config(&cfg).expect("complete config builds");
     }
 }
