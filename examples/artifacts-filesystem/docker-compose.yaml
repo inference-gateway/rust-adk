@@ -12,7 +12,7 @@ services:
       - "8088:8088"   # Artifacts HTTP (exposed for host-side curl/debug)
     environment:
       RUST_LOG: info
-      ARTIFACTS_ENABLE: "true"
+      ARTIFACTS_ENABLED: "true"
       ARTIFACTS_SERVER_HOST: "0.0.0.0"
       ARTIFACTS_SERVER_PORT: "8088"
       ARTIFACTS_STORAGE_PROVIDER: filesystem

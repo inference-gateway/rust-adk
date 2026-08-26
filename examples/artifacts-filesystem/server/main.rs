@@ -82,7 +82,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut artifacts_config = envy::prefixed("ARTIFACTS_")
         .from_env::<ArtifactsConfig>()
         .map_err(|e| format!("failed to load ARTIFACTS_* config: {e}"))?;
-    if env::var_os("ARTIFACTS_ENABLE").is_none() {
+    if env::var_os("ARTIFACTS_ENABLED").is_none() {
         artifacts_config.enable = true;
         artifacts_config.server.port = 8088;
         artifacts_config.storage.base_path = "./artifacts-data".to_string();

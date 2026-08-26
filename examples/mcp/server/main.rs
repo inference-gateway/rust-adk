@@ -31,7 +31,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             agent_builder = agent_builder.with_mcp_client(client);
             info!("MCP client started; mcp_list_tools / mcp_call_tool registered on the agent");
         }
-        None => info!("MCP disabled - set MCP_ENABLE=true and MCP_SERVERS=<urls> to enable"),
+        None => info!("MCP disabled - set MCP_ENABLED=true and MCP_SERVERS=<urls> to enable"),
     }
 
     let agent = agent_builder.build().await?;

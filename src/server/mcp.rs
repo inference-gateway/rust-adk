@@ -92,7 +92,7 @@ impl McpClient {
             .filter(|s| !s.is_empty())
             .collect();
         if bases.is_empty() {
-            warn!("MCP_ENABLE is set but MCP_SERVERS is empty; MCP client not started");
+            warn!("MCP_ENABLED is set but MCP_SERVERS is empty; MCP client not started");
             return None;
         }
 

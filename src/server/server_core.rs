@@ -135,7 +135,7 @@ fn spawn_artifacts_subsystem(
     let Some(service) = artifact_service else {
         if artifacts_config.enable {
             warn!(
-                "ARTIFACTS_ENABLE=true but no artifact service is configured; skipping \
+                "ARTIFACTS_ENABLED=true but no artifact service is configured; skipping \
                  artifacts server startup"
             );
         }

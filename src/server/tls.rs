@@ -133,12 +133,12 @@ pub(crate) fn build_server_config(tls: &TlsConfig) -> Result<Arc<RustlsServerCon
 
     if tls.cert_path.trim().is_empty() {
         return Err(anyhow!(
-            "SERVER_TLS_CERT_PATH is required when SERVER_TLS_ENABLE=true"
+            "SERVER_TLS_CERT_PATH is required when SERVER_TLS_ENABLED=true"
         ));
     }
     if tls.key_path.trim().is_empty() {
         return Err(anyhow!(
-            "SERVER_TLS_KEY_PATH is required when SERVER_TLS_ENABLE=true"
+            "SERVER_TLS_KEY_PATH is required when SERVER_TLS_ENABLED=true"
         ));
     }
 

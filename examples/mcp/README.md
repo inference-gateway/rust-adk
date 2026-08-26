@@ -14,7 +14,7 @@ just two *selector* tools regardless of how many tools the servers publish:
 
 ```
 mcp/
-├── server/main.rs                 Agent wired to McpClient behind MCP_ENABLE
+├── server/main.rs                 Agent wired to McpClient behind MCP_ENABLED
 ├── server/.well-known/agent.json  Agent metadata loaded at startup
 ├── client/main.rs                 Two-prompt demo via message/send + poll
 └── README.md
@@ -22,7 +22,7 @@ mcp/
 
 ## What this shows
 
-- **`McpClient::from_config(&McpConfig)`** - returns `None` when `MCP_ENABLE`
+- **`McpClient::from_config(&McpConfig)`** - returns `None` when `MCP_ENABLED`
   is false or `MCP_SERVERS` is empty, so the selector tools are registered
   only when MCP is on.
 - **`McpClient::start()`** - spawns background discovery + refresh. Initial
@@ -36,7 +36,7 @@ mcp/
 
 | Var | Default | Purpose |
 | --- | --- | --- |
-| `MCP_ENABLE` | `false` | Enable the MCP client |
+| `MCP_ENABLED` | `false` | Enable the MCP client |
 | `MCP_SERVERS` | - | Comma-separated MCP server base URLs |
 | `MCP_ENDPOINT` | `/mcp` | Path appended to each server URL |
 | `MCP_REFRESH_INTERVAL` | `5m` | Tool-catalog refresh interval |
@@ -52,7 +52,7 @@ mcp/
 # Start an Inference Gateway and one or more MCP servers separately, then run
 # the server from inside its subdir so .well-known/agent.json resolves:
 cd examples/mcp/server
-export MCP_ENABLE=true
+export MCP_ENABLED=true
 export MCP_SERVERS=http://localhost:3000   # your MCP server base URL(s)
 cargo run -p mcp-server
 # or: task examples:mcp-server
@@ -62,5 +62,5 @@ cargo run -p mcp-client
 ```
 
 The server listens on `0.0.0.0:8086`. The client honours `SERVER_URL`
-(default `http://localhost:8086`). With `MCP_ENABLE` unset the server still
+(default `http://localhost:8086`). With `MCP_ENABLED` unset the server still
 runs - it just has no MCP tools to offer.

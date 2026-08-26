@@ -4,7 +4,7 @@
 //! TLS handshake from the test process using `tokio_rustls`, and asserts
 //! that the round-trip produces the expected behaviour:
 //!
-//! - `tls_terminates_on_https_listener` proves that `SERVER_TLS_ENABLE=true`
+//! - `tls_terminates_on_https_listener` proves that `SERVER_TLS_ENABLED=true`
 //!   with a cert/key pair actually serves traffic over TLS (no client
 //!   cert required) and that `/health` is reachable.
 //! - `mtls_handshake_with_valid_client_cert_succeeds` proves that

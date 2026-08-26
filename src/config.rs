@@ -371,7 +371,7 @@ pub struct CapabilitiesConfig {
 #[serde(default)]
 pub struct TlsConfig {
     #[serde(
-        rename = "server_tls_enable",
+        rename = "server_tls_enabled",
         deserialize_with = "de::boolean::deserialize"
     )]
     pub enable: bool,
@@ -394,7 +394,7 @@ pub struct TlsConfig {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default)]
 pub struct AuthConfig {
-    #[serde(rename = "auth_enable", deserialize_with = "de::boolean::deserialize")]
+    #[serde(rename = "auth_enabled", deserialize_with = "de::boolean::deserialize")]
     pub enable: bool,
 
     #[serde(rename = "auth_issuer_url")]
@@ -490,7 +490,7 @@ impl FromStr for TracesExporter {
 #[serde(default)]
 pub struct TelemetryConfig {
     #[serde(
-        rename = "telemetry_enable",
+        rename = "telemetry_enabled",
         deserialize_with = "de::boolean::deserialize"
     )]
     pub enable: bool,
@@ -507,7 +507,7 @@ pub struct TelemetryConfig {
 impl TelemetryConfig {
     /// Single gate for trace export: traces are active when telemetry is
     /// enabled AND the traces exporter is not `none`. Mirrors the Go ADK,
-    /// where `A2A_TELEMETRY_ENABLE` is the sole telemetry switch and
+    /// where `A2A_TELEMETRY_ENABLED` is the sole telemetry switch and
     /// `A2A_OTEL_TRACES_EXPORTER=none` opts the trace signal out.
     pub fn traces_enabled(&self) -> bool {
         self.enable && self.traces_exporter != TracesExporter::None
@@ -531,8 +531,8 @@ impl TelemetryConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct McpConfig {
-    /// Master switch. `MCP_ENABLE`.
-    #[serde(rename = "enable", deserialize_with = "de::boolean::deserialize")]
+    /// Master switch. `MCP_ENABLED`.
+    #[serde(rename = "enabled", deserialize_with = "de::boolean::deserialize")]
     pub enable: bool,
 
     /// Comma-separated MCP server base URLs. `MCP_SERVERS`.
@@ -609,7 +609,7 @@ impl Default for McpConfig {
 pub struct ArtifactsConfig {
     /// Whether the artifacts server should be started when
     /// [`A2AServer::serve`](crate::A2AServer::serve) runs.
-    #[serde(deserialize_with = "de::boolean::deserialize")]
+    #[serde(rename = "enabled", deserialize_with = "de::boolean::deserialize")]
     pub enable: bool,
 
     #[serde(flatten)]
@@ -883,7 +883,7 @@ mod tests {
     #[test]
     fn artifacts_config_loads_full_env_surface() {
         let cfg = load(&[
-            ("ARTIFACTS_ENABLE", "true"),
+            ("ARTIFACTS_ENABLED", "true"),
             ("ARTIFACTS_SERVER_HOST", "127.0.0.1"),
             ("ARTIFACTS_SERVER_PORT", "9099"),
             ("ARTIFACTS_STORAGE_PROVIDER", "minio"),
@@ -914,7 +914,7 @@ mod tests {
 
     #[test]
     fn artifacts_config_partial_env_falls_back_to_defaults() {
-        let cfg = load(&[("ARTIFACTS_ENABLE", "1")]);
+        let cfg = load(&[("ARTIFACTS_ENABLED", "1")]);
         assert!(cfg.enable);
         // Unset leaves keep ArtifactsConfig defaults (Go-matching).
         assert_eq!(cfg.server.port, 8081);
@@ -978,7 +978,7 @@ mod tests {
         // never touches it - it stays at the programmatic default.
         let config: Config = envy::prefixed("A2A_")
             .from_iter::<_, Config>(vec![(
-                "A2A_ARTIFACTS_ENABLE".to_string(),
+                "A2A_ARTIFACTS_ENABLED".to_string(),
                 "true".to_string(),
             )])
             .expect("Config should load");
@@ -997,7 +997,7 @@ mod tests {
 
     #[test]
     fn telemetry_traces_default_to_otlp_and_gate_on_enable() {
-        // Single gate: A2A_TELEMETRY_ENABLE + exporter != none.
+        // Single gate: A2A_TELEMETRY_ENABLED + exporter != none.
         let table = [
             // (enable, exporter, expected traces_enabled)
             (None, None, false),                  // disabled by default
@@ -1010,7 +1010,7 @@ mod tests {
         for (enable, exporter, expected) in table {
             let mut vars = Vec::new();
             if let Some(e) = enable {
-                vars.push(("A2A_TELEMETRY_ENABLE", e));
+                vars.push(("A2A_TELEMETRY_ENABLED", e));
             }
             if let Some(x) = exporter {
                 vars.push(("A2A_OTEL_TRACES_EXPORTER", x));
@@ -1065,7 +1065,7 @@ mod tests {
     #[test]
     fn mcp_config_loads_env_surface() {
         let cfg = load_mcp(&[
-            ("MCP_ENABLE", "true"),
+            ("MCP_ENABLED", "true"),
             ("MCP_SERVERS", "http://a:3000,http://b:3000"),
             ("MCP_ENDPOINT", "/rpc"),
             ("MCP_REFRESH_INTERVAL", "10m"),

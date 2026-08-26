@@ -20,7 +20,7 @@
 //!
 //! All TLS knobs are picked up via `envy::prefixed("A2A_").from_env::<Config>()`:
 //!
-//! - `A2A_SERVER_TLS_ENABLE=true`
+//! - `A2A_SERVER_TLS_ENABLED=true`
 //! - `A2A_SERVER_TLS_CERT_PATH=/path/to/server.crt`
 //! - `A2A_SERVER_TLS_KEY_PATH=/path/to/server.key`
 //! - `A2A_SERVER_TLS_CLIENT_CA_PATH=/path/to/ca.crt` (optional, mTLS only)
@@ -42,7 +42,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let config: Config = envy::prefixed("A2A_").from_env()?;
     if !config.tls_config.enable {
-        return Err("A2A_SERVER_TLS_ENABLE=true is required to run the tls example".into());
+        return Err("A2A_SERVER_TLS_ENABLED=true is required to run the tls example".into());
     }
     let tls = &config.tls_config;
 
