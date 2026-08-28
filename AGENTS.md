@@ -1,55 +1,66 @@
-# Repository Guidelines
+# AGENTS.md
 
-## Project Structure & Module Organization
+`inference-gateway-adk` is the Rust Agent Development Kit: a Cargo workspace
+whose root crate builds A2A (Agent-to-Agent, JSON-RPC) servers and clients. It
+is the Rust counterpart of the Go and TypeScript ADKs in the same org and
+shares their `A2A_*` env-var conventions and agent-card shape. This file is
+for coding agents; human docs live in README.md and CONTRIBUTING.md.
 
-This repository is the Rust Agent Development Kit crate `inference-gateway-adk`.
-Core library code lives in `src/`: `client.rs` contains the A2A client,
-`server.rs` and `src/server/` contain server, auth, storage, TLS, and task
-handling modules, and `a2a_types.rs` is generated from `schema.json`. Integration
-tests live in `tests/` (`*_test.rs`). Runnable examples are workspace members
-under `examples/<scenario>/{server,client}` with per-example READMEs and
-Docker Compose files where needed.
+## Repository layout
 
-## Build, Test, and Development Commands
+- `src/lib.rs` — flat public API re-exported from `client`, `config`, `server`.
+- `src/client.rs` — `A2AClient`, one typed helper per A2A JSON-RPC method.
+- `src/server.rs` — façade only; real logic lives in `src/server/*.rs`
+  (builder, protocol dispatch, task handlers/manager, storage, auth, TLS,
+  artifacts, MCP, usage tracking).
+- `src/a2a_types.rs` — **generated** by `cargo-typify` from `schema.json`.
+  Do not hand-edit. Regenerate with `task a2a:generate-types` (run
+  `task a2a:download-schema` first to refresh the schema).
+- `tests/` — integration tests (`a2a_server_test.rs`, `auth_test.rs`,
+  `tls_test.rs`, `artifacts_integration_test.rs`).
+- `examples/<scenario>/{server,client}/` — workspace members, one binary per
+  directory, each with its own `Cargo.toml`; `examples/README.md` catalogs
+  them. `examples/tls/make-certs.sh` mints dev certificates.
 
-- `cargo build --all-targets --all-features`: compile the crate, examples, and tests.
-- `task lint`: run `cargo fmt --all -- --check`.
-- `task lint:fix`: format all Rust code with `cargo fmt --all`.
-- `task analyse`: run Clippy with all targets/features and `-D warnings`.
-- `task test`: run `cargo test --all-targets --all-features`.
-- `task --list`: show example runners such as `task examples:minimal-server`.
-- `task a2a:generate-types`: regenerate `src/a2a_types.rs` from `schema.json`.
+## Commands
 
-## Coding Style & Naming Conventions
+| Task | What it runs |
+| --- | --- |
+| `task lint` | `cargo fmt --all -- --check` |
+| `task lint:fix` | `cargo fmt --all` |
+| `task analyse` | `cargo clippy --all-targets --all-features -- -D warnings` |
+| `task test` | `cargo test --all-targets --all-features` |
+| `task --list` | example runners, e.g. `task examples:minimal-server` |
 
-Use Rust 2024 style and standard `rustfmt` formatting. `.editorconfig` sets
-4-space indentation for Rust and 2 spaces for YAML, TOML, and JSON. Prefer
-strong typed APIs, early returns, and explicit `Result<T, E>` error handling.
-Use `thiserror` for domain errors and `anyhow` for application-level context.
-Name modules and files in `snake_case`, public types in `UpperCamelCase`, and
-functions, variables, and test functions in `snake_case`. Keep generated A2A
-types isolated in `src/a2a_types.rs`; do not hand-edit generated sections unless
-the schema generator cannot express the required fix.
+CI runs lint → analyse → build → test on Rust 1.95.0; clippy `-D warnings`
+means any new warning fails CI. Run one test with
+`cargo test --all-features <test_name>`. Example servers that load
+`.well-known/agent.json` resolve it relative to CWD — use the task targets
+(they `cd` into the example dir) rather than raw `cargo run -p ...` from the
+repo root.
 
-## Testing Guidelines
+## Conventions
 
-Use Rust integration tests in `tests/` plus focused unit tests beside the code
-when useful. Async tests should use `#[tokio::test]`. Follow the existing
-`*_test.rs` file pattern and descriptive `test_*` function names. Prefer
-isolated fixtures or mock servers per case so tests remain deterministic. Before
-opening a PR, run `task lint`, `task analyse`, and `task test`.
+- Rust 2024 edition, standard rustfmt; `.editorconfig` = 4 spaces (Rust),
+  2 spaces (YAML/TOML/JSON).
+- Strong typed APIs, early returns, explicit `Result<T, E>`; `thiserror` for
+  domain errors, `anyhow` for application context.
+- Runtime config is plain serde; the library never reads env itself — examples
+  load it via `envy::prefixed("A2A_")`. The string-or-native deserializers in
+  `src/config.rs` (the `de` module) are load-bearing; don't simplify them
+  without re-checking env-driven examples.
+- Cargo features `redis`, `minio`, `telemetry` are off by default; enable them
+  explicitly in packages that need them.
+- Table-driven tests with isolated per-case mocks/servers (see
+  `tests/a2a_server_test.rs`); async tests use `#[tokio::test]`.
+- Conventional Commits with semantic-release (`.releaserc.yaml`), which also
+  recognizes `impr` (improvements → patch). Never author
+  `chore(release): … [skip ci]` commits manually.
+- Shared example deps are pinned under `[workspace.dependencies]` in the root
+  `Cargo.toml`; per-example manifests refer to those.
 
-## Commit & Pull Request Guidelines
+## Security
 
-Recent history uses Conventional Commit-style messages such as `docs: ...`,
-`chore(deps): ...`, and `chore(docs): ...`; follow that pattern and keep the
-subject imperative and concise. PRs should include a clear summary, linked issues
-when relevant, notes for breaking API changes, and tests or examples for new
-behavior. Update README, example docs, and schema-generated files when behavior
-or configuration changes.
-
-## Security & Configuration Tips
-
-Do not commit real credentials. Use `.env.example` files in examples as templates
-for local configuration. TLS certificates under `examples/tls/` are development
-artifacts only; generate fresh material for real deployments.
+- Never commit real credentials; examples use `.env.example` templates.
+- Certificates under `examples/tls/` are development artifacts only —
+  generate fresh material for real deployments.
