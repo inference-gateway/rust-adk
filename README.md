@@ -1136,8 +1136,8 @@ configured by `A2A_AUTH_ISSUER_URL`. The bundled `OidcJwtVerifier`:
 
 1. Performs OIDC discovery at `<A2A_AUTH_ISSUER_URL>/.well-known/openid-configuration`.
 2. Fetches and caches the JWKS advertised by the discovery document.
-3. Validates the JWT signature, `iss`, `exp`, and (when `A2A_AUTH_CLIENT_ID`
-   is set) `aud` claims.
+3. Validates the JWT signature, `iss`, `exp`, and `aud` (against
+   `A2A_AUTH_CLIENT_ID`) claims.
 
 `GET /health` and `GET /.well-known/agent.json` are always public so
 health probes and discovery clients keep working without a credential.
@@ -1397,8 +1397,8 @@ A2A_QUEUE_WORKERS="1"
 # Authentication (optional, OIDC bearer-token JWT)
 A2A_AUTH_ENABLED="false"                                                   # when true, POST /a2a requires a valid bearer token
 A2A_AUTH_ISSUER_URL="http://keycloak:8080/realms/inference-gateway-realm" # OIDC issuer; the server performs discovery + JWKS lookup
-A2A_AUTH_CLIENT_ID="inference-gateway-client"                             # validated as the JWT audience when set
-A2A_AUTH_CLIENT_SECRET="your-secret"                                      # currently unused server-side (reserved for client-side OAuth2)
+A2A_AUTH_CLIENT_ID="inference-gateway-client"                             # required; validated as the JWT audience
+A2A_AUTH_CLIENT_SECRET="your-secret"                                      # required; not used for JWT verification (reserved for client-side OAuth2)
 
 # TLS (optional)
 A2A_SERVER_TLS_ENABLED="false"                   # when true, A2AServer::serve binds an HTTPS listener via axum-server + rustls
