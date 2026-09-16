@@ -472,11 +472,6 @@ async fn run_tool_loop(
             debug!("tool dispatch: {tool_name}");
             tracker.increment_tool_calls();
 
-            // Every dispatched tool runs inside a `tool.<name>` span (child of
-            // `task.process`), mirroring the Go ADK toolbox: `gen_ai.tool.name`
-            // and `gen_ai.tool.call.id` are set inline, `session.id` is copied
-            // from the otel context baggage when present. Without an otel layer
-            // the span is a cheap no-op.
             let span_name = format!("tool.{tool_name}");
             let span = tracing::info_span!(
                 "tool",
