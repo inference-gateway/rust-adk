@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.12.0](https://github.com/inference-gateway/rust-adk/compare/0.11.2...0.12.0) (2026-09-16)
+
+### ✨ Features
+
+* **server:** wrap every tool execution in a tool.<name> span ([#148](https://github.com/inference-gateway/rust-adk/issues/148)) ([6bcc3e6](https://github.com/inference-gateway/rust-adk/commit/6bcc3e6a3701397158c7d4a244a51a78268ed5f4)), references [inference-gateway/adk#305](https://github.com/inference-gateway/adk/issues/305)
+
+### 👷 CI
+
+* **claude:** centralize claude.yml via reusable workflow ([#138](https://github.com/inference-gateway/rust-adk/issues/138)) ([059e82d](https://github.com/inference-gateway/rust-adk/commit/059e82d383e265b2c297d0ec41f53f585cc8faab))
+
+### 📚 Documentation
+
+* add AGENTS.md following the agents.md standard ([#140](https://github.com/inference-gateway/rust-adk/issues/140)) ([500df36](https://github.com/inference-gateway/rust-adk/commit/500df3693fefe43129637ae8de335cecba2839a4))
+* keep AGENTS.md ASCII-safe so agent file readers accept it ([#141](https://github.com/inference-gateway/rust-adk/issues/141)) ([1e9810a](https://github.com/inference-gateway/rust-adk/commit/1e9810ab71c7f0637860208c59519246d4565b0f))
+
+### 🔧 Miscellaneous
+
+* **deps:** bump claude-code 2.1.201 -> 2.1.238 ([#137](https://github.com/inference-gateway/rust-adk/issues/137)) ([166f4bf](https://github.com/inference-gateway/rust-adk/commit/166f4bfb26089d03559348fe179b3192d6e84e34))
+* **deps:** bump claude-code 2.1.238 -> 2.1.245 ([#143](https://github.com/inference-gateway/rust-adk/issues/143)) ([a2fc19d](https://github.com/inference-gateway/rust-adk/commit/a2fc19dbf9514eed31af7baa9a5d46b647a9da63))
+* **deps:** bump claude-code 2.1.245 -> 2.1.266 ([#145](https://github.com/inference-gateway/rust-adk/issues/145)) ([0af8db6](https://github.com/inference-gateway/rust-adk/commit/0af8db6f42ca1f098ad4c2cd70d04a4d7baf478e))
+* **deps:** bump infer CLI v0.164.0 -> v0.183.0 ([#139](https://github.com/inference-gateway/rust-adk/issues/139)) ([0559d6f](https://github.com/inference-gateway/rust-adk/commit/0559d6f1b1e1f06f141055aac2df68dde8c92de0))
+* **deps:** bump infer CLI v0.183.0 -> v0.192.0 ([#146](https://github.com/inference-gateway/rust-adk/issues/146)) ([3a9c044](https://github.com/inference-gateway/rust-adk/commit/3a9c044377bf54866b39d3c83d229c94fea89249))
+* **deps:** bump the cargo group with 10 updates ([#144](https://github.com/inference-gateway/rust-adk/issues/144)) ([c44da63](https://github.com/inference-gateway/rust-adk/commit/c44da63970f32afad79cf475a25a68ef5af3fe01))
+* **deps:** bump the cargo group with 8 updates ([#136](https://github.com/inference-gateway/rust-adk/issues/136)) ([b1e74c4](https://github.com/inference-gateway/rust-adk/commit/b1e74c499c2f2ee739afd5b0b4539324f2bb1740))
+* **deps:** bump the cargo group with 9 updates ([#142](https://github.com/inference-gateway/rust-adk/issues/142)) ([37b1bf4](https://github.com/inference-gateway/rust-adk/commit/37b1bf4ac97d0b5c1c1d983f1c177c6a0949eef5))
+
 ## [0.11.2](https://github.com/inference-gateway/rust-adk/compare/0.11.1...0.11.2) (2026-08-26)
 
 ### 🐛 Bug Fixes
