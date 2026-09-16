@@ -12,7 +12,7 @@ use inference_gateway_sdk::{CompletionUsage, Message, MessageContent, MessageRol
 use serde_json::{Map, Value};
 use std::sync::Arc;
 use tokio::sync::mpsc;
-use tracing::{debug, warn};
+use tracing::{Instrument, debug, warn};
 
 /// Handler invoked by the server for `message/send` requests.
 ///
@@ -472,10 +472,33 @@ async fn run_tool_loop(
             debug!("tool dispatch: {tool_name}");
             tracker.increment_tool_calls();
 
+            let span_name = format!("tool.{tool_name}");
+            let span = tracing::info_span!(
+                "tool",
+                otel.name = %span_name,
+                "gen_ai.tool.name" = %tool_name,
+                "gen_ai.tool.call.id" = %tool_call.id,
+                "session.id" = tracing::field::Empty,
+            );
+            #[cfg(feature = "telemetry")]
+            {
+                use opentelemetry::baggage::BaggageExt as _;
+                use tracing_opentelemetry::OpenTelemetrySpanExt as _;
+                if let Some(session) = span.context().baggage().get("session.id") {
+                    span.record("session.id", session.as_str());
+                }
+            }
+
             let tool_result = match agent.tool_handler(&tool_name) {
-                Some(handler) => match handler.handle(args).await {
+                Some(handler) => match handler.handle(args).instrument(span.clone()).await {
                     Ok(value) => value,
                     Err(e) => {
+                        #[cfg(feature = "telemetry")]
+                        {
+                            use opentelemetry::trace::Status;
+                            use tracing_opentelemetry::OpenTelemetrySpanExt as _;
+                            span.set_status(Status::error(e.to_string()));
+                        }
                         tracker.increment_failed_tools();
                         format!("tool `{tool_name}` failed: {e}")
                     }
@@ -1691,5 +1714,114 @@ mod tests {
             })
             .collect();
         assert_eq!(texts, vec!["m3".to_string(), "m4".to_string()]);
+    }
+
+    // ----- tool-span coverage -------------------------------------------------
+
+    /// Every dispatched tool call runs inside a `tool.<name>` span (exported
+    /// name via `otel.name`) parented on `task.process`, carrying
+    /// `gen_ai.tool.name` and `gen_ai.tool.call.id` - the Rust counterpart of
+    /// the Go ADK toolbox span.
+    #[tokio::test]
+    async fn tool_dispatch_runs_inside_tool_name_span_under_task_process() {
+        use std::collections::HashMap;
+        use std::sync::Mutex;
+        use tracing::field::{Field, Visit};
+        use tracing_subscriber::layer::{Context, Layer};
+        use tracing_subscriber::prelude::*;
+
+        type CapturedSpans = Arc<Mutex<Vec<(String, Option<String>, HashMap<String, String>)>>>;
+
+        /// Records each new span's name, its parent's name (the current span
+        /// at creation time - the new span is not entered yet), and
+        /// string-rendered fields.
+        #[derive(Clone, Default)]
+        struct ToolSpanCaptureLayer {
+            spans: CapturedSpans,
+        }
+
+        struct FieldVisitor<'a>(&'a mut HashMap<String, String>);
+        impl Visit for FieldVisitor<'_> {
+            fn record_debug(&mut self, field: &Field, value: &dyn std::fmt::Debug) {
+                self.0
+                    .insert(field.name().to_string(), format!("{value:?}"));
+            }
+        }
+
+        impl<S> Layer<S> for ToolSpanCaptureLayer
+        where
+            S: tracing::Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>,
+        {
+            fn on_new_span(
+                &self,
+                attrs: &tracing::span::Attributes<'_>,
+                _id: &tracing::span::Id,
+                ctx: Context<'_, S>,
+            ) {
+                let mut fields = HashMap::new();
+                attrs.record(&mut FieldVisitor(&mut fields));
+                let parent = ctx.lookup_current().map(|s| s.name().to_string());
+                self.spans.lock().expect("mutex poisoned").push((
+                    attrs.metadata().name().to_string(),
+                    parent,
+                    fields,
+                ));
+            }
+        }
+
+        let capture = ToolSpanCaptureLayer::default();
+        let _guard =
+            tracing::subscriber::set_default(tracing_subscriber::registry().with(capture.clone()));
+
+        let mock_state = Arc::new(ToolMockState::default());
+        let gateway_listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+        let gateway_addr = gateway_listener.local_addr().expect("addr");
+        let gateway_app = Router::new()
+            .route("/chat/completions", post(mock_chat_completions))
+            .with_state(mock_state);
+        tokio::spawn(async move {
+            axum::serve(gateway_listener, gateway_app).await.ok();
+        });
+
+        let (agent, _recorded) =
+            build_echo_agent_with_recorder(format!("http://{gateway_addr}")).await;
+        let handler = DefaultBackgroundTaskHandler::new(Some(Arc::new(agent)));
+
+        let task = submitted_usage_task("hi");
+        // Mirror the `task.process` span the task manager wraps handlers in.
+        let parent = tracing::info_span!("task.process", task_id = %task.id);
+        handler
+            .handle_task(task, None)
+            .instrument(parent.clone())
+            .await
+            .expect("handle_task");
+
+        let spans = capture.spans.lock().expect("mutex poisoned").clone();
+        let (_, parent_name, fields) = spans
+            .iter()
+            .find(|(name, _, _)| name == "tool")
+            .expect("tool span should be recorded for the dispatched tool call");
+        assert_eq!(
+            fields.get("otel.name").map(String::as_str),
+            Some("tool.echo_arg"),
+            "exported span name must be tool.<name>"
+        );
+        assert_eq!(
+            parent_name.as_deref(),
+            Some("task.process"),
+            "tool span should be a child of task.process"
+        );
+        assert_eq!(
+            fields.get("gen_ai.tool.name").map(String::as_str),
+            Some("echo_arg")
+        );
+        assert_eq!(
+            fields.get("gen_ai.tool.call.id").map(String::as_str),
+            Some("call_1")
+        );
+        assert!(
+            !fields.contains_key("session.id"),
+            "session.id stays unset when no baggage is propagated"
+        );
     }
 }
