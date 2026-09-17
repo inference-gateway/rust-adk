@@ -14,8 +14,9 @@ for coding agents; human docs live in README.md and CONTRIBUTING.md.
   (builder, protocol dispatch, task handlers/manager, storage, auth, TLS,
   artifacts, MCP, usage tracking).
 - `src/a2a_types.rs` - **generated** by `cargo-typify` from `schema.json`.
-  Do not hand-edit. Regenerate with `task a2a:generate-types` (run
-  `task a2a:download-schema` first to refresh the schema).
+  Do not hand-edit. Regenerate with `task a2a:generate-types` (installs
+  `cargo-typify` if missing; run `task a2a:download-schema` first to refresh
+  the schema).
 - `tests/` - integration tests (`a2a_server_test.rs`, `auth_test.rs`,
   `tls_test.rs`, `artifacts_integration_test.rs`).
 - `examples/<scenario>/{server,client}/` - workspace members, one binary per
@@ -32,12 +33,14 @@ for coding agents; human docs live in README.md and CONTRIBUTING.md.
 | `task test` | `cargo test --all-targets --all-features` |
 | `task --list` | example runners, e.g. `task examples:minimal-server` |
 
-CI runs lint -> analyse -> build -> test on Rust 1.95.0; clippy `-D warnings`
-means any new warning fails CI. Run one test with
-`cargo test --all-features <test_name>`. Example servers that load
-`.well-known/agent.json` resolve it relative to CWD - use the task targets
-(they `cd` into the example dir) rather than raw `cargo run -p ...` from the
-repo root.
+CI runs lint -> analyse -> build -> test on Rust 1.95.0 (the crate's MSRV);
+clippy `-D warnings` means any new warning fails CI. CI's test step is plain
+`cargo test` - `task test` (all features/targets) is the stricter local gate.
+Run one test with `cargo test --all-features <test_name>`, or one integration
+file with `cargo test --all-features --test a2a_server_test`. Example servers
+that load `.well-known/agent.json` resolve it relative to CWD - use the task
+targets (they `cd` into the example dir) rather than raw `cargo run -p ...`
+from the repo root.
 
 ## Conventions
 
@@ -61,6 +64,7 @@ repo root.
 
 ## Security
 
-- Never commit real credentials; examples use `.env.example` templates.
+- Never commit real credentials; `.env` is gitignored (`**/.env`) and
+  examples use `.env.example` templates.
 - Certificates under `examples/tls/` are development artifacts only -
   generate fresh material for real deployments.
