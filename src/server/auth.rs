@@ -333,6 +333,10 @@ impl AuthVerifier for OidcJwtVerifier {
 /// the request to reach the wrapped handler. The middleware is a
 /// no-op when [`AppState::auth_verifier`] is `None`, which is what the
 /// builder produces when `AuthConfig.enable == false`.
+#[allow(
+    clippy::result_large_err,
+    reason = "axum middleware idiom: return either the response or an error response; boxing would not change behaviour"
+)]
 pub(crate) async fn auth_middleware(
     State(state): State<Arc<AppState>>,
     mut req: Request,
