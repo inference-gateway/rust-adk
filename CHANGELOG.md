@@ -2,6 +2,42 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.13.0](https://github.com/inference-gateway/rust-adk/compare/0.12.1...0.13.0) (2026-09-26)
+
+### ⚠ BREAKING CHANGES
+
+* AgentConfig::temperature, AgentBuilder::with_temperature
+  and A2A_AGENT_CLIENT_TEMPERATURE are removed - inference-gateway-sdk
+  exposes no temperature knob (checked 0.22.0 and the latest 0.27.2), so
+  the setting could never take effect.
+
+  * Apply suggestion from @edenreich
+
+### ✨ Features
+
+* forward image file parts to vision models ([#171](https://github.com/inference-gateway/rust-adk/issues/171)) ([5c2cc59](https://github.com/inference-gateway/rust-adk/commit/5c2cc595159c549611b787ca9dd67955688ee9cb))
+* restore agent temperature on sdk with_temperature ([#172](https://github.com/inference-gateway/rust-adk/issues/172)) ([20f2d95](https://github.com/inference-gateway/rust-adk/commit/20f2d9580cf6af6e994e5e61f7675d6d28c9ef4b))
+
+### 🐛 Bug Fixes
+
+* wire ignored agent llm settings, drop dead temperature knob ([#168](https://github.com/inference-gateway/rust-adk/issues/168)) ([1661937](https://github.com/inference-gateway/rust-adk/commit/1661937c0dd1629cd7d7bcaea9efb934daf6d5e4))
+
+### 👷 CI
+
+* **claude:** centralize claude.yml via reusable workflow ([#156](https://github.com/inference-gateway/rust-adk/issues/156)) ([476b5ea](https://github.com/inference-gateway/rust-adk/commit/476b5eae5c7de4cdbbdd02b9ef9e64f1652728e2))
+
+### 📚 Documentation
+
+* correct artifacts config loading and emitters ([#164](https://github.com/inference-gateway/rust-adk/issues/164)) ([0a0a3bc](https://github.com/inference-gateway/rust-adk/commit/0a0a3bcd8c2cf427be73c706aa8043bd6b0d71e0))
+* correct message/stream and extended card docs ([#166](https://github.com/inference-gateway/rust-adk/issues/166)) ([4a02332](https://github.com/inference-gateway/rust-adk/commit/4a023328c4005bf5d85092a51d4cf544b4ebd00b))
+* drop config vars the crate never reads ([#165](https://github.com/inference-gateway/rust-adk/issues/165)) ([53dbf76](https://github.com/inference-gateway/rust-adk/commit/53dbf7604e9ca47e121d36b2d78dee59a9ecae4e))
+* fix stale quick start version, MSRV and snippets ([#167](https://github.com/inference-gateway/rust-adk/issues/167)) ([eea8c6d](https://github.com/inference-gateway/rust-adk/commit/eea8c6d53f532fef72e24c43ef0c44e20494fa24))
+
+### 🔧 Miscellaneous
+
+* **deps:** bump claude-code 2.1.278 -> 2.1.280 ([#157](https://github.com/inference-gateway/rust-adk/issues/157)) ([45ad66f](https://github.com/inference-gateway/rust-adk/commit/45ad66f7a1ad26ca97dce6fe4be3da2fa4b3cff6))
+* **deps:** bump infer CLI v0.205.3 -> v0.208.0 ([#158](https://github.com/inference-gateway/rust-adk/issues/158)) ([308ad9f](https://github.com/inference-gateway/rust-adk/commit/308ad9f6481d1c367f161e240a2fc6a1b28db168))
+
 ## [0.12.1](https://github.com/inference-gateway/rust-adk/compare/0.12.0...0.12.1) (2026-09-23)
 
 ### 📚 Documentation
