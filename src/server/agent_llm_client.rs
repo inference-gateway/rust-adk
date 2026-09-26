@@ -106,11 +106,13 @@ impl OpenAICompatibleLLMClient {
         &self.base_url
     }
 
-    /// Build an SDK client carrying the configured API key (bearer token) and
-    /// `max_tokens`. The SDK omits `max_tokens` from streaming requests, so it
-    /// only takes effect on non-streaming completions.
+    /// Build an SDK client carrying the configured API key (bearer token),
+    /// `max_tokens` and `temperature`. The SDK omits `max_tokens` from
+    /// streaming requests, so it only takes effect on non-streaming
+    /// completions; `temperature` is sent on both.
     fn sdk_client(&self, tools: Option<Vec<ChatCompletionTool>>) -> InferenceGatewayClient {
-        let mut client = InferenceGatewayClient::new(&self.base_url);
+        let mut client =
+            InferenceGatewayClient::new(&self.base_url).with_temperature(self.config.temperature);
         if let Some(api_key) = self.config.api_key.as_deref().filter(|k| !k.is_empty()) {
             client = client.with_token(api_key);
         }
@@ -124,6 +126,11 @@ impl OpenAICompatibleLLMClient {
     }
 
     /// Per-request timeout, or `None` when `timeout_secs` is `0`.
+    ///
+    /// Applied with `tokio::time::timeout` rather than the SDK's
+    /// `with_timeout`: the SDK bound also covers reading the response body, so
+    /// it would cut off any stream that outlives it, whereas here the bound is
+    /// per stream event (a stall guard) and total only for non-streaming calls.
     fn request_timeout(&self) -> Option<Duration> {
         (self.config.timeout_secs > 0).then(|| self.config.timeout())
     }
@@ -330,6 +337,32 @@ mod tests {
             body.get("max_tokens").and_then(|v| v.as_i64()),
             Some(16),
             "max_tokens should reach the gateway"
+        );
+    }
+
+    #[tokio::test]
+    async fn forwards_temperature() {
+        let (base_url, captured) = spawn_gateway(Duration::ZERO).await;
+        let client = OpenAICompatibleLLMClient::new(&AgentConfig {
+            temperature: Some(0.25),
+            ..config(base_url)
+        })
+        .expect("client builds");
+
+        client
+            .create_chat_completion(vec![], None)
+            .await
+            .expect("completion succeeds");
+
+        let (_, body) = captured
+            .lock()
+            .expect("mutex poisoned")
+            .clone()
+            .expect("gateway was called");
+        assert_eq!(
+            body.get("temperature").and_then(|v| v.as_f64()),
+            Some(0.25),
+            "temperature should reach the gateway"
         );
     }
 

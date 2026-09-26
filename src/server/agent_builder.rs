@@ -24,6 +24,7 @@ pub struct AgentBuilder {
     max_retries: Option<u32>,
     max_chat_completion_iterations: Option<u32>,
     max_tokens: Option<u32>,
+    temperature: Option<f64>,
     system_prompt: Option<String>,
     enable_usage_metadata: Option<bool>,
     max_conversation_history: u32,
@@ -44,6 +45,7 @@ impl AgentBuilder {
             max_retries: None,
             max_chat_completion_iterations: None,
             max_tokens: None,
+            temperature: None,
             system_prompt: None,
             enable_usage_metadata: None,
             max_conversation_history: 20,
@@ -105,6 +107,13 @@ impl AgentBuilder {
     /// The gateway SDK omits `max_tokens` from streaming requests.
     pub fn with_max_tokens(mut self, max_tokens: u32) -> Self {
         self.max_tokens = Some(max_tokens);
+        self
+    }
+
+    /// Sampling temperature (`0.0` - `2.0`) sent with every chat completion.
+    /// Leaving it unset keeps the gateway default.
+    pub fn with_temperature(mut self, temperature: f64) -> Self {
+        self.temperature = Some(temperature);
         self
     }
 
@@ -218,6 +227,9 @@ impl AgentBuilder {
         }
         if let Some(v) = self.max_tokens {
             effective.max_tokens = v;
+        }
+        if let Some(v) = self.temperature {
+            effective.temperature = Some(v);
         }
         if let Some(v) = self.system_prompt.clone() {
             effective.system_prompt = Some(v);
