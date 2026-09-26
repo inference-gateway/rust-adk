@@ -194,7 +194,6 @@ impl LLMClient for OpenAICompatibleLLMClient {
             let mut sdk_stream =
                 Box::pin(client.generate_content_stream(provider, &model, messages));
             loop {
-                // `timeout` bounds the wait for each event, not the whole stream.
                 let next = match timeout {
                     Some(d) => match tokio::time::timeout(d, sdk_stream.next()).await {
                         Ok(item) => item,
