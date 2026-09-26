@@ -719,10 +719,11 @@ Top-level shape:
 ```rust
 pub struct Config {
     pub agent_url: String,
-    pub debug: bool,
+    pub debug: bool,                             // inert; log level comes from RUST_LOG
     pub streaming_status_update_interval_secs: u64,
     pub agent_config: AgentConfig,               // A2A_AGENT_CLIENT_*
-    pub capabilities_config: CapabilitiesConfig, // A2A_CAPABILITIES_*
+    pub capabilities_config: CapabilitiesConfig, // A2A_CAPABILITIES_*; inert, the served
+                                                 // card uses its own `capabilities`
     pub tls_config: TlsConfig,                   // A2A_SERVER_TLS_*
     pub auth_config: AuthConfig,                 // A2A_AUTH_*
     pub queue_config: QueueConfig,               // A2A_QUEUE_*
@@ -1084,25 +1085,16 @@ roughly this shape to the configured `url`:
 
 ### Agent Metadata
 
-Agent metadata can be configured in two ways: at build-time via environment variables (recommended for production) or at runtime via configuration.
+Card `name`, `description`, `version` and `capabilities` come from the agent
+card you hand the builder - either inline via `with_agent_card(card)` or from
+a JSON file via `with_agent_card_from_file(path, overrides)`. There are no
+build-time or `A2A_*` env vars for these fields; the card is the single source
+of truth.
 
-#### Build-Time Metadata (Recommended)
+#### Overriding Card Fields
 
-Agent metadata is embedded directly into the binary during compilation using environment variables. This approach ensures immutable agent information and is ideal for production deployments:
-
-```bash
-# Build your application with custom metadata
-AGENT_NAME="Weather Assistant" \
-AGENT_DESCRIPTION="Specialized weather analysis agent" \
-AGENT_VERSION="2.0.0" \
-cargo build --release
-```
-
-#### Runtime Metadata Configuration
-
-For development or when dynamic configuration is needed, override individual
-agent card fields at runtime via `AgentCardOverrides`. The builder layers
-your overrides on top of whatever was loaded from disk:
+Override individual agent card fields at startup via `AgentCardOverrides`. The
+builder layers your overrides on top of whatever was loaded from disk:
 
 ```rust
 use inference_gateway_adk::{A2AServerBuilder, AgentCardOverrides, Config};
@@ -1365,13 +1357,12 @@ tags on `Config`.
 # Server
 A2A_SERVER_HOST="0.0.0.0"
 A2A_SERVER_PORT="8080"
-A2A_DEBUG="false"
 
-# Build-time agent metadata (compile-time env vars, read by env! macros)
-AGENT_NAME="My Agent"
-AGENT_DESCRIPTION="My agent description"
-AGENT_VERSION="1.0.0"
-AGENT_CARD_FILE_PATH="./.well-known/agent.json"
+# Log verbosity is driven by RUST_LOG (tracing EnvFilter), not an A2A_* var
+RUST_LOG="info"
+
+# Agent card metadata (name/description/version/capabilities) is not env-driven -
+# it comes from the card passed to with_agent_card / with_agent_card_from_file.
 
 # LLM client (the ADK fails fast at AgentBuilder::build if provider/model are unset)
 A2A_AGENT_CLIENT_PROVIDER="deepseek"            # groq, google, openai, anthropic, cohere, cloudflare, deepseek, ollama, nvidia, llamacpp
@@ -1382,11 +1373,6 @@ A2A_AGENT_CLIENT_MAX_TOKENS="4096"
 A2A_AGENT_CLIENT_TEMPERATURE="0.7"
 A2A_AGENT_CLIENT_SYSTEM_PROMPT="You are a helpful assistant"
 A2A_AGENT_CLIENT_ENABLE_USAGE_METADATA="true"  # attach token usage + execution_stats to task.metadata on terminal states
-
-# Capabilities (surfaced in the agent card)
-A2A_CAPABILITIES_STREAMING="true"
-A2A_CAPABILITIES_PUSH_NOTIFICATIONS="true"
-A2A_CAPABILITIES_STATE_TRANSITION_HISTORY="false"
 
 # Queue / storage
 A2A_QUEUE_PROVIDER="memory"                     # `memory` (default) or `redis` (requires the `redis` Cargo feature)
@@ -1468,39 +1454,25 @@ Build and run your A2A agent application in any OCI-compliant container runtime 
 ```dockerfile
 FROM rust:1.94 AS builder
 
-# Build arguments for agent metadata
-ARG AGENT_NAME="My A2A Agent"
-ARG AGENT_DESCRIPTION="A custom A2A agent built with the Rust ADK"
-ARG AGENT_VERSION="1.0.0"
-
 WORKDIR /app
 COPY Cargo.toml Cargo.lock ./
 RUN cargo fetch
 
 COPY . .
-
-# Build with custom agent metadata
-RUN AGENT_NAME="${AGENT_NAME}" \
-    AGENT_DESCRIPTION="${AGENT_DESCRIPTION}" \
-    AGENT_VERSION="${AGENT_VERSION}" \
-    cargo build --release
+RUN cargo build --release
 
 FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=builder /app/target/release/rust-adk .
+# with_agent_card_from_file resolves its path relative to CWD
+COPY .well-known/agent.json ./.well-known/agent.json
 CMD ["./rust-adk"]
 ```
 
-**Build with custom metadata:**
-
-```bash
-docker build \
-  --build-arg AGENT_NAME="Weather Assistant" \
-  --build-arg AGENT_DESCRIPTION="AI-powered weather forecasting agent" \
-  --build-arg AGENT_VERSION="2.0.0" \
-  -t my-a2a-agent .
-```
+Agent metadata lives in the card JSON, so it is baked in by the `COPY` above -
+bind-mount a different `agent.json` over it to run the same image as another
+agent.
 
 ## License
 
