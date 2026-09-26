@@ -289,10 +289,13 @@ impl A2AClient {
     }
 
     /// `agent/getAuthenticatedExtendedCard` - fetch the authenticated
-    /// extended [`AgentCard`] for the calling tenant. The server returns
-    /// the configured agent card when the card advertises
-    /// `supportsExtendedAgentCard: true`; otherwise the call surfaces a
-    /// JSON-RPC `METHOD_NOT_FOUND` error.
+    /// extended [`AgentCard`] for the calling tenant.
+    ///
+    /// The server returns the separate card registered with
+    /// `A2AServerBuilder::with_extended_agent_card()`. When the public card
+    /// does not advertise `supportsExtendedAgentCard: true` the call surfaces
+    /// a JSON-RPC `-32004` (unsupported operation) error; when the flag is set
+    /// but no extended card is configured it surfaces `-32007`.
     pub async fn get_authenticated_extended_card(
         &self,
         params: GetExtendedAgentCardRequest,

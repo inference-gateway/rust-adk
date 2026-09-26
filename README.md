@@ -430,7 +430,8 @@ binary per method.
 | Method                                        | `A2AClient` helper                          | Request type                                  | Response type                            |
 | --------------------------------------------- | ------------------------------------------- | --------------------------------------------- | ---------------------------------------- |
 | `message/send`                                | `send_message`                              | `SendMessageRequest`                          | `SendMessageResponse`                    |
-| `message/stream`                              | `send_streaming_message`                    | `SendMessageRequest`                          | `SendMessageResponse`                    |
+| `message/stream`                              | `stream_message`                            | `SendMessageRequest`                          | `Stream<StreamResponse>` (SSE)           |
+| `message/stream` (drained)                    | `send_streaming_message`                    | `SendMessageRequest`                          | `SendMessageResponse`                    |
 | `tasks/get`                                   | `get_task`                                  | `GetTaskRequest`                              | `Task`                                   |
 | `tasks/list`                                  | `list_tasks`                                | `ListTasksRequest`                            | `ListTasksResponse`                      |
 | `tasks/cancel`                                | `cancel_task`                               | `CancelTaskRequest`                           | `Task`                                   |
@@ -474,9 +475,27 @@ let task = response.task.expect("server returned a task");
 
 ###### `message/stream`
 
-Same request shape as `message/send`; in the current client the response is
-delivered as a single payload (true server-sent events arrive in a follow-up
-ticket).
+Same request shape as `message/send`. `stream_message` opens a real
+server-sent events stream and yields a `Result<StreamResponse>` per event as
+it arrives - the first event typically carries the freshly created `Task` in
+`Submitted`, later events are `TaskStatusUpdateEvent` /
+`TaskArtifactUpdateEvent` deltas, and the stream ends after the server emits
+an event with `final: true`.
+
+```rust
+use futures::StreamExt;
+
+let mut stream = Box::pin(client.stream_message(request).await?);
+while let Some(event) = stream.next().await {
+    let response = event?;
+    // inspect response.task / response.status_update / response.message
+}
+```
+
+`send_streaming_message` drains that same SSE stream and assembles a single
+`SendMessageResponse` from the last task seen plus the final agent message -
+use it when you prefer a `message/send`-shaped result and do not care about
+intermediate state transitions.
 
 ```rust
 let response = client.send_streaming_message(request).await?;
@@ -630,11 +649,18 @@ client
 
 ###### `agent/getAuthenticatedExtendedCard`
 
-Fetch the authenticated extended [`AgentCard`] for the calling tenant.
-The server only honours the request when the agent card it serves at
-`/.well-known/agent.json` advertises `supportsExtendedAgentCard: true`;
-otherwise the call surfaces a JSON-RPC `METHOD_NOT_FOUND` error so the
-client can fall back to the unauthenticated card.
+Fetch the authenticated extended [`AgentCard`] for the calling tenant. The
+handler has three outcomes:
+
+- The public card does not advertise `supportsExtendedAgentCard: true` -
+  JSON-RPC `-32004 UnsupportedOperation`, so the client can fall back to the
+  unauthenticated card.
+- The flag is set but no extended card was registered - JSON-RPC `-32007`
+  ("Authenticated extended card not configured").
+- Otherwise the card passed to
+  `A2AServerBuilder::with_extended_agent_card(...)` is returned. Registering
+  it also forces `supportsExtendedAgentCard: true` on the public card served
+  at `/.well-known/agent.json`.
 
 ```rust
 use inference_gateway_adk::a2a_types::GetExtendedAgentCardRequest;
@@ -1152,14 +1178,26 @@ attached to the request via an Axum extension and forwarded to the
 JSON-RPC dispatcher so per-tenant filtering of the extended agent card
 is a future no-op behind a feature flag rather than a breaking change.
 
-**Behaviour when `A2A_AUTH_ENABLED=false`** - the middleware is not attached
-and `agent/getAuthenticatedExtendedCard` returns the configured card
-whenever `supportsExtendedAgentCard == true` on the agent card. This
-preserves backwards compatibility for callers who have not opted in to
-authentication. Operators that want the method to hard-fail when auth
-is globally off should set `supportsExtendedAgentCard: false` on the
-agent card; the handler returns JSON-RPC `-32601 METHOD_NOT_FOUND` in
-that case.
+**Behaviour when `A2A_AUTH_ENABLED=false`** - the middleware is not attached,
+so `POST /a2a` is reachable without a credential and
+`agent/getAuthenticatedExtendedCard` behaves exactly as it does with auth on:
+it returns JSON-RPC `-32004 UnsupportedOperation` unless the public card
+advertises `supportsExtendedAgentCard: true`, `-32007` when the flag is set
+but no extended card is configured, and otherwise the card registered with
+`A2AServerBuilder::with_extended_agent_card(...)`. Registering that card
+forces `supportsExtendedAgentCard: true` on the public card, so the simplest
+way to make the method hard-fail is to not register one (`-32007`) or to leave
+the flag unset (`-32004`).
+
+```rust
+let server = A2AServerBuilder::new()
+    .with_config(config)
+    .with_agent_card_from_file(".well-known/agent.json", None)
+    .with_extended_agent_card(extended_card)
+    .with_default_task_handlers()
+    .build()
+    .await?;
+```
 
 See [`examples/auth/`](./examples/auth/) for a runnable end-to-end demo.
 
