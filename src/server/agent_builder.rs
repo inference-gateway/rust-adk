@@ -24,10 +24,8 @@ pub struct AgentBuilder {
     max_retries: Option<u32>,
     max_chat_completion_iterations: Option<u32>,
     max_tokens: Option<u32>,
-    temperature: Option<f32>,
     system_prompt: Option<String>,
     enable_usage_metadata: Option<bool>,
-    max_chat_completion: u32,
     max_conversation_history: u32,
     toolbox: Option<Vec<ChatCompletionTool>>,
     tool_handlers: HashMap<String, Box<dyn ToolHandler>>,
@@ -46,10 +44,8 @@ impl AgentBuilder {
             max_retries: None,
             max_chat_completion_iterations: None,
             max_tokens: None,
-            temperature: None,
             system_prompt: None,
             enable_usage_metadata: None,
-            max_chat_completion: 10,
             max_conversation_history: 20,
             toolbox: None,
             tool_handlers: HashMap::new(),
@@ -97,18 +93,18 @@ impl AgentBuilder {
         self
     }
 
+    /// Cap on model <-> tool round-trips per task, read by the default tool
+    /// loop via [`Agent::max_chat_completion`]. Overrides
+    /// `AgentConfig::max_chat_completion_iterations`.
     pub fn with_max_chat_completion_iterations(mut self, n: u32) -> Self {
         self.max_chat_completion_iterations = Some(n);
         self
     }
 
+    /// Upper bound on tokens generated per non-streaming chat completion.
+    /// The gateway SDK omits `max_tokens` from streaming requests.
     pub fn with_max_tokens(mut self, max_tokens: u32) -> Self {
         self.max_tokens = Some(max_tokens);
-        self
-    }
-
-    pub fn with_temperature(mut self, temperature: f32) -> Self {
-        self.temperature = Some(temperature);
         self
     }
 
@@ -125,9 +121,9 @@ impl AgentBuilder {
         self
     }
 
-    pub fn with_max_chat_completion(mut self, max: u32) -> Self {
-        self.max_chat_completion = max;
-        self
+    /// Alias for [`with_max_chat_completion_iterations`](Self::with_max_chat_completion_iterations).
+    pub fn with_max_chat_completion(self, max: u32) -> Self {
+        self.with_max_chat_completion_iterations(max)
     }
 
     pub fn with_max_conversation_history(mut self, max: u32) -> Self {
@@ -223,9 +219,6 @@ impl AgentBuilder {
         if let Some(v) = self.max_tokens {
             effective.max_tokens = v;
         }
-        if let Some(v) = self.temperature {
-            effective.temperature = v;
-        }
         if let Some(v) = self.system_prompt.clone() {
             effective.system_prompt = Some(v);
         }
@@ -241,7 +234,7 @@ impl AgentBuilder {
         Ok(Agent {
             system_prompt: effective.system_prompt.clone(),
             llm_client,
-            max_chat_completion: self.max_chat_completion,
+            max_chat_completion: effective.max_chat_completion_iterations,
             max_conversation_history: self.max_conversation_history,
             toolbox: self.toolbox,
             tool_handlers: self.tool_handlers,
@@ -428,6 +421,57 @@ mod tests {
                 }
                 _ => {}
             }
+        }
+    }
+
+    #[tokio::test]
+    async fn max_chat_completion_iterations_drives_the_tool_loop_cap() {
+        let base = || AgentConfig {
+            provider: "openai".to_string(),
+            model: "gpt-4".to_string(),
+            ..Default::default()
+        };
+
+        let agent = AgentBuilder::new()
+            .with_config(&base())
+            .build()
+            .await
+            .expect("agent builds");
+        assert_eq!(agent.max_chat_completion(), 10, "AgentConfig default");
+
+        let agent = AgentBuilder::new()
+            .with_config(&AgentConfig {
+                max_chat_completion_iterations: 2,
+                ..base()
+            })
+            .build()
+            .await
+            .expect("agent builds");
+        assert_eq!(
+            agent.max_chat_completion(),
+            2,
+            "config value should reach the agent"
+        );
+
+        for agent in [
+            AgentBuilder::new()
+                .with_config(&base())
+                .with_max_chat_completion_iterations(3)
+                .build()
+                .await
+                .expect("agent builds"),
+            AgentBuilder::new()
+                .with_config(&base())
+                .with_max_chat_completion(3)
+                .build()
+                .await
+                .expect("agent builds"),
+        ] {
+            assert_eq!(
+                agent.max_chat_completion(),
+                3,
+                "both setters should override the config value"
+            );
         }
     }
 

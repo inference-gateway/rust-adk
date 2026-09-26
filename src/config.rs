@@ -80,37 +80,6 @@ mod de {
         }
     }
 
-    pub mod float32 {
-        pub fn deserialize<'de, D>(d: D) -> Result<f32, D::Error>
-        where
-            D: serde::Deserializer<'de>,
-        {
-            struct V;
-            impl<'de> serde::de::Visitor<'de> for V {
-                type Value = f32;
-                fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                    f.write_str("f32 (native or string representation)")
-                }
-                fn visit_f64<E: serde::de::Error>(self, v: f64) -> Result<f32, E> {
-                    Ok(v as f32)
-                }
-                fn visit_i64<E: serde::de::Error>(self, v: i64) -> Result<f32, E> {
-                    Ok(v as f32)
-                }
-                fn visit_u64<E: serde::de::Error>(self, v: u64) -> Result<f32, E> {
-                    Ok(v as f32)
-                }
-                fn visit_str<E: serde::de::Error>(self, v: &str) -> Result<f32, E> {
-                    v.parse().map_err(serde::de::Error::custom)
-                }
-                fn visit_string<E: serde::de::Error>(self, v: String) -> Result<f32, E> {
-                    self.visit_str(&v)
-                }
-            }
-            d.deserialize_any(V)
-        }
-    }
-
     pub mod duration {
         use std::time::Duration;
         pub fn deserialize<'de, D>(d: D) -> Result<Duration, D::Error>
@@ -308,23 +277,21 @@ pub struct AgentConfig {
     )]
     pub max_retries: u32,
 
+    /// Cap on model <-> tool round-trips the default tool loop performs per
+    /// task before giving up.
     #[serde(
         rename = "agent_client_max_chat_completion_iterations",
         deserialize_with = "de::u32::deserialize"
     )]
     pub max_chat_completion_iterations: u32,
 
+    /// Upper bound on tokens generated per non-streaming chat completion. The
+    /// gateway SDK omits `max_tokens` from streaming requests.
     #[serde(
         rename = "agent_client_max_tokens",
         deserialize_with = "de::u32::deserialize"
     )]
     pub max_tokens: u32,
-
-    #[serde(
-        rename = "agent_client_temperature",
-        deserialize_with = "de::float32::deserialize"
-    )]
-    pub temperature: f32,
 
     #[serde(rename = "agent_client_system_prompt")]
     pub system_prompt: Option<String>,
@@ -812,7 +779,6 @@ impl Default for AgentConfig {
             max_retries: 3,
             max_chat_completion_iterations: 10,
             max_tokens: 4096,
-            temperature: 0.7,
             system_prompt: None,
             enable_usage_metadata: true,
         }

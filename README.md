@@ -770,8 +770,8 @@ let agent_config = AgentConfig {
     provider: "deepseek".to_string(),
     model: "deepseek-v4-flash".to_string(),
     api_key: Some("your-api-key".to_string()),
-    max_tokens: 4096,
-    temperature: 0.7,
+    max_tokens: 4096, // non-streaming requests only
+    timeout_secs: 30, // per request; 0 disables the bound
     max_chat_completion_iterations: 10,
     system_prompt: Some("You are a travel planning assistant.".to_string()),
     ..Default::default()
@@ -1378,8 +1378,10 @@ A2A_AGENT_CLIENT_PROVIDER="deepseek"            # groq, google, openai, anthropi
 A2A_AGENT_CLIENT_MODEL="deepseek-v4-flash"
 A2A_AGENT_CLIENT_API_KEY="your-api-key"
 A2A_AGENT_CLIENT_BASE_URL="http://inference-gateway:8080/v1"
-A2A_AGENT_CLIENT_MAX_TOKENS="4096"
-A2A_AGENT_CLIENT_TEMPERATURE="0.7"
+A2A_AGENT_CLIENT_MAX_TOKENS="4096"              # non-streaming requests only (the gateway SDK omits max_tokens when streaming)
+A2A_AGENT_CLIENT_TIMEOUT_SECS="30"              # per LLM request; 0 disables the bound
+A2A_AGENT_CLIENT_MAX_RETRIES="3"
+A2A_AGENT_CLIENT_MAX_CHAT_COMPLETION_ITERATIONS="10"  # model <-> tool round-trips per task
 A2A_AGENT_CLIENT_SYSTEM_PROMPT="You are a helpful assistant"
 A2A_AGENT_CLIENT_ENABLE_USAGE_METADATA="true"  # attach token usage + execution_stats to task.metadata on terminal states
 
