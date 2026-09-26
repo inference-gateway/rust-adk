@@ -414,10 +414,7 @@ async fn handle_tasks_list(state: &Arc<AppState>, id: Value, params: Value) -> J
     if let Some(context_id) = request.context_id.filter(|c| !c.is_empty()) {
         tasks.retain(|t| t.context_id == context_id);
     }
-    if let Some(status) = request
-        .status
-        .filter(|s| !matches!(s, TaskState::TaskStateUnspecified))
-    {
+    if let Some(status) = request.status.filter(|s| *s != TaskState::TaskStateUnspecified) {
         tasks.retain(|t| t.status.state == status);
     }
 
@@ -601,7 +598,7 @@ async fn handle_list_push_configs(state: &Arc<AppState>, id: Value, params: Valu
 
     let response = ListTaskPushNotificationConfigResponse {
         configs,
-        next_page_token: Some(String::new()),
+        next_page_token: None,
     };
 
     match serde_json::to_value(response) {

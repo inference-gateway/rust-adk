@@ -562,7 +562,7 @@ let page = client
         last_updated_after: Some(0),
         page_size: Some(50),
         page_token: Some(String::new()),
-        status: Some(TaskState::TaskStateUnspecified),
+        status: None,
         tenant: Some("example".to_string()),
     })
     .await?;
