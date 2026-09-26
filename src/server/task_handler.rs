@@ -3,12 +3,15 @@ use super::artifact_service::ArtifactService;
 use super::storage::Storage;
 use super::usage_tracker::UsageTracker;
 use crate::a2a_types::{
-    Artifact, Message as A2AMessage, Part, Role, StreamResponse, Struct, Task,
+    Artifact, FilePart, Message as A2AMessage, Part, Role, StreamResponse, Struct, Task,
     TaskArtifactUpdateEvent, TaskState, TaskStatus, TaskStatusUpdateEvent, Timestamp,
 };
 use anyhow::{Result, anyhow};
 use futures_util::stream::StreamExt;
-use inference_gateway_sdk::{CompletionUsage, Message, MessageContent, MessageRole};
+use inference_gateway_sdk::{
+    CompletionUsage, ContentPart, ImageContentPart, ImageContentPartType, ImageUrl, ImageUrlDetail,
+    Message, MessageContent, MessageRole, TextContentPart, TextContentPartType,
+};
 use serde_json::{Map, Value};
 use std::sync::Arc;
 use tokio::sync::mpsc;
@@ -337,6 +340,67 @@ fn message_content_to_string(content: &MessageContent) -> String {
     }
 }
 
+/// Turn an image `FilePart` into an OpenAI-compatible `image_url` value:
+/// `fileWithBytes` becomes a `data:` URL, `fileWithUri` is passed through
+/// unchanged. Non-image media types yield `None`.
+fn image_url_from_file_part(file: &FilePart) -> Option<String> {
+    if !file.media_type.starts_with("image/") {
+        return None;
+    }
+    if let Some(bytes) = file.file_with_bytes.as_ref() {
+        return Some(format!(
+            "data:{};base64,{}",
+            file.media_type,
+            bytes.as_str()
+        ));
+    }
+    file.file_with_uri.clone()
+}
+
+/// Build the SDK content for one A2A message. Text-only messages keep plain
+/// string content so text traffic is unchanged; messages carrying image file
+/// parts become an ordered content-part array. Returns `None` when there is
+/// nothing to send. Agent-role messages never carry images - OpenAI-compatible
+/// assistant messages cannot.
+fn build_message_content(msg: &A2AMessage, role: MessageRole) -> Option<MessageContent> {
+    let mut parts: Vec<ContentPart> = Vec::new();
+    let mut has_image = false;
+    for part in &msg.parts {
+        if let Some(text) = part.text.as_ref() {
+            parts.push(ContentPart::TextContentPart(TextContentPart {
+                text: text.clone(),
+                type_: TextContentPartType::Text,
+            }));
+        }
+        if role == MessageRole::Assistant {
+            continue;
+        }
+        if let Some(url) = part.file.as_ref().and_then(image_url_from_file_part) {
+            has_image = true;
+            parts.push(ContentPart::ImageContentPart(ImageContentPart {
+                image_url: ImageUrl {
+                    detail: ImageUrlDetail::Auto,
+                    url,
+                },
+                type_: ImageContentPartType::ImageUrl,
+            }));
+        }
+    }
+    if has_image {
+        return Some(MessageContent::Array(parts));
+    }
+    let text = msg
+        .parts
+        .iter()
+        .filter_map(|p| p.text.clone())
+        .collect::<Vec<_>>()
+        .join("");
+    if text.is_empty() {
+        return None;
+    }
+    Some(MessageContent::String(text))
+}
+
 /// Translate the task history into the SDK message format expected by the
 /// agent's [`LLMClient`]. Optionally prepends the agent's system prompt.
 ///
@@ -360,22 +424,16 @@ fn build_sdk_messages(agent: &Agent, task: &Task) -> Vec<Message> {
         &task.history[..]
     };
     for a2a_msg in history {
-        let text = a2a_msg
-            .parts
-            .iter()
-            .filter_map(|p| p.text.clone())
-            .collect::<Vec<_>>()
-            .join("");
-        if text.is_empty() {
-            continue;
-        }
         let role = match a2a_msg.role {
             Role::RoleAgent => MessageRole::Assistant,
             _ => MessageRole::User,
         };
+        let Some(content) = build_message_content(a2a_msg, role) else {
+            continue;
+        };
         messages.push(Message {
             role,
-            content: MessageContent::String(text),
+            content,
             reasoning: None,
             reasoning_content: None,
             tool_call_id: None,
@@ -1714,6 +1772,143 @@ mod tests {
             })
             .collect();
         assert_eq!(texts, vec!["m3".to_string(), "m4".to_string()]);
+    }
+
+    // ----- image file part forwarding ----------------------------------------
+
+    fn text_part(text: &str) -> Part {
+        Part {
+            data: None,
+            file: None,
+            metadata: None,
+            text: Some(text.to_string()),
+        }
+    }
+
+    fn file_part(media_type: &str, bytes: Option<&str>, uri: Option<&str>) -> Part {
+        Part {
+            data: None,
+            file: Some(FilePart {
+                file_with_bytes: bytes.map(|b| b.parse().expect("valid base64")),
+                file_with_uri: uri.map(str::to_string),
+                media_type: media_type.to_string(),
+                name: "image".to_string(),
+            }),
+            metadata: None,
+            text: None,
+        }
+    }
+
+    fn message_with(role: Role, parts: Vec<Part>) -> A2AMessage {
+        A2AMessage {
+            context_id: None,
+            extensions: vec![],
+            message_id: "m1".to_string(),
+            metadata: None,
+            parts,
+            reference_task_ids: vec![],
+            role,
+            task_id: None,
+        }
+    }
+
+    /// Image `FilePart`s on user messages become OpenAI-compatible `image_url`
+    /// content parts, in A2A part order; everything else keeps plain string
+    /// content (or is dropped) exactly as before.
+    #[test]
+    fn build_message_content_forwards_image_file_parts() {
+        struct Case {
+            name: &'static str,
+            role: Role,
+            parts: Vec<Part>,
+            expected: Option<Vec<(&'static str, String)>>,
+        }
+
+        let cases = vec![
+            Case {
+                name: "text only keeps string content",
+                role: Role::RoleUser,
+                parts: vec![text_part("hello")],
+                expected: Some(vec![("string", "hello".to_string())]),
+            },
+            Case {
+                name: "base64 image becomes a data url",
+                role: Role::RoleUser,
+                parts: vec![file_part("image/png", Some("aGk="), None)],
+                expected: Some(vec![("image", "data:image/png;base64,aGk=".to_string())]),
+            },
+            Case {
+                name: "uri image is passed through unchanged",
+                role: Role::RoleUser,
+                parts: vec![file_part(
+                    "image/jpeg",
+                    None,
+                    Some("https://example.com/cat.jpg"),
+                )],
+                expected: Some(vec![("image", "https://example.com/cat.jpg".to_string())]),
+            },
+            Case {
+                name: "text and image keep their original order",
+                role: Role::RoleUser,
+                parts: vec![
+                    text_part("look:"),
+                    file_part("image/png", Some("aGk="), None),
+                    text_part("thanks"),
+                ],
+                expected: Some(vec![
+                    ("text", "look:".to_string()),
+                    ("image", "data:image/png;base64,aGk=".to_string()),
+                    ("text", "thanks".to_string()),
+                ]),
+            },
+            Case {
+                name: "non-image media types are skipped",
+                role: Role::RoleUser,
+                parts: vec![
+                    text_part("doc"),
+                    file_part("application/pdf", None, Some("https://example.com/a.pdf")),
+                ],
+                expected: Some(vec![("string", "doc".to_string())]),
+            },
+            Case {
+                name: "agent-role file parts are never converted",
+                role: Role::RoleAgent,
+                parts: vec![
+                    text_part("here"),
+                    file_part("image/png", Some("aGk="), None),
+                ],
+                expected: Some(vec![("string", "here".to_string())]),
+            },
+            Case {
+                name: "nothing forwardable yields no message",
+                role: Role::RoleUser,
+                parts: vec![file_part(
+                    "application/pdf",
+                    None,
+                    Some("https://example.com/a.pdf"),
+                )],
+                expected: None,
+            },
+        ];
+
+        for case in cases {
+            let role = match case.role {
+                Role::RoleAgent => MessageRole::Assistant,
+                _ => MessageRole::User,
+            };
+            let content = build_message_content(&message_with(case.role, case.parts), role);
+            let actual = content.map(|c| match c {
+                MessageContent::String(s) => vec![("string", s)],
+                MessageContent::Array(parts) => parts
+                    .into_iter()
+                    .map(|p| match p {
+                        ContentPart::TextContentPart(t) => ("text", t.text),
+                        ContentPart::ImageContentPart(i) => ("image", i.image_url.url),
+                    })
+                    .collect(),
+            });
+            assert_eq!(actual, case.expected, "case: {}", case.name);
+        }
     }
 
     // ----- tool-span coverage -------------------------------------------------
