@@ -275,7 +275,7 @@ async fn message_stream_emits_sse_state_transitions() {
 
     let request = a2a_types::SendMessageRequest {
         configuration: None,
-        message: Some(a2a_types::Message {
+        message: a2a_types::Message {
             context_id: None,
             extensions: vec![],
             message_id: "msg-stream-001".to_string(),
@@ -289,9 +289,9 @@ async fn message_stream_emits_sse_state_transitions() {
             reference_task_ids: vec![],
             role: a2a_types::Role::RoleUser,
             task_id: None,
-        }),
+        },
         metadata: None,
-        tenant: "test".to_string(),
+        tenant: Some("test".to_string()),
     };
 
     let mut stream = Box::pin(client.stream_message(request).await.expect("stream opens"));
@@ -567,7 +567,7 @@ async fn client_typed_helpers_round_trip_send_and_list() {
 
     let send_params = a2a_types::SendMessageRequest {
         configuration: None,
-        message: Some(a2a_types::Message {
+        message: a2a_types::Message {
             context_id: None,
             extensions: vec![],
             message_id: uuid::Uuid::new_v4().to_string(),
@@ -581,9 +581,9 @@ async fn client_typed_helpers_round_trip_send_and_list() {
             reference_task_ids: vec![],
             role: a2a_types::Role::RoleUser,
             task_id: None,
-        }),
+        },
         metadata: None,
-        tenant: "test".to_string(),
+        tenant: Some("test".to_string()),
     };
 
     let send_response = client
@@ -604,14 +604,14 @@ async fn client_typed_helpers_round_trip_send_and_list() {
 
     let listed = client
         .list_tasks(a2a_types::ListTasksRequest {
-            context_id: String::new(),
+            context_id: Some(String::new()),
             history_length: None,
             include_artifacts: None,
-            last_updated_after: 0,
+            last_updated_after: Some(0),
             page_size: Some(50),
-            page_token: String::new(),
-            status: a2a_types::TaskState::TaskStateUnspecified,
-            tenant: "test".to_string(),
+            page_token: Some(String::new()),
+            status: Some(a2a_types::TaskState::TaskStateUnspecified),
+            tenant: Some("test".to_string()),
         })
         .await
         .expect("list_tasks ok");
@@ -629,8 +629,8 @@ async fn tasks_resubscribe_returns_snapshot_and_final_event() {
     let mut stream = Box::pin(
         client
             .resubscribe_task(a2a_types::SubscribeToTaskRequest {
-                name: format!("tasks/{}", task.id),
-                tenant: "test".to_string(),
+                name: Some(format!("tasks/{}", task.id)),
+                tenant: Some("test".to_string()),
             })
             .await
             .expect("resubscribe_task ok"),

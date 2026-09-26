@@ -166,9 +166,7 @@ pub(crate) async fn a2a_handler(
 /// `message/stream` request. Returns an error suitable for surfacing as the
 /// `data` field of a JSON-RPC `-32602` response.
 fn validate_send_message_request(req: &SendMessageRequest) -> Result<(), String> {
-    let Some(msg) = req.message.as_ref() else {
-        return Err("`message` is required".to_string());
-    };
+    let msg = &req.message;
     if msg.message_id.is_empty() {
         return Err(
             "`message.messageId` must be a non-empty string - per the A2A spec the message \
@@ -186,20 +184,18 @@ fn build_task_from_request(req: &SendMessageRequest) -> Task {
     let task_id = uuid::Uuid::new_v4().to_string();
     let context_id = req
         .message
-        .as_ref()
-        .and_then(|m| m.context_id.clone())
+        .context_id
+        .clone()
         .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
 
-    let mut history = Vec::new();
-    if let Some(mut msg) = req.message.clone() {
-        if msg.context_id.is_none() {
-            msg.context_id = Some(context_id.clone());
-        }
-        if msg.task_id.is_none() {
-            msg.task_id = Some(task_id.clone());
-        }
-        history.push(msg);
+    let mut msg = req.message.clone();
+    if msg.context_id.is_none() {
+        msg.context_id = Some(context_id.clone());
     }
+    if msg.task_id.is_none() {
+        msg.task_id = Some(task_id.clone());
+    }
+    let history = vec![msg];
 
     Task {
         artifacts: vec![],
@@ -329,7 +325,7 @@ async fn handle_message_stream(state: Arc<AppState>, id: Value, params: Value) -
     let emitter = StreamEmitter::new(tx, Arc::clone(&state.server.storage))
         .with_artifact_service(state.server.artifact_service.clone());
     let task_id = task.id.clone();
-    let message = request.message;
+    let message = Some(request.message);
     tokio::spawn(async move {
         if let Err(e) = handler.handle_streaming_task(task, message, emitter).await {
             error!("streaming task handler for task {task_id} failed: {e}");
@@ -415,11 +411,14 @@ async fn handle_tasks_list(state: &Arc<AppState>, id: Value, params: Value) -> J
 
     let mut tasks = state.server.storage.list_tasks(TaskFilter::default()).await;
 
-    if !request.context_id.is_empty() {
-        tasks.retain(|t| t.context_id == request.context_id);
+    if let Some(context_id) = request.context_id.filter(|c| !c.is_empty()) {
+        tasks.retain(|t| t.context_id == context_id);
     }
-    if !matches!(request.status, TaskState::TaskStateUnspecified) {
-        tasks.retain(|t| t.status.state == request.status);
+    if let Some(status) = request
+        .status
+        .filter(|s| *s != TaskState::TaskStateUnspecified)
+    {
+        tasks.retain(|t| t.status.state == status);
     }
 
     let total_size = tasks.len() as i32;
@@ -451,8 +450,9 @@ async fn handle_tasks_cancel(state: &Arc<AppState>, id: Value, params: Value) ->
         Ok(r) => r,
         Err(e) => return invalid_params(id, e),
     };
+    let name = request.name.unwrap_or_default();
 
-    let task_id = match parse_task_name(&request.name) {
+    let task_id = match parse_task_name(&name) {
         Some(t) => t.to_string(),
         None => {
             return json_rpc_error(
@@ -461,7 +461,7 @@ async fn handle_tasks_cancel(state: &Arc<AppState>, id: Value, params: Value) ->
                 "Invalid params",
                 Some(Value::String(format!(
                     "`name` must be of the form tasks/{{task_id}} (got {:?})",
-                    request.name
+                    name
                 ))),
             );
         }
@@ -474,7 +474,7 @@ async fn handle_tasks_cancel(state: &Arc<AppState>, id: Value, params: Value) ->
                 id,
                 jsonrpc_errors::TASK_NOT_FOUND,
                 "Task not found",
-                Some(Value::String(request.name)),
+                Some(Value::String(name)),
             );
         }
     };
@@ -561,11 +561,12 @@ async fn handle_get_push_config(state: &Arc<AppState>, id: Value, params: Value)
         Ok(r) => r,
         Err(e) => return invalid_params(id, e),
     };
+    let name = request.name.unwrap_or_default();
 
     match state
         .server
         .storage
-        .get_push_notification_config(&request.name)
+        .get_push_notification_config(&name)
         .await
     {
         Some(config) => match serde_json::to_value(config) {
@@ -581,7 +582,7 @@ async fn handle_get_push_config(state: &Arc<AppState>, id: Value, params: Value)
             id,
             jsonrpc_errors::TASK_NOT_FOUND,
             "Push notification config not found",
-            Some(Value::String(request.name)),
+            Some(Value::String(name)),
         ),
     }
 }
@@ -595,12 +596,12 @@ async fn handle_list_push_configs(state: &Arc<AppState>, id: Value, params: Valu
     let configs = state
         .server
         .storage
-        .list_push_notification_configs(&request.parent)
+        .list_push_notification_configs(&request.parent.unwrap_or_default())
         .await;
 
     let response = ListTaskPushNotificationConfigResponse {
         configs,
-        next_page_token: String::new(),
+        next_page_token: None,
     };
 
     match serde_json::to_value(response) {
@@ -620,10 +621,11 @@ async fn handle_delete_push_config(state: &Arc<AppState>, id: Value, params: Val
         Err(e) => return invalid_params(id, e),
     };
 
+    let name = request.name.unwrap_or_default();
     let removed = state
         .server
         .storage
-        .delete_push_notification_config(&request.name)
+        .delete_push_notification_config(&name)
         .await;
 
     if !removed {
@@ -631,7 +633,7 @@ async fn handle_delete_push_config(state: &Arc<AppState>, id: Value, params: Val
             id,
             jsonrpc_errors::TASK_NOT_FOUND,
             "Push notification config not found",
-            Some(Value::String(request.name)),
+            Some(Value::String(name)),
         );
     }
 
@@ -654,8 +656,9 @@ async fn handle_tasks_resubscribe(state: Arc<AppState>, id: Value, params: Value
         Ok(r) => r,
         Err(e) => return invalid_params(id, e).into_response(),
     };
+    let name = request.name.unwrap_or_default();
 
-    let task_id = match parse_task_name(&request.name) {
+    let task_id = match parse_task_name(&name) {
         Some(parsed) => parsed.to_string(),
         None => {
             return json_rpc_error(
@@ -664,7 +667,7 @@ async fn handle_tasks_resubscribe(state: Arc<AppState>, id: Value, params: Value
                 "Invalid params",
                 Some(Value::String(format!(
                     "`name` must be of the form tasks/{{task_id}} (got {:?})",
-                    request.name
+                    name
                 ))),
             )
             .into_response();
@@ -678,7 +681,7 @@ async fn handle_tasks_resubscribe(state: Arc<AppState>, id: Value, params: Value
                 id,
                 jsonrpc_errors::TASK_NOT_FOUND,
                 "Task not found",
-                Some(Value::String(request.name)),
+                Some(Value::String(name)),
             )
             .into_response();
         }
@@ -982,7 +985,7 @@ mod tests {
 
         let request = SendMessageRequest {
             configuration: None,
-            message: Some(A2AMessage {
+            message: A2AMessage {
                 context_id: None,
                 extensions: vec![],
                 message_id: "msg-1".to_string(),
@@ -996,9 +999,9 @@ mod tests {
                 reference_task_ids: vec![],
                 role: Role::RoleUser,
                 task_id: None,
-            }),
+            },
             metadata: None,
-            tenant: "tests".to_string(),
+            tenant: Some("tests".to_string()),
         };
 
         let mut stream = Box::pin(client.stream_message(request).await.expect("stream"));
@@ -1120,7 +1123,7 @@ mod tests {
 
         let request = SendMessageRequest {
             configuration: None,
-            message: Some(A2AMessage {
+            message: A2AMessage {
                 context_id: None,
                 extensions: vec![],
                 message_id: "msg-2".to_string(),
@@ -1134,9 +1137,9 @@ mod tests {
                 reference_task_ids: vec![],
                 role: Role::RoleUser,
                 task_id: None,
-            }),
+            },
             metadata: None,
-            tenant: "tests".to_string(),
+            tenant: Some("tests".to_string()),
         };
 
         let mut stream = Box::pin(client.stream_message(request).await.expect("stream"));
@@ -1233,8 +1236,8 @@ mod tests {
         let mut stream = Box::pin(
             client
                 .resubscribe_task(SubscribeToTaskRequest {
-                    name: format!("tasks/{task_id}"),
-                    tenant: "tests".to_string(),
+                    name: Some(format!("tasks/{task_id}")),
+                    tenant: Some("tests".to_string()),
                 })
                 .await
                 .expect("resubscribe"),
@@ -1325,8 +1328,8 @@ mod tests {
         let mut stream = Box::pin(
             client
                 .resubscribe_task(SubscribeToTaskRequest {
-                    name: format!("tasks/{task_id}"),
-                    tenant: "tests".to_string(),
+                    name: Some(format!("tasks/{task_id}")),
+                    tenant: Some("tests".to_string()),
                 })
                 .await
                 .expect("resubscribe"),
@@ -1374,8 +1377,8 @@ mod tests {
 
         let result = client
             .resubscribe_task(SubscribeToTaskRequest {
-                name: "tasks/does-not-exist".to_string(),
-                tenant: "tests".to_string(),
+                name: Some("tasks/does-not-exist".to_string()),
+                tenant: Some("tests".to_string()),
             })
             .await;
         let err = result
@@ -1431,7 +1434,7 @@ mod tests {
 
         let card = client
             .get_authenticated_extended_card(GetExtendedAgentCardRequest {
-                tenant: "tests".to_string(),
+                tenant: Some("tests".to_string()),
             })
             .await
             .expect("extended card");
@@ -1458,7 +1461,7 @@ mod tests {
 
         let err = client
             .get_authenticated_extended_card(GetExtendedAgentCardRequest {
-                tenant: "tests".to_string(),
+                tenant: Some("tests".to_string()),
             })
             .await
             .expect_err("expected UNSUPPORTED_OPERATION when extended card disabled");
@@ -1495,7 +1498,7 @@ mod tests {
 
             let result = client
                 .get_authenticated_extended_card(GetExtendedAgentCardRequest {
-                    tenant: "tests".to_string(),
+                    tenant: Some("tests".to_string()),
                 })
                 .await;
 

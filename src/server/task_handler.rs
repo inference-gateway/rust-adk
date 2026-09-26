@@ -344,15 +344,12 @@ fn message_content_to_string(content: &MessageContent) -> String {
 /// `fileWithBytes` becomes a `data:` URL, `fileWithUri` is passed through
 /// unchanged. Non-image media types yield `None`.
 fn image_url_from_file_part(file: &FilePart) -> Option<String> {
-    if !file.media_type.starts_with("image/") {
+    let media_type = file.media_type.as_deref()?;
+    if !media_type.starts_with("image/") {
         return None;
     }
     if let Some(bytes) = file.file_with_bytes.as_ref() {
-        return Some(format!(
-            "data:{};base64,{}",
-            file.media_type,
-            bytes.as_str()
-        ));
+        return Some(format!("data:{};base64,{}", media_type, bytes.as_str()));
     }
     file.file_with_uri.clone()
 }
@@ -1059,7 +1056,7 @@ mod tests {
 
         let request = SendMessageRequest {
             configuration: None,
-            message: Some(A2AMessage {
+            message: A2AMessage {
                 context_id: None,
                 extensions: vec![],
                 message_id: "msg-default-stream".to_string(),
@@ -1073,9 +1070,9 @@ mod tests {
                 reference_task_ids: vec![],
                 role: Role::RoleUser,
                 task_id: None,
-            }),
+            },
             metadata: None,
-            tenant: "tests".to_string(),
+            tenant: Some("tests".to_string()),
         };
 
         let mut stream = Box::pin(client.stream_message(request).await.expect("stream"));
@@ -1348,7 +1345,7 @@ mod tests {
         let response = client
             .send_message(SendMessageRequest {
                 configuration: None,
-                message: Some(A2AMessage {
+                message: A2AMessage {
                     context_id: None,
                     extensions: vec![],
                     message_id: "msg-bg-tool".to_string(),
@@ -1362,9 +1359,9 @@ mod tests {
                     reference_task_ids: vec![],
                     role: Role::RoleUser,
                     task_id: None,
-                }),
+                },
                 metadata: None,
-                tenant: "tests".to_string(),
+                tenant: Some("tests".to_string()),
             })
             .await
             .expect("message/send");
@@ -1469,7 +1466,7 @@ mod tests {
         let client = A2AClient::new(format!("http://{addr}")).expect("client");
         let request = SendMessageRequest {
             configuration: None,
-            message: Some(A2AMessage {
+            message: A2AMessage {
                 context_id: None,
                 extensions: vec![],
                 message_id: "msg-stream-tool".to_string(),
@@ -1483,9 +1480,9 @@ mod tests {
                 reference_task_ids: vec![],
                 role: Role::RoleUser,
                 task_id: None,
-            }),
+            },
             metadata: None,
-            tenant: "tests".to_string(),
+            tenant: Some("tests".to_string()),
         };
 
         let mut stream = Box::pin(client.stream_message(request).await.expect("stream"));
@@ -1791,8 +1788,8 @@ mod tests {
             file: Some(FilePart {
                 file_with_bytes: bytes.map(|b| b.parse().expect("valid base64")),
                 file_with_uri: uri.map(str::to_string),
-                media_type: media_type.to_string(),
-                name: "image".to_string(),
+                media_type: Some(media_type.to_string()),
+                name: Some("image".to_string()),
             }),
             metadata: None,
             text: None,

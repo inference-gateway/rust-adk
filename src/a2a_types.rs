@@ -9,68 +9,8 @@
 #![allow(clippy::match_single_binding)]
 #![allow(clippy::clone_on_copy)]
 
-#[doc = r" Error types."]
-pub mod error {
-    #[doc = r" Error from a `TryFrom` or `FromStr` implementation."]
-    pub struct ConversionError(::std::borrow::Cow<'static, str>);
-    impl ::std::error::Error for ConversionError {}
-    impl ::std::fmt::Display for ConversionError {
-        fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> Result<(), ::std::fmt::Error> {
-            ::std::fmt::Display::fmt(&self.0, f)
-        }
-    }
-    impl ::std::fmt::Debug for ConversionError {
-        fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> Result<(), ::std::fmt::Error> {
-            ::std::fmt::Debug::fmt(&self.0, f)
-        }
-    }
-    impl From<&'static str> for ConversionError {
-        fn from(value: &'static str) -> Self {
-            Self(value.into())
-        }
-    }
-    impl From<String> for ConversionError {
-        fn from(value: String) -> Self {
-            Self(value.into())
-        }
-    }
-}
 #[doc = "Defines optional capabilities supported by an agent."]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"Agent Capabilities\","]
-#[doc = "  \"description\": \"Defines optional capabilities supported by an agent.\","]
-#[doc = "  \"type\": \"object\","]
-#[doc = "  \"properties\": {"]
-#[doc = "    \"extensions\": {"]
-#[doc = "      \"description\": \"A list of protocol extensions supported by the agent.\","]
-#[doc = "      \"type\": \"array\","]
-#[doc = "      \"items\": {"]
-#[doc = "        \"$ref\": \"#/definitions/AgentExtension\""]
-#[doc = "      }"]
-#[doc = "    },"]
-#[doc = "    \"pushNotifications\": {"]
-#[doc = "      \"description\": \"Indicates if the agent supports sending push notifications for asynchronous task updates.\","]
-#[doc = "      \"type\": \"boolean\""]
-#[doc = "    },"]
-#[doc = "    \"stateTransitionHistory\": {"]
-#[doc = "      \"description\": \"Indicates if the agent provides a history of state transitions for a task.\","]
-#[doc = "      \"type\": \"boolean\""]
-#[doc = "    },"]
-#[doc = "    \"streaming\": {"]
-#[doc = "      \"description\": \"Indicates if the agent supports streaming responses.\","]
-#[doc = "      \"type\": \"boolean\""]
-#[doc = "    }"]
-#[doc = "  },"]
-#[doc = "  \"additionalProperties\": false,"]
-#[doc = "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\""]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
-#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
+#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
 #[serde(deny_unknown_fields)]
 pub struct AgentCapabilities {
     #[doc = "A list of protocol extensions supported by the agent."]
@@ -79,30 +19,18 @@ pub struct AgentCapabilities {
     #[doc = "Indicates if the agent supports sending push notifications for asynchronous task updates."]
     #[serde(
         rename = "pushNotifications",
-        default,
         skip_serializing_if = "::std::option::Option::is_none"
     )]
     pub push_notifications: ::std::option::Option<bool>,
     #[doc = "Indicates if the agent provides a history of state transitions for a task."]
     #[serde(
         rename = "stateTransitionHistory",
-        default,
         skip_serializing_if = "::std::option::Option::is_none"
     )]
     pub state_transition_history: ::std::option::Option<bool>,
     #[doc = "Indicates if the agent supports streaming responses."]
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub streaming: ::std::option::Option<bool>,
-}
-impl ::std::default::Default for AgentCapabilities {
-    fn default() -> Self {
-        Self {
-            extensions: Default::default(),
-            push_notifications: Default::default(),
-            state_transition_history: Default::default(),
-            streaming: Default::default(),
-        }
-    }
 }
 impl AgentCapabilities {
     pub fn builder() -> builder::AgentCapabilities {
@@ -110,134 +38,6 @@ impl AgentCapabilities {
     }
 }
 #[doc = "AgentCard is a self-describing manifest for an agent. It provides essential\n metadata including the agent's identity, capabilities, skills, supported\n communication methods, and security requirements.\n Next ID: 20"]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"Agent Card\","]
-#[doc = "  \"description\": \"AgentCard is a self-describing manifest for an agent. It provides essential\\n metadata including the agent's identity, capabilities, skills, supported\\n communication methods, and security requirements.\\n Next ID: 20\","]
-#[doc = "  \"type\": \"object\","]
-#[doc = "  \"required\": ["]
-#[doc = "    \"capabilities\","]
-#[doc = "    \"defaultInputModes\","]
-#[doc = "    \"defaultOutputModes\","]
-#[doc = "    \"description\","]
-#[doc = "    \"name\","]
-#[doc = "    \"protocolVersion\","]
-#[doc = "    \"skills\","]
-#[doc = "    \"version\""]
-#[doc = "  ],"]
-#[doc = "  \"properties\": {"]
-#[doc = "    \"additionalInterfaces\": {"]
-#[doc = "      \"description\": \"DEPRECATED: Use 'supported_interfaces' instead.\","]
-#[doc = "      \"type\": \"array\","]
-#[doc = "      \"items\": {"]
-#[doc = "        \"$ref\": \"#/definitions/AgentInterface\""]
-#[doc = "      }"]
-#[doc = "    },"]
-#[doc = "    \"capabilities\": {"]
-#[doc = "      \"description\": \"A2A Capability set supported by the agent.\","]
-#[doc = "      \"$ref\": \"#/definitions/AgentCapabilities\""]
-#[doc = "    },"]
-#[doc = "    \"defaultInputModes\": {"]
-#[doc = "      \"description\": \"protolint:enable REPEATED_FIELD_NAMES_PLURALIZED\\n The set of interaction modes that the agent supports across all skills.\\n This can be overridden per skill. Defined as media types.\","]
-#[doc = "      \"type\": \"array\","]
-#[doc = "      \"items\": {"]
-#[doc = "        \"type\": \"string\""]
-#[doc = "      }"]
-#[doc = "    },"]
-#[doc = "    \"defaultOutputModes\": {"]
-#[doc = "      \"description\": \"The media types supported as outputs from this agent.\","]
-#[doc = "      \"type\": \"array\","]
-#[doc = "      \"items\": {"]
-#[doc = "        \"type\": \"string\""]
-#[doc = "      }"]
-#[doc = "    },"]
-#[doc = "    \"description\": {"]
-#[doc = "      \"description\": \"A human-readable description of the agent, assisting users and other agents\\n in understanding its purpose.\\n Example: \\\"Agent that helps users with recipes and cooking.\\\"\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"documentationUrl\": {"]
-#[doc = "      \"description\": \"A url to provide additional documentation about the agent.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"iconUrl\": {"]
-#[doc = "      \"description\": \"An optional URL to an icon for the agent.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"name\": {"]
-#[doc = "      \"description\": \"A human readable name for the agent.\\n Example: \\\"Recipe Agent\\\"\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"preferredTransport\": {"]
-#[doc = "      \"description\": \"DEPRECATED: Use 'supported_interfaces' instead.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"protocolVersion\": {"]
-#[doc = "      \"description\": \"The version of the A2A protocol this agent supports.\\n Default: \\\"1.0\\\"\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"provider\": {"]
-#[doc = "      \"description\": \"The service provider of the agent.\","]
-#[doc = "      \"$ref\": \"#/definitions/AgentProvider\""]
-#[doc = "    },"]
-#[doc = "    \"security\": {"]
-#[doc = "      \"description\": \"protolint:disable REPEATED_FIELD_NAMES_PLURALIZED\\n Security requirements for contacting the agent.\","]
-#[doc = "      \"type\": \"array\","]
-#[doc = "      \"items\": {"]
-#[doc = "        \"$ref\": \"#/definitions/Security\""]
-#[doc = "      }"]
-#[doc = "    },"]
-#[doc = "    \"securitySchemes\": {"]
-#[doc = "      \"description\": \"The security scheme details used for authenticating with this agent.\","]
-#[doc = "      \"type\": \"object\","]
-#[doc = "      \"additionalProperties\": {"]
-#[doc = "        \"$ref\": \"#/definitions/SecurityScheme\""]
-#[doc = "      },"]
-#[doc = "      \"propertyNames\": {"]
-#[doc = "        \"type\": \"string\""]
-#[doc = "      }"]
-#[doc = "    },"]
-#[doc = "    \"signatures\": {"]
-#[doc = "      \"description\": \"JSON Web Signatures computed for this AgentCard.\","]
-#[doc = "      \"type\": \"array\","]
-#[doc = "      \"items\": {"]
-#[doc = "        \"$ref\": \"#/definitions/AgentCardSignature\""]
-#[doc = "      }"]
-#[doc = "    },"]
-#[doc = "    \"skills\": {"]
-#[doc = "      \"description\": \"Skills represent an ability of an agent. It is largely\\n a descriptive concept but represents a more focused set of behaviors that the\\n agent is likely to succeed at.\","]
-#[doc = "      \"type\": \"array\","]
-#[doc = "      \"items\": {"]
-#[doc = "        \"$ref\": \"#/definitions/AgentSkill\""]
-#[doc = "      }"]
-#[doc = "    },"]
-#[doc = "    \"supportedInterfaces\": {"]
-#[doc = "      \"description\": \"Ordered list of supported interfaces. First entry is preferred.\","]
-#[doc = "      \"type\": \"array\","]
-#[doc = "      \"items\": {"]
-#[doc = "        \"$ref\": \"#/definitions/AgentInterface\""]
-#[doc = "      }"]
-#[doc = "    },"]
-#[doc = "    \"supportsExtendedAgentCard\": {"]
-#[doc = "      \"description\": \"Whether the agent supports providing an extended agent card when authenticated.\","]
-#[doc = "      \"type\": \"boolean\""]
-#[doc = "    },"]
-#[doc = "    \"url\": {"]
-#[doc = "      \"description\": \"DEPRECATED: Use 'supported_interfaces' instead.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"version\": {"]
-#[doc = "      \"description\": \"The version of the agent.\\n Example: \\\"1.0.0\\\"\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    }"]
-#[doc = "  },"]
-#[doc = "  \"additionalProperties\": false,"]
-#[doc = "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\""]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct AgentCard {
@@ -261,14 +61,12 @@ pub struct AgentCard {
     #[doc = "A url to provide additional documentation about the agent."]
     #[serde(
         rename = "documentationUrl",
-        default,
         skip_serializing_if = "::std::option::Option::is_none"
     )]
     pub documentation_url: ::std::option::Option<::std::string::String>,
     #[doc = "An optional URL to an icon for the agent."]
     #[serde(
         rename = "iconUrl",
-        default,
         skip_serializing_if = "::std::option::Option::is_none"
     )]
     pub icon_url: ::std::option::Option<::std::string::String>,
@@ -277,7 +75,6 @@ pub struct AgentCard {
     #[doc = "DEPRECATED: Use 'supported_interfaces' instead."]
     #[serde(
         rename = "preferredTransport",
-        default,
         skip_serializing_if = "::std::option::Option::is_none"
     )]
     pub preferred_transport: ::std::option::Option<::std::string::String>,
@@ -285,7 +82,7 @@ pub struct AgentCard {
     #[serde(rename = "protocolVersion")]
     pub protocol_version: ::std::string::String,
     #[doc = "The service provider of the agent."]
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub provider: ::std::option::Option<AgentProvider>,
     #[doc = "protolint:disable REPEATED_FIELD_NAMES_PLURALIZED\n Security requirements for contacting the agent."]
     #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
@@ -312,12 +109,11 @@ pub struct AgentCard {
     #[doc = "Whether the agent supports providing an extended agent card when authenticated."]
     #[serde(
         rename = "supportsExtendedAgentCard",
-        default,
         skip_serializing_if = "::std::option::Option::is_none"
     )]
     pub supports_extended_agent_card: ::std::option::Option<bool>,
     #[doc = "DEPRECATED: Use 'supported_interfaces' instead."]
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub url: ::std::option::Option<::std::string::String>,
     #[doc = "The version of the agent.\n Example: \"1.0.0\""]
     pub version: ::std::string::String,
@@ -328,42 +124,11 @@ impl AgentCard {
     }
 }
 #[doc = "AgentCardSignature represents a JWS signature of an AgentCard.\n This follows the JSON format of an RFC 7515 JSON Web Signature (JWS)."]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"Agent Card Signature\","]
-#[doc = "  \"description\": \"AgentCardSignature represents a JWS signature of an AgentCard.\\n This follows the JSON format of an RFC 7515 JSON Web Signature (JWS).\","]
-#[doc = "  \"type\": \"object\","]
-#[doc = "  \"required\": ["]
-#[doc = "    \"protected\","]
-#[doc = "    \"signature\""]
-#[doc = "  ],"]
-#[doc = "  \"properties\": {"]
-#[doc = "    \"header\": {"]
-#[doc = "      \"description\": \"The unprotected JWS header values.\","]
-#[doc = "      \"$ref\": \"#/definitions/Struct\""]
-#[doc = "    },"]
-#[doc = "    \"protected\": {"]
-#[doc = "      \"description\": \"The protected JWS header for the signature. This is always a\\n base64url-encoded JSON object. Required.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"signature\": {"]
-#[doc = "      \"description\": \"The computed signature, base64url-encoded. Required.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    }"]
-#[doc = "  },"]
-#[doc = "  \"additionalProperties\": false,"]
-#[doc = "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\""]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct AgentCardSignature {
     #[doc = "The unprotected JWS header values."]
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub header: ::std::option::Option<Struct>,
     #[doc = "The protected JWS header for the signature. This is always a\n base64url-encoded JSON object. Required."]
     pub protected: ::std::string::String,
@@ -376,54 +141,21 @@ impl AgentCardSignature {
     }
 }
 #[doc = "A declaration of a protocol extension supported by an Agent."]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"Agent Extension\","]
-#[doc = "  \"description\": \"A declaration of a protocol extension supported by an Agent.\","]
-#[doc = "  \"type\": \"object\","]
-#[doc = "  \"required\": ["]
-#[doc = "    \"description\","]
-#[doc = "    \"required\","]
-#[doc = "    \"uri\""]
-#[doc = "  ],"]
-#[doc = "  \"properties\": {"]
-#[doc = "    \"description\": {"]
-#[doc = "      \"description\": \"A human-readable description of how this agent uses the extension.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"params\": {"]
-#[doc = "      \"description\": \"Optional, extension-specific configuration parameters.\","]
-#[doc = "      \"$ref\": \"#/definitions/Struct\""]
-#[doc = "    },"]
-#[doc = "    \"required\": {"]
-#[doc = "      \"description\": \"If true, the client must understand and comply with the extension's requirements.\","]
-#[doc = "      \"type\": \"boolean\""]
-#[doc = "    },"]
-#[doc = "    \"uri\": {"]
-#[doc = "      \"description\": \"The unique URI identifying the extension.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    }"]
-#[doc = "  },"]
-#[doc = "  \"additionalProperties\": false,"]
-#[doc = "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\""]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
-#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
+#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
 #[serde(deny_unknown_fields)]
 pub struct AgentExtension {
     #[doc = "A human-readable description of how this agent uses the extension."]
-    pub description: ::std::string::String,
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub description: ::std::option::Option<::std::string::String>,
     #[doc = "Optional, extension-specific configuration parameters."]
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub params: ::std::option::Option<Struct>,
     #[doc = "If true, the client must understand and comply with the extension's requirements."]
-    pub required: bool,
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub required: ::std::option::Option<bool>,
     #[doc = "The unique URI identifying the extension."]
-    pub uri: ::std::string::String,
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub uri: ::std::option::Option<::std::string::String>,
 }
 impl AgentExtension {
     pub fn builder() -> builder::AgentExtension {
@@ -431,37 +163,6 @@ impl AgentExtension {
     }
 }
 #[doc = "Declares a combination of a target URL and a transport protocol for interacting with the agent.\n This allows agents to expose the same functionality over multiple protocol binding mechanisms."]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"Agent Interface\","]
-#[doc = "  \"description\": \"Declares a combination of a target URL and a transport protocol for interacting with the agent.\\n This allows agents to expose the same functionality over multiple protocol binding mechanisms.\","]
-#[doc = "  \"type\": \"object\","]
-#[doc = "  \"required\": ["]
-#[doc = "    \"protocolBinding\","]
-#[doc = "    \"url\""]
-#[doc = "  ],"]
-#[doc = "  \"properties\": {"]
-#[doc = "    \"protocolBinding\": {"]
-#[doc = "      \"description\": \"The protocol binding supported at this URL. This is an open form string, to be\\n easily extended for other protocol bindings. The core ones officially\\n supported are `JSONRPC`, `GRPC` and `HTTP+JSON`.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"tenant\": {"]
-#[doc = "      \"description\": \"Tenant to be set in the request when calling the agent.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"url\": {"]
-#[doc = "      \"description\": \"The URL where this interface is available. Must be a valid absolute HTTPS URL in production.\\n Example: \\\"https://api.example.com/a2a/v1\\\", \\\"https://grpc.example.com/a2a\\\"\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    }"]
-#[doc = "  },"]
-#[doc = "  \"additionalProperties\": false,"]
-#[doc = "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\""]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct AgentInterface {
@@ -469,7 +170,7 @@ pub struct AgentInterface {
     #[serde(rename = "protocolBinding")]
     pub protocol_binding: ::std::string::String,
     #[doc = "Tenant to be set in the request when calling the agent."]
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub tenant: ::std::option::Option<::std::string::String>,
     #[doc = "The URL where this interface is available. Must be a valid absolute HTTPS URL in production.\n Example: \"https://api.example.com/a2a/v1\", \"https://grpc.example.com/a2a\""]
     pub url: ::std::string::String,
@@ -480,33 +181,6 @@ impl AgentInterface {
     }
 }
 #[doc = "Represents the service provider of an agent."]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"Agent Provider\","]
-#[doc = "  \"description\": \"Represents the service provider of an agent.\","]
-#[doc = "  \"type\": \"object\","]
-#[doc = "  \"required\": ["]
-#[doc = "    \"organization\","]
-#[doc = "    \"url\""]
-#[doc = "  ],"]
-#[doc = "  \"properties\": {"]
-#[doc = "    \"organization\": {"]
-#[doc = "      \"description\": \"The name of the agent provider's organization.\\n Example: \\\"Google\\\"\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"url\": {"]
-#[doc = "      \"description\": \"A URL for the agent provider's website or relevant documentation.\\n Example: \\\"https://ai.google.dev\\\"\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    }"]
-#[doc = "  },"]
-#[doc = "  \"additionalProperties\": false,"]
-#[doc = "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\""]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct AgentProvider {
@@ -521,74 +195,6 @@ impl AgentProvider {
     }
 }
 #[doc = "Represents a distinct capability or function that an agent can perform."]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"Agent Skill\","]
-#[doc = "  \"description\": \"Represents a distinct capability or function that an agent can perform.\","]
-#[doc = "  \"type\": \"object\","]
-#[doc = "  \"required\": ["]
-#[doc = "    \"description\","]
-#[doc = "    \"id\","]
-#[doc = "    \"name\","]
-#[doc = "    \"tags\""]
-#[doc = "  ],"]
-#[doc = "  \"properties\": {"]
-#[doc = "    \"description\": {"]
-#[doc = "      \"description\": \"A detailed description of the skill.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"examples\": {"]
-#[doc = "      \"description\": \"Example prompts or scenarios that this skill can handle.\","]
-#[doc = "      \"type\": \"array\","]
-#[doc = "      \"items\": {"]
-#[doc = "        \"type\": \"string\""]
-#[doc = "      }"]
-#[doc = "    },"]
-#[doc = "    \"id\": {"]
-#[doc = "      \"description\": \"A unique identifier for the agent's skill.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"inputModes\": {"]
-#[doc = "      \"description\": \"The set of supported input media types for this skill, overriding the agent's defaults.\","]
-#[doc = "      \"type\": \"array\","]
-#[doc = "      \"items\": {"]
-#[doc = "        \"type\": \"string\""]
-#[doc = "      }"]
-#[doc = "    },"]
-#[doc = "    \"name\": {"]
-#[doc = "      \"description\": \"A human-readable name for the skill.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"outputModes\": {"]
-#[doc = "      \"description\": \"The set of supported output media types for this skill, overriding the agent's defaults.\","]
-#[doc = "      \"type\": \"array\","]
-#[doc = "      \"items\": {"]
-#[doc = "        \"type\": \"string\""]
-#[doc = "      }"]
-#[doc = "    },"]
-#[doc = "    \"security\": {"]
-#[doc = "      \"description\": \"protolint:disable REPEATED_FIELD_NAMES_PLURALIZED\\n Security schemes necessary for this skill.\","]
-#[doc = "      \"type\": \"array\","]
-#[doc = "      \"items\": {"]
-#[doc = "        \"$ref\": \"#/definitions/Security\""]
-#[doc = "      }"]
-#[doc = "    },"]
-#[doc = "    \"tags\": {"]
-#[doc = "      \"description\": \"A set of keywords describing the skill's capabilities.\","]
-#[doc = "      \"type\": \"array\","]
-#[doc = "      \"items\": {"]
-#[doc = "        \"type\": \"string\""]
-#[doc = "      }"]
-#[doc = "    }"]
-#[doc = "  },"]
-#[doc = "  \"additionalProperties\": false,"]
-#[doc = "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\""]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct AgentSkill {
@@ -627,42 +233,11 @@ impl AgentSkill {
     }
 }
 #[doc = "Defines a security scheme using an API key."]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"API Key Security Scheme\","]
-#[doc = "  \"description\": \"Defines a security scheme using an API key.\","]
-#[doc = "  \"type\": \"object\","]
-#[doc = "  \"required\": ["]
-#[doc = "    \"location\","]
-#[doc = "    \"name\""]
-#[doc = "  ],"]
-#[doc = "  \"properties\": {"]
-#[doc = "    \"description\": {"]
-#[doc = "      \"description\": \"An optional description for the security scheme.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"location\": {"]
-#[doc = "      \"description\": \"The location of the API key. Valid values are \\\"query\\\", \\\"header\\\", or \\\"cookie\\\".\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"name\": {"]
-#[doc = "      \"description\": \"The name of the header, query, or cookie parameter to be used.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    }"]
-#[doc = "  },"]
-#[doc = "  \"additionalProperties\": false,"]
-#[doc = "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\""]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct ApiKeySecurityScheme {
     #[doc = "An optional description for the security scheme."]
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub description: ::std::option::Option<::std::string::String>,
     #[doc = "The location of the API key. Valid values are \"query\", \"header\", or \"cookie\"."]
     pub location: ::std::string::String,
@@ -675,55 +250,6 @@ impl ApiKeySecurityScheme {
     }
 }
 #[doc = "Artifacts represent task outputs."]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"Artifact\","]
-#[doc = "  \"description\": \"Artifacts represent task outputs.\","]
-#[doc = "  \"type\": \"object\","]
-#[doc = "  \"required\": ["]
-#[doc = "    \"artifactId\","]
-#[doc = "    \"parts\""]
-#[doc = "  ],"]
-#[doc = "  \"properties\": {"]
-#[doc = "    \"artifactId\": {"]
-#[doc = "      \"description\": \"Unique identifier (e.g. UUID) for the artifact. It must be at least unique\\n within a task.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"description\": {"]
-#[doc = "      \"description\": \"A human readable description of the artifact, optional.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"extensions\": {"]
-#[doc = "      \"description\": \"The URIs of extensions that are present or contributed to this Artifact.\","]
-#[doc = "      \"type\": \"array\","]
-#[doc = "      \"items\": {"]
-#[doc = "        \"type\": \"string\""]
-#[doc = "      }"]
-#[doc = "    },"]
-#[doc = "    \"metadata\": {"]
-#[doc = "      \"description\": \"Optional metadata included with the artifact.\","]
-#[doc = "      \"$ref\": \"#/definitions/Struct\""]
-#[doc = "    },"]
-#[doc = "    \"name\": {"]
-#[doc = "      \"description\": \"A human readable name for the artifact.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"parts\": {"]
-#[doc = "      \"description\": \"The content of the artifact. Must contain at least one part.\","]
-#[doc = "      \"type\": \"array\","]
-#[doc = "      \"items\": {"]
-#[doc = "        \"$ref\": \"#/definitions/Part\""]
-#[doc = "      }"]
-#[doc = "    }"]
-#[doc = "  },"]
-#[doc = "  \"additionalProperties\": false,"]
-#[doc = "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\""]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct Artifact {
@@ -731,16 +257,16 @@ pub struct Artifact {
     #[serde(rename = "artifactId")]
     pub artifact_id: ::std::string::String,
     #[doc = "A human readable description of the artifact, optional."]
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub description: ::std::option::Option<::std::string::String>,
     #[doc = "The URIs of extensions that are present or contributed to this Artifact."]
     #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
     pub extensions: ::std::vec::Vec<::std::string::String>,
     #[doc = "Optional metadata included with the artifact."]
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub metadata: ::std::option::Option<Struct>,
     #[doc = "A human readable name for the artifact."]
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub name: ::std::option::Option<::std::string::String>,
     #[doc = "The content of the artifact. Must contain at least one part."]
     pub parts: ::std::vec::Vec<Part>,
@@ -751,40 +277,11 @@ impl Artifact {
     }
 }
 #[doc = "Defines authentication details, used for push notifications."]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"Authentication Info\","]
-#[doc = "  \"description\": \"Defines authentication details, used for push notifications.\","]
-#[doc = "  \"type\": \"object\","]
-#[doc = "  \"required\": ["]
-#[doc = "    \"schemes\""]
-#[doc = "  ],"]
-#[doc = "  \"properties\": {"]
-#[doc = "    \"credentials\": {"]
-#[doc = "      \"description\": \"Optional credentials\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"schemes\": {"]
-#[doc = "      \"description\": \"A list of supported authentication schemes (e.g., 'Basic', 'Bearer').\","]
-#[doc = "      \"type\": \"array\","]
-#[doc = "      \"items\": {"]
-#[doc = "        \"type\": \"string\""]
-#[doc = "      }"]
-#[doc = "    }"]
-#[doc = "  },"]
-#[doc = "  \"additionalProperties\": false,"]
-#[doc = "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\""]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct AuthenticationInfo {
     #[doc = "Optional credentials"]
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub credentials: ::std::option::Option<::std::string::String>,
     #[doc = "A list of supported authentication schemes (e.g., 'Basic', 'Bearer')."]
     pub schemes: ::std::vec::Vec<::std::string::String>,
@@ -795,48 +292,6 @@ impl AuthenticationInfo {
     }
 }
 #[doc = "Defines configuration details for the OAuth 2.0 Authorization Code flow."]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"Authorization CodeO Auth Flow\","]
-#[doc = "  \"description\": \"Defines configuration details for the OAuth 2.0 Authorization Code flow.\","]
-#[doc = "  \"type\": \"object\","]
-#[doc = "  \"required\": ["]
-#[doc = "    \"authorizationUrl\","]
-#[doc = "    \"scopes\","]
-#[doc = "    \"tokenUrl\""]
-#[doc = "  ],"]
-#[doc = "  \"properties\": {"]
-#[doc = "    \"authorizationUrl\": {"]
-#[doc = "      \"description\": \"The authorization URL to be used for this flow.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"refreshUrl\": {"]
-#[doc = "      \"description\": \"The URL to be used for obtaining refresh tokens.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"scopes\": {"]
-#[doc = "      \"description\": \"The available scopes for the OAuth2 security scheme.\","]
-#[doc = "      \"type\": \"object\","]
-#[doc = "      \"additionalProperties\": {"]
-#[doc = "        \"type\": \"string\""]
-#[doc = "      },"]
-#[doc = "      \"propertyNames\": {"]
-#[doc = "        \"type\": \"string\""]
-#[doc = "      }"]
-#[doc = "    },"]
-#[doc = "    \"tokenUrl\": {"]
-#[doc = "      \"description\": \"The token URL to be used for this flow.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    }"]
-#[doc = "  },"]
-#[doc = "  \"additionalProperties\": false,"]
-#[doc = "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\""]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct AuthorizationCodeOAuthFlow {
@@ -846,7 +301,6 @@ pub struct AuthorizationCodeOAuthFlow {
     #[doc = "The URL to be used for obtaining refresh tokens."]
     #[serde(
         rename = "refreshUrl",
-        default,
         skip_serializing_if = "::std::option::Option::is_none"
     )]
     pub refresh_url: ::std::option::Option<::std::string::String>,
@@ -862,40 +316,15 @@ impl AuthorizationCodeOAuthFlow {
     }
 }
 #[doc = "Represents a request for the `tasks/cancel` method."]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"Cancel Task Request\","]
-#[doc = "  \"description\": \"Represents a request for the `tasks/cancel` method.\","]
-#[doc = "  \"type\": \"object\","]
-#[doc = "  \"required\": ["]
-#[doc = "    \"name\","]
-#[doc = "    \"tenant\""]
-#[doc = "  ],"]
-#[doc = "  \"properties\": {"]
-#[doc = "    \"name\": {"]
-#[doc = "      \"description\": \"The resource name of the task to cancel.\\n Format: tasks/{task_id}\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"tenant\": {"]
-#[doc = "      \"description\": \"Optional tenant, provided as a path parameter.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    }"]
-#[doc = "  },"]
-#[doc = "  \"additionalProperties\": false,"]
-#[doc = "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\""]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
-#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
+#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
 #[serde(deny_unknown_fields)]
 pub struct CancelTaskRequest {
     #[doc = "The resource name of the task to cancel.\n Format: tasks/{task_id}"]
-    pub name: ::std::string::String,
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub name: ::std::option::Option<::std::string::String>,
     #[doc = "Optional tenant, provided as a path parameter."]
-    pub tenant: ::std::string::String,
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub tenant: ::std::option::Option<::std::string::String>,
 }
 impl CancelTaskRequest {
     pub fn builder() -> builder::CancelTaskRequest {
@@ -903,50 +332,12 @@ impl CancelTaskRequest {
     }
 }
 #[doc = "Defines configuration details for the OAuth 2.0 Client Credentials flow."]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"Client CredentialsO Auth Flow\","]
-#[doc = "  \"description\": \"Defines configuration details for the OAuth 2.0 Client Credentials flow.\","]
-#[doc = "  \"type\": \"object\","]
-#[doc = "  \"required\": ["]
-#[doc = "    \"scopes\","]
-#[doc = "    \"tokenUrl\""]
-#[doc = "  ],"]
-#[doc = "  \"properties\": {"]
-#[doc = "    \"refreshUrl\": {"]
-#[doc = "      \"description\": \"The URL to be used for obtaining refresh tokens.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"scopes\": {"]
-#[doc = "      \"description\": \"The available scopes for the OAuth2 security scheme.\","]
-#[doc = "      \"type\": \"object\","]
-#[doc = "      \"additionalProperties\": {"]
-#[doc = "        \"type\": \"string\""]
-#[doc = "      },"]
-#[doc = "      \"propertyNames\": {"]
-#[doc = "        \"type\": \"string\""]
-#[doc = "      }"]
-#[doc = "    },"]
-#[doc = "    \"tokenUrl\": {"]
-#[doc = "      \"description\": \"The token URL to be used for this flow.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    }"]
-#[doc = "  },"]
-#[doc = "  \"additionalProperties\": false,"]
-#[doc = "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\""]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct ClientCredentialsOAuthFlow {
     #[doc = "The URL to be used for obtaining refresh tokens."]
     #[serde(
         rename = "refreshUrl",
-        default,
         skip_serializing_if = "::std::option::Option::is_none"
     )]
     pub refresh_url: ::std::option::Option<::std::string::String>,
@@ -962,28 +353,6 @@ impl ClientCredentialsOAuthFlow {
     }
 }
 #[doc = "DataPart represents a structured blob."]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"Data Part\","]
-#[doc = "  \"description\": \"DataPart represents a structured blob.\","]
-#[doc = "  \"type\": \"object\","]
-#[doc = "  \"required\": ["]
-#[doc = "    \"data\""]
-#[doc = "  ],"]
-#[doc = "  \"properties\": {"]
-#[doc = "    \"data\": {"]
-#[doc = "      \"description\": \"A JSON object containing arbitrary data.\","]
-#[doc = "      \"$ref\": \"#/definitions/Struct\""]
-#[doc = "    }"]
-#[doc = "  },"]
-#[doc = "  \"additionalProperties\": false,"]
-#[doc = "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\""]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct DataPart {
@@ -996,40 +365,15 @@ impl DataPart {
     }
 }
 #[doc = "Represents a request for the `tasks/pushNotificationConfig/delete` method."]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"Delete Task Push Notification Config Request\","]
-#[doc = "  \"description\": \"Represents a request for the `tasks/pushNotificationConfig/delete` method.\","]
-#[doc = "  \"type\": \"object\","]
-#[doc = "  \"required\": ["]
-#[doc = "    \"name\","]
-#[doc = "    \"tenant\""]
-#[doc = "  ],"]
-#[doc = "  \"properties\": {"]
-#[doc = "    \"name\": {"]
-#[doc = "      \"description\": \"The resource name of the config to delete.\\n Format: tasks/{task_id}/pushNotificationConfigs/{config_id}\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"tenant\": {"]
-#[doc = "      \"description\": \"Optional tenant, provided as a path parameter.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    }"]
-#[doc = "  },"]
-#[doc = "  \"additionalProperties\": false,"]
-#[doc = "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\""]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
-#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
+#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
 #[serde(deny_unknown_fields)]
 pub struct DeleteTaskPushNotificationConfigRequest {
     #[doc = "The resource name of the config to delete.\n Format: tasks/{task_id}/pushNotificationConfigs/{config_id}"]
-    pub name: ::std::string::String,
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub name: ::std::option::Option<::std::string::String>,
     #[doc = "Optional tenant, provided as a path parameter."]
-    pub tenant: ::std::string::String,
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub tenant: ::std::option::Option<::std::string::String>,
 }
 impl DeleteTaskPushNotificationConfigRequest {
     pub fn builder() -> builder::DeleteTaskPushNotificationConfigRequest {
@@ -1037,64 +381,30 @@ impl DeleteTaskPushNotificationConfigRequest {
     }
 }
 #[doc = "FilePart represents the different ways files can be provided. If files are\n small, directly feeding the bytes is supported via file_with_bytes. If the\n file is large, the agent should read the content as appropriate directly\n from the file_with_uri source."]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"File Part\","]
-#[doc = "  \"description\": \"FilePart represents the different ways files can be provided. If files are\\n small, directly feeding the bytes is supported via file_with_bytes. If the\\n file is large, the agent should read the content as appropriate directly\\n from the file_with_uri source.\","]
-#[doc = "  \"type\": \"object\","]
-#[doc = "  \"required\": ["]
-#[doc = "    \"mediaType\","]
-#[doc = "    \"name\""]
-#[doc = "  ],"]
-#[doc = "  \"properties\": {"]
-#[doc = "    \"fileWithBytes\": {"]
-#[doc = "      \"description\": \"The base64-encoded content of the file.\","]
-#[doc = "      \"type\": \"string\","]
-#[doc = "      \"pattern\": \"^[A-Za-z0-9+/]*={0,2}$\""]
-#[doc = "    },"]
-#[doc = "    \"fileWithUri\": {"]
-#[doc = "      \"description\": \"A URL pointing to the file's content.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"mediaType\": {"]
-#[doc = "      \"description\": \"The media type of the file (e.g., \\\"application/pdf\\\").\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"name\": {"]
-#[doc = "      \"description\": \"An optional name for the file (e.g., \\\"document.pdf\\\").\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    }"]
-#[doc = "  },"]
-#[doc = "  \"additionalProperties\": false,"]
-#[doc = "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\""]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
-#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
+#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
 #[serde(deny_unknown_fields)]
 pub struct FilePart {
     #[doc = "The base64-encoded content of the file."]
     #[serde(
         rename = "fileWithBytes",
-        default,
         skip_serializing_if = "::std::option::Option::is_none"
     )]
     pub file_with_bytes: ::std::option::Option<FilePartFileWithBytes>,
     #[doc = "A URL pointing to the file's content."]
     #[serde(
         rename = "fileWithUri",
-        default,
         skip_serializing_if = "::std::option::Option::is_none"
     )]
     pub file_with_uri: ::std::option::Option<::std::string::String>,
     #[doc = "The media type of the file (e.g., \"application/pdf\")."]
-    #[serde(rename = "mediaType")]
-    pub media_type: ::std::string::String,
+    #[serde(
+        rename = "mediaType",
+        skip_serializing_if = "::std::option::Option::is_none"
+    )]
+    pub media_type: ::std::option::Option<::std::string::String>,
     #[doc = "An optional name for the file (e.g., \"document.pdf\")."]
-    pub name: ::std::string::String,
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub name: ::std::option::Option<::std::string::String>,
 }
 impl FilePart {
     pub fn builder() -> builder::FilePart {
@@ -1102,17 +412,6 @@ impl FilePart {
     }
 }
 #[doc = "The base64-encoded content of the file."]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"description\": \"The base64-encoded content of the file.\","]
-#[doc = "  \"type\": \"string\","]
-#[doc = "  \"pattern\": \"^[A-Za-z0-9+/]*={0,2}$\""]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
 #[derive(:: serde :: Serialize, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[serde(transparent)]
 pub struct FilePartFileWithBytes(::std::string::String);
@@ -1144,14 +443,6 @@ impl ::std::convert::TryFrom<&str> for FilePartFileWithBytes {
         value.parse()
     }
 }
-impl ::std::convert::TryFrom<&::std::string::String> for FilePartFileWithBytes {
-    type Error = self::error::ConversionError;
-    fn try_from(
-        value: &::std::string::String,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
-        value.parse()
-    }
-}
 impl ::std::convert::TryFrom<::std::string::String> for FilePartFileWithBytes {
     type Error = self::error::ConversionError;
     fn try_from(
@@ -1173,32 +464,12 @@ impl<'de> ::serde::Deserialize<'de> for FilePartFileWithBytes {
     }
 }
 #[doc = "`GetExtendedAgentCardRequest`"]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"Get Extended Agent Card Request\","]
-#[doc = "  \"type\": \"object\","]
-#[doc = "  \"required\": ["]
-#[doc = "    \"tenant\""]
-#[doc = "  ],"]
-#[doc = "  \"properties\": {"]
-#[doc = "    \"tenant\": {"]
-#[doc = "      \"description\": \"Optional tenant, provided as a path parameter.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    }"]
-#[doc = "  },"]
-#[doc = "  \"additionalProperties\": false,"]
-#[doc = "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\""]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
-#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
+#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
 #[serde(deny_unknown_fields)]
 pub struct GetExtendedAgentCardRequest {
     #[doc = "Optional tenant, provided as a path parameter."]
-    pub tenant: ::std::string::String,
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub tenant: ::std::option::Option<::std::string::String>,
 }
 impl GetExtendedAgentCardRequest {
     pub fn builder() -> builder::GetExtendedAgentCardRequest {
@@ -1206,39 +477,15 @@ impl GetExtendedAgentCardRequest {
     }
 }
 #[doc = "`GetTaskPushNotificationConfigRequest`"]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"Get Task Push Notification Config Request\","]
-#[doc = "  \"type\": \"object\","]
-#[doc = "  \"required\": ["]
-#[doc = "    \"name\","]
-#[doc = "    \"tenant\""]
-#[doc = "  ],"]
-#[doc = "  \"properties\": {"]
-#[doc = "    \"name\": {"]
-#[doc = "      \"description\": \"The resource name of the config to retrieve.\\n Format: tasks/{task_id}/pushNotificationConfigs/{config_id}\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"tenant\": {"]
-#[doc = "      \"description\": \"Optional tenant, provided as a path parameter.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    }"]
-#[doc = "  },"]
-#[doc = "  \"additionalProperties\": false,"]
-#[doc = "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\""]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
-#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
+#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
 #[serde(deny_unknown_fields)]
 pub struct GetTaskPushNotificationConfigRequest {
     #[doc = "The resource name of the config to retrieve.\n Format: tasks/{task_id}/pushNotificationConfigs/{config_id}"]
-    pub name: ::std::string::String,
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub name: ::std::option::Option<::std::string::String>,
     #[doc = "Optional tenant, provided as a path parameter."]
-    pub tenant: ::std::string::String,
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub tenant: ::std::option::Option<::std::string::String>,
 }
 impl GetTaskPushNotificationConfigRequest {
     pub fn builder() -> builder::GetTaskPushNotificationConfigRequest {
@@ -1246,52 +493,19 @@ impl GetTaskPushNotificationConfigRequest {
     }
 }
 #[doc = "Represents a request for the `tasks/get` method."]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"Get Task Request\","]
-#[doc = "  \"description\": \"Represents a request for the `tasks/get` method.\","]
-#[doc = "  \"type\": \"object\","]
-#[doc = "  \"required\": ["]
-#[doc = "    \"name\""]
-#[doc = "  ],"]
-#[doc = "  \"properties\": {"]
-#[doc = "    \"historyLength\": {"]
-#[doc = "      \"description\": \"The maximum number of messages to include in the history.\","]
-#[doc = "      \"type\": \"integer\","]
-#[doc = "      \"maximum\": 2147483647.0,"]
-#[doc = "      \"minimum\": -2147483648.0"]
-#[doc = "    },"]
-#[doc = "    \"name\": {"]
-#[doc = "      \"description\": \"The resource name of the task.\\n Format: tasks/{task_id}\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"tenant\": {"]
-#[doc = "      \"description\": \"Optional tenant, provided as a path parameter.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    }"]
-#[doc = "  },"]
-#[doc = "  \"additionalProperties\": false,"]
-#[doc = "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\""]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct GetTaskRequest {
     #[doc = "The maximum number of messages to include in the history."]
     #[serde(
         rename = "historyLength",
-        default,
         skip_serializing_if = "::std::option::Option::is_none"
     )]
     pub history_length: ::std::option::Option<i32>,
     #[doc = "The resource name of the task.\n Format: tasks/{task_id}"]
     pub name: ::std::string::String,
     #[doc = "Optional tenant, provided as a path parameter."]
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub tenant: ::std::option::Option<::std::string::String>,
 }
 impl GetTaskRequest {
@@ -1300,48 +514,17 @@ impl GetTaskRequest {
     }
 }
 #[doc = "Defines a security scheme using HTTP authentication."]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"HTTP Auth Security Scheme\","]
-#[doc = "  \"description\": \"Defines a security scheme using HTTP authentication.\","]
-#[doc = "  \"type\": \"object\","]
-#[doc = "  \"required\": ["]
-#[doc = "    \"scheme\""]
-#[doc = "  ],"]
-#[doc = "  \"properties\": {"]
-#[doc = "    \"bearerFormat\": {"]
-#[doc = "      \"description\": \"A hint to the client to identify how the bearer token is formatted (e.g., \\\"JWT\\\").\\n This is primarily for documentation purposes.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"description\": {"]
-#[doc = "      \"description\": \"An optional description for the security scheme.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"scheme\": {"]
-#[doc = "      \"description\": \"The name of the HTTP Authentication scheme to be used in the Authorization header,\\n as defined in RFC7235 (e.g., \\\"Bearer\\\").\\n This value should be registered in the IANA Authentication Scheme registry.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    }"]
-#[doc = "  },"]
-#[doc = "  \"additionalProperties\": false,"]
-#[doc = "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\""]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct HttpAuthSecurityScheme {
     #[doc = "A hint to the client to identify how the bearer token is formatted (e.g., \"JWT\").\n This is primarily for documentation purposes."]
     #[serde(
         rename = "bearerFormat",
-        default,
         skip_serializing_if = "::std::option::Option::is_none"
     )]
     pub bearer_format: ::std::option::Option<::std::string::String>,
     #[doc = "An optional description for the security scheme."]
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub description: ::std::option::Option<::std::string::String>,
     #[doc = "The name of the HTTP Authentication scheme to be used in the Authorization header,\n as defined in RFC7235 (e.g., \"Bearer\").\n This value should be registered in the IANA Authentication Scheme registry."]
     pub scheme: ::std::string::String,
@@ -1352,43 +535,6 @@ impl HttpAuthSecurityScheme {
     }
 }
 #[doc = "Defines configuration details for the OAuth 2.0 Implicit flow."]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"ImplicitO Auth Flow\","]
-#[doc = "  \"description\": \"Defines configuration details for the OAuth 2.0 Implicit flow.\","]
-#[doc = "  \"type\": \"object\","]
-#[doc = "  \"required\": ["]
-#[doc = "    \"authorizationUrl\","]
-#[doc = "    \"scopes\""]
-#[doc = "  ],"]
-#[doc = "  \"properties\": {"]
-#[doc = "    \"authorizationUrl\": {"]
-#[doc = "      \"description\": \"The authorization URL to be used for this flow.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"refreshUrl\": {"]
-#[doc = "      \"description\": \"The URL to be used for obtaining refresh tokens.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"scopes\": {"]
-#[doc = "      \"description\": \"The available scopes for the OAuth2 security scheme.\","]
-#[doc = "      \"type\": \"object\","]
-#[doc = "      \"additionalProperties\": {"]
-#[doc = "        \"type\": \"string\""]
-#[doc = "      },"]
-#[doc = "      \"propertyNames\": {"]
-#[doc = "        \"type\": \"string\""]
-#[doc = "      }"]
-#[doc = "    }"]
-#[doc = "  },"]
-#[doc = "  \"additionalProperties\": false,"]
-#[doc = "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\""]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct ImplicitOAuthFlow {
@@ -1398,7 +544,6 @@ pub struct ImplicitOAuthFlow {
     #[doc = "The URL to be used for obtaining refresh tokens."]
     #[serde(
         rename = "refreshUrl",
-        default,
         skip_serializing_if = "::std::option::Option::is_none"
     )]
     pub refresh_url: ::std::option::Option<::std::string::String>,
@@ -1411,57 +556,27 @@ impl ImplicitOAuthFlow {
     }
 }
 #[doc = "`ListTaskPushNotificationConfigRequest`"]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"List Task Push Notification Config Request\","]
-#[doc = "  \"type\": \"object\","]
-#[doc = "  \"required\": ["]
-#[doc = "    \"pageSize\","]
-#[doc = "    \"pageToken\","]
-#[doc = "    \"parent\","]
-#[doc = "    \"tenant\""]
-#[doc = "  ],"]
-#[doc = "  \"properties\": {"]
-#[doc = "    \"pageSize\": {"]
-#[doc = "      \"description\": \"The maximum number of configurations to return.\","]
-#[doc = "      \"type\": \"integer\","]
-#[doc = "      \"maximum\": 2147483647.0,"]
-#[doc = "      \"minimum\": -2147483648.0"]
-#[doc = "    },"]
-#[doc = "    \"pageToken\": {"]
-#[doc = "      \"description\": \"A page token received from a previous ListTaskPushNotificationConfigRequest call.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"parent\": {"]
-#[doc = "      \"description\": \"The parent task resource.\\n Format: tasks/{task_id}\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"tenant\": {"]
-#[doc = "      \"description\": \"Optional tenant, provided as a path parameter.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    }"]
-#[doc = "  },"]
-#[doc = "  \"additionalProperties\": false,"]
-#[doc = "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\""]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
-#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
+#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
 #[serde(deny_unknown_fields)]
 pub struct ListTaskPushNotificationConfigRequest {
     #[doc = "The maximum number of configurations to return."]
-    #[serde(rename = "pageSize")]
-    pub page_size: i32,
+    #[serde(
+        rename = "pageSize",
+        skip_serializing_if = "::std::option::Option::is_none"
+    )]
+    pub page_size: ::std::option::Option<i32>,
     #[doc = "A page token received from a previous ListTaskPushNotificationConfigRequest call."]
-    #[serde(rename = "pageToken")]
-    pub page_token: ::std::string::String,
+    #[serde(
+        rename = "pageToken",
+        skip_serializing_if = "::std::option::Option::is_none"
+    )]
+    pub page_token: ::std::option::Option<::std::string::String>,
     #[doc = "The parent task resource.\n Format: tasks/{task_id}"]
-    pub parent: ::std::string::String,
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub parent: ::std::option::Option<::std::string::String>,
     #[doc = "Optional tenant, provided as a path parameter."]
-    pub tenant: ::std::string::String,
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub tenant: ::std::option::Option<::std::string::String>,
 }
 impl ListTaskPushNotificationConfigRequest {
     pub fn builder() -> builder::ListTaskPushNotificationConfigRequest {
@@ -1469,44 +584,18 @@ impl ListTaskPushNotificationConfigRequest {
     }
 }
 #[doc = "Represents a successful response for the `tasks/pushNotificationConfig/list`\n method."]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"List Task Push Notification Config Response\","]
-#[doc = "  \"description\": \"Represents a successful response for the `tasks/pushNotificationConfig/list`\\n method.\","]
-#[doc = "  \"type\": \"object\","]
-#[doc = "  \"required\": ["]
-#[doc = "    \"nextPageToken\""]
-#[doc = "  ],"]
-#[doc = "  \"properties\": {"]
-#[doc = "    \"configs\": {"]
-#[doc = "      \"description\": \"The list of push notification configurations.\","]
-#[doc = "      \"type\": \"array\","]
-#[doc = "      \"items\": {"]
-#[doc = "        \"$ref\": \"#/definitions/TaskPushNotificationConfig\""]
-#[doc = "      }"]
-#[doc = "    },"]
-#[doc = "    \"nextPageToken\": {"]
-#[doc = "      \"description\": \"A token, which can be sent as `page_token` to retrieve the next page.\\n If this field is omitted, there are no subsequent pages.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    }"]
-#[doc = "  },"]
-#[doc = "  \"additionalProperties\": false,"]
-#[doc = "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\""]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
-#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
+#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
 #[serde(deny_unknown_fields)]
 pub struct ListTaskPushNotificationConfigResponse {
     #[doc = "The list of push notification configurations."]
     #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
     pub configs: ::std::vec::Vec<TaskPushNotificationConfig>,
     #[doc = "A token, which can be sent as `page_token` to retrieve the next page.\n If this field is omitted, there are no subsequent pages."]
-    #[serde(rename = "nextPageToken")]
-    pub next_page_token: ::std::string::String,
+    #[serde(
+        rename = "nextPageToken",
+        skip_serializing_if = "::std::option::Option::is_none"
+    )]
+    pub next_page_token: ::std::option::Option<::std::string::String>,
 }
 impl ListTaskPushNotificationConfigResponse {
     pub fn builder() -> builder::ListTaskPushNotificationConfigResponse {
@@ -1514,113 +603,51 @@ impl ListTaskPushNotificationConfigResponse {
     }
 }
 #[doc = "Parameters for listing tasks with optional filtering criteria."]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"List Tasks Request\","]
-#[doc = "  \"description\": \"Parameters for listing tasks with optional filtering criteria.\","]
-#[doc = "  \"type\": \"object\","]
-#[doc = "  \"required\": ["]
-#[doc = "    \"contextId\","]
-#[doc = "    \"lastUpdatedAfter\","]
-#[doc = "    \"pageToken\","]
-#[doc = "    \"status\","]
-#[doc = "    \"tenant\""]
-#[doc = "  ],"]
-#[doc = "  \"properties\": {"]
-#[doc = "    \"contextId\": {"]
-#[doc = "      \"description\": \"Filter tasks by context ID to get tasks from a specific conversation or session.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"historyLength\": {"]
-#[doc = "      \"description\": \"The maximum number of messages to include in each task's history.\","]
-#[doc = "      \"type\": \"integer\","]
-#[doc = "      \"maximum\": 2147483647.0,"]
-#[doc = "      \"minimum\": -2147483648.0"]
-#[doc = "    },"]
-#[doc = "    \"includeArtifacts\": {"]
-#[doc = "      \"description\": \"Whether to include artifacts in the returned tasks.\\n Defaults to false to reduce payload size.\","]
-#[doc = "      \"type\": \"boolean\""]
-#[doc = "    },"]
-#[doc = "    \"lastUpdatedAfter\": {"]
-#[doc = "      \"description\": \"Filter tasks updated after this timestamp (milliseconds since epoch).\\n Only tasks with a last updated time greater than or equal to this value will be returned.\","]
-#[doc = "      \"type\": \"integer\""]
-#[doc = "    },"]
-#[doc = "    \"pageSize\": {"]
-#[doc = "      \"description\": \"Maximum number of tasks to return. Must be between 1 and 100.\\n Defaults to 50 if not specified.\","]
-#[doc = "      \"type\": \"integer\","]
-#[doc = "      \"maximum\": 2147483647.0,"]
-#[doc = "      \"minimum\": -2147483648.0"]
-#[doc = "    },"]
-#[doc = "    \"pageToken\": {"]
-#[doc = "      \"description\": \"Token for pagination. Use the next_page_token from a previous ListTasksResponse.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"status\": {"]
-#[doc = "      \"title\": \"Task State\","]
-#[doc = "      \"description\": \"Filter tasks by their current status state.\","]
-#[doc = "      \"type\": \"string\","]
-#[doc = "      \"enum\": ["]
-#[doc = "        \"TASK_STATE_UNSPECIFIED\","]
-#[doc = "        \"TASK_STATE_SUBMITTED\","]
-#[doc = "        \"TASK_STATE_WORKING\","]
-#[doc = "        \"TASK_STATE_COMPLETED\","]
-#[doc = "        \"TASK_STATE_FAILED\","]
-#[doc = "        \"TASK_STATE_CANCELLED\","]
-#[doc = "        \"TASK_STATE_INPUT_REQUIRED\","]
-#[doc = "        \"TASK_STATE_REJECTED\","]
-#[doc = "        \"TASK_STATE_AUTH_REQUIRED\""]
-#[doc = "      ]"]
-#[doc = "    },"]
-#[doc = "    \"tenant\": {"]
-#[doc = "      \"description\": \"Optional tenant, provided as a path parameter.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    }"]
-#[doc = "  },"]
-#[doc = "  \"additionalProperties\": false,"]
-#[doc = "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\""]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
-#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
+#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
 #[serde(deny_unknown_fields)]
 pub struct ListTasksRequest {
     #[doc = "Filter tasks by context ID to get tasks from a specific conversation or session."]
-    #[serde(rename = "contextId")]
-    pub context_id: ::std::string::String,
+    #[serde(
+        rename = "contextId",
+        skip_serializing_if = "::std::option::Option::is_none"
+    )]
+    pub context_id: ::std::option::Option<::std::string::String>,
     #[doc = "The maximum number of messages to include in each task's history."]
     #[serde(
         rename = "historyLength",
-        default,
         skip_serializing_if = "::std::option::Option::is_none"
     )]
     pub history_length: ::std::option::Option<i32>,
     #[doc = "Whether to include artifacts in the returned tasks.\n Defaults to false to reduce payload size."]
     #[serde(
         rename = "includeArtifacts",
-        default,
         skip_serializing_if = "::std::option::Option::is_none"
     )]
     pub include_artifacts: ::std::option::Option<bool>,
     #[doc = "Filter tasks updated after this timestamp (milliseconds since epoch).\n Only tasks with a last updated time greater than or equal to this value will be returned."]
-    #[serde(rename = "lastUpdatedAfter")]
-    pub last_updated_after: i64,
+    #[serde(
+        rename = "lastUpdatedAfter",
+        skip_serializing_if = "::std::option::Option::is_none"
+    )]
+    pub last_updated_after: ::std::option::Option<i64>,
     #[doc = "Maximum number of tasks to return. Must be between 1 and 100.\n Defaults to 50 if not specified."]
     #[serde(
         rename = "pageSize",
-        default,
         skip_serializing_if = "::std::option::Option::is_none"
     )]
     pub page_size: ::std::option::Option<i32>,
     #[doc = "Token for pagination. Use the next_page_token from a previous ListTasksResponse."]
-    #[serde(rename = "pageToken")]
-    pub page_token: ::std::string::String,
+    #[serde(
+        rename = "pageToken",
+        skip_serializing_if = "::std::option::Option::is_none"
+    )]
+    pub page_token: ::std::option::Option<::std::string::String>,
     #[doc = "Filter tasks by their current status state."]
-    pub status: TaskState,
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub status: ::std::option::Option<TaskState>,
     #[doc = "Optional tenant, provided as a path parameter."]
-    pub tenant: ::std::string::String,
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub tenant: ::std::option::Option<::std::string::String>,
 }
 impl ListTasksRequest {
     pub fn builder() -> builder::ListTasksRequest {
@@ -1628,50 +655,6 @@ impl ListTasksRequest {
     }
 }
 #[doc = "Result object for tasks/list method containing an array of tasks and pagination information."]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"List Tasks Response\","]
-#[doc = "  \"description\": \"Result object for tasks/list method containing an array of tasks and pagination information.\","]
-#[doc = "  \"type\": \"object\","]
-#[doc = "  \"required\": ["]
-#[doc = "    \"nextPageToken\","]
-#[doc = "    \"pageSize\","]
-#[doc = "    \"tasks\","]
-#[doc = "    \"totalSize\""]
-#[doc = "  ],"]
-#[doc = "  \"properties\": {"]
-#[doc = "    \"nextPageToken\": {"]
-#[doc = "      \"description\": \"Token for retrieving the next page. Empty string if no more results.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"pageSize\": {"]
-#[doc = "      \"description\": \"The size of page requested.\","]
-#[doc = "      \"type\": \"integer\","]
-#[doc = "      \"maximum\": 2147483647.0,"]
-#[doc = "      \"minimum\": -2147483648.0"]
-#[doc = "    },"]
-#[doc = "    \"tasks\": {"]
-#[doc = "      \"description\": \"Array of tasks matching the specified criteria.\","]
-#[doc = "      \"type\": \"array\","]
-#[doc = "      \"items\": {"]
-#[doc = "        \"$ref\": \"#/definitions/Task\""]
-#[doc = "      }"]
-#[doc = "    },"]
-#[doc = "    \"totalSize\": {"]
-#[doc = "      \"description\": \"Total number of tasks available (before pagination).\","]
-#[doc = "      \"type\": \"integer\","]
-#[doc = "      \"maximum\": 2147483647.0,"]
-#[doc = "      \"minimum\": -2147483648.0"]
-#[doc = "    }"]
-#[doc = "  },"]
-#[doc = "  \"additionalProperties\": false,"]
-#[doc = "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\""]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct ListTasksResponse {
@@ -1693,80 +676,12 @@ impl ListTasksResponse {
     }
 }
 #[doc = "Message is one unit of communication between client and server. It is\n associated with a context and optionally a task. Since the server is\n responsible for the context definition, it must always provide a context_id\n in its messages. The client can optionally provide the context_id if it\n knows the context to associate the message to. Similarly for task_id,\n except the server decides if a task is created and whether to include the\n task_id."]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"Message\","]
-#[doc = "  \"description\": \"Message is one unit of communication between client and server. It is\\n associated with a context and optionally a task. Since the server is\\n responsible for the context definition, it must always provide a context_id\\n in its messages. The client can optionally provide the context_id if it\\n knows the context to associate the message to. Similarly for task_id,\\n except the server decides if a task is created and whether to include the\\n task_id.\","]
-#[doc = "  \"type\": \"object\","]
-#[doc = "  \"required\": ["]
-#[doc = "    \"messageId\","]
-#[doc = "    \"parts\","]
-#[doc = "    \"role\""]
-#[doc = "  ],"]
-#[doc = "  \"properties\": {"]
-#[doc = "    \"contextId\": {"]
-#[doc = "      \"description\": \"The context id of the message. This is optional and if set, the message\\n will be associated with the given context.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"extensions\": {"]
-#[doc = "      \"description\": \"The URIs of extensions that are present or contributed to this Message.\","]
-#[doc = "      \"type\": \"array\","]
-#[doc = "      \"items\": {"]
-#[doc = "        \"type\": \"string\""]
-#[doc = "      }"]
-#[doc = "    },"]
-#[doc = "    \"messageId\": {"]
-#[doc = "      \"description\": \"The unique identifier (e.g. UUID) of the message. This is required and\\n created by the message creator.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"metadata\": {"]
-#[doc = "      \"description\": \"protolint:enable REPEATED_FIELD_NAMES_PLURALIZED\\n Any optional metadata to provide along with the message.\","]
-#[doc = "      \"$ref\": \"#/definitions/Struct\""]
-#[doc = "    },"]
-#[doc = "    \"parts\": {"]
-#[doc = "      \"description\": \"protolint:disable REPEATED_FIELD_NAMES_PLURALIZED\\n Parts is the container of the message content.\","]
-#[doc = "      \"type\": \"array\","]
-#[doc = "      \"items\": {"]
-#[doc = "        \"$ref\": \"#/definitions/Part\""]
-#[doc = "      }"]
-#[doc = "    },"]
-#[doc = "    \"referenceTaskIds\": {"]
-#[doc = "      \"description\": \"A list of task IDs that this message references for additional context.\","]
-#[doc = "      \"type\": \"array\","]
-#[doc = "      \"items\": {"]
-#[doc = "        \"type\": \"string\""]
-#[doc = "      }"]
-#[doc = "    },"]
-#[doc = "    \"role\": {"]
-#[doc = "      \"title\": \"Role\","]
-#[doc = "      \"description\": \"Identifies the sender of the message.\","]
-#[doc = "      \"type\": \"string\","]
-#[doc = "      \"enum\": ["]
-#[doc = "        \"ROLE_UNSPECIFIED\","]
-#[doc = "        \"ROLE_USER\","]
-#[doc = "        \"ROLE_AGENT\""]
-#[doc = "      ]"]
-#[doc = "    },"]
-#[doc = "    \"taskId\": {"]
-#[doc = "      \"description\": \"The task id of the message. This is optional and if set, the message\\n will be associated with the given task.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    }"]
-#[doc = "  },"]
-#[doc = "  \"additionalProperties\": false,"]
-#[doc = "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\""]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct Message {
     #[doc = "The context id of the message. This is optional and if set, the message\n will be associated with the given context."]
     #[serde(
         rename = "contextId",
-        default,
         skip_serializing_if = "::std::option::Option::is_none"
     )]
     pub context_id: ::std::option::Option<::std::string::String>,
@@ -1777,7 +692,7 @@ pub struct Message {
     #[serde(rename = "messageId")]
     pub message_id: ::std::string::String,
     #[doc = "protolint:enable REPEATED_FIELD_NAMES_PLURALIZED\n Any optional metadata to provide along with the message."]
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub metadata: ::std::option::Option<Struct>,
     #[doc = "protolint:disable REPEATED_FIELD_NAMES_PLURALIZED\n Parts is the container of the message content."]
     pub parts: ::std::vec::Vec<Part>,
@@ -1793,7 +708,6 @@ pub struct Message {
     #[doc = "The task id of the message. This is optional and if set, the message\n will be associated with the given task."]
     #[serde(
         rename = "taskId",
-        default,
         skip_serializing_if = "::std::option::Option::is_none"
     )]
     pub task_id: ::std::option::Option<::std::string::String>,
@@ -1804,33 +718,12 @@ impl Message {
     }
 }
 #[doc = "Defines a security scheme using mTLS authentication."]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"Mutual Tls Security Scheme\","]
-#[doc = "  \"description\": \"Defines a security scheme using mTLS authentication.\","]
-#[doc = "  \"type\": \"object\","]
-#[doc = "  \"required\": ["]
-#[doc = "    \"description\""]
-#[doc = "  ],"]
-#[doc = "  \"properties\": {"]
-#[doc = "    \"description\": {"]
-#[doc = "      \"description\": \"An optional description for the security scheme.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    }"]
-#[doc = "  },"]
-#[doc = "  \"additionalProperties\": false,"]
-#[doc = "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\""]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
-#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
+#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
 #[serde(deny_unknown_fields)]
 pub struct MutualTlsSecurityScheme {
     #[doc = "An optional description for the security scheme."]
-    pub description: ::std::string::String,
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub description: ::std::option::Option<::std::string::String>,
 }
 impl MutualTlsSecurityScheme {
     pub fn builder() -> builder::MutualTlsSecurityScheme {
@@ -1838,48 +731,17 @@ impl MutualTlsSecurityScheme {
     }
 }
 #[doc = "Defines a security scheme using OAuth 2.0."]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"O Auth2 Security Scheme\","]
-#[doc = "  \"description\": \"Defines a security scheme using OAuth 2.0.\","]
-#[doc = "  \"type\": \"object\","]
-#[doc = "  \"required\": ["]
-#[doc = "    \"flows\""]
-#[doc = "  ],"]
-#[doc = "  \"properties\": {"]
-#[doc = "    \"description\": {"]
-#[doc = "      \"description\": \"An optional description for the security scheme.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"flows\": {"]
-#[doc = "      \"description\": \"An object containing configuration information for the supported OAuth 2.0 flows.\","]
-#[doc = "      \"$ref\": \"#/definitions/OAuthFlows\""]
-#[doc = "    },"]
-#[doc = "    \"oauth2MetadataUrl\": {"]
-#[doc = "      \"description\": \"URL to the oauth2 authorization server metadata\\n RFC8414 (https://datatracker.ietf.org/doc/html/rfc8414). TLS is required.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    }"]
-#[doc = "  },"]
-#[doc = "  \"additionalProperties\": false,"]
-#[doc = "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\""]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct OAuth2SecurityScheme {
     #[doc = "An optional description for the security scheme."]
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub description: ::std::option::Option<::std::string::String>,
     #[doc = "An object containing configuration information for the supported OAuth 2.0 flows."]
     pub flows: OAuthFlows,
     #[doc = "URL to the oauth2 authorization server metadata\n RFC8414 (https://datatracker.ietf.org/doc/html/rfc8414). TLS is required."]
     #[serde(
         rename = "oauth2MetadataUrl",
-        default,
         skip_serializing_if = "::std::option::Option::is_none"
     )]
     pub oauth2_metadata_url: ::std::option::Option<::std::string::String>,
@@ -1890,70 +752,27 @@ impl OAuth2SecurityScheme {
     }
 }
 #[doc = "Defines the configuration for the supported OAuth 2.0 flows."]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"O Auth Flows\","]
-#[doc = "  \"description\": \"Defines the configuration for the supported OAuth 2.0 flows.\","]
-#[doc = "  \"type\": \"object\","]
-#[doc = "  \"properties\": {"]
-#[doc = "    \"authorizationCode\": {"]
-#[doc = "      \"description\": \"Configuration for the OAuth Authorization Code flow.\","]
-#[doc = "      \"$ref\": \"#/definitions/AuthorizationCodeOAuthFlow\""]
-#[doc = "    },"]
-#[doc = "    \"clientCredentials\": {"]
-#[doc = "      \"description\": \"Configuration for the OAuth Client Credentials flow.\","]
-#[doc = "      \"$ref\": \"#/definitions/ClientCredentialsOAuthFlow\""]
-#[doc = "    },"]
-#[doc = "    \"implicit\": {"]
-#[doc = "      \"description\": \"Configuration for the OAuth Implicit flow.\","]
-#[doc = "      \"$ref\": \"#/definitions/ImplicitOAuthFlow\""]
-#[doc = "    },"]
-#[doc = "    \"password\": {"]
-#[doc = "      \"description\": \"Configuration for the OAuth Resource Owner Password flow.\","]
-#[doc = "      \"$ref\": \"#/definitions/PasswordOAuthFlow\""]
-#[doc = "    }"]
-#[doc = "  },"]
-#[doc = "  \"additionalProperties\": false,"]
-#[doc = "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\""]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
-#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
+#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
 #[serde(deny_unknown_fields)]
 pub struct OAuthFlows {
     #[doc = "Configuration for the OAuth Authorization Code flow."]
     #[serde(
         rename = "authorizationCode",
-        default,
         skip_serializing_if = "::std::option::Option::is_none"
     )]
     pub authorization_code: ::std::option::Option<AuthorizationCodeOAuthFlow>,
     #[doc = "Configuration for the OAuth Client Credentials flow."]
     #[serde(
         rename = "clientCredentials",
-        default,
         skip_serializing_if = "::std::option::Option::is_none"
     )]
     pub client_credentials: ::std::option::Option<ClientCredentialsOAuthFlow>,
     #[doc = "Configuration for the OAuth Implicit flow."]
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub implicit: ::std::option::Option<ImplicitOAuthFlow>,
     #[doc = "Configuration for the OAuth Resource Owner Password flow."]
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub password: ::std::option::Option<PasswordOAuthFlow>,
-}
-impl ::std::default::Default for OAuthFlows {
-    fn default() -> Self {
-        Self {
-            authorization_code: Default::default(),
-            client_credentials: Default::default(),
-            implicit: Default::default(),
-            password: Default::default(),
-        }
-    }
 }
 impl OAuthFlows {
     pub fn builder() -> builder::OAuthFlows {
@@ -1961,37 +780,11 @@ impl OAuthFlows {
     }
 }
 #[doc = "Defines a security scheme using OpenID Connect."]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"Open Id Connect Security Scheme\","]
-#[doc = "  \"description\": \"Defines a security scheme using OpenID Connect.\","]
-#[doc = "  \"type\": \"object\","]
-#[doc = "  \"required\": ["]
-#[doc = "    \"openIdConnectUrl\""]
-#[doc = "  ],"]
-#[doc = "  \"properties\": {"]
-#[doc = "    \"description\": {"]
-#[doc = "      \"description\": \"An optional description for the security scheme.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"openIdConnectUrl\": {"]
-#[doc = "      \"description\": \"The OpenID Connect Discovery URL for the OIDC provider's metadata.\\n See: https://openid.net/specs/openid-connect-discovery-1_0.html\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    }"]
-#[doc = "  },"]
-#[doc = "  \"additionalProperties\": false,"]
-#[doc = "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\""]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct OpenIdConnectSecurityScheme {
     #[doc = "An optional description for the security scheme."]
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub description: ::std::option::Option<::std::string::String>,
     #[doc = "The OpenID Connect Discovery URL for the OIDC provider's metadata.\n See: https://openid.net/specs/openid-connect-discovery-1_0.html"]
     #[serde(rename = "openIdConnectUrl")]
@@ -2003,62 +796,21 @@ impl OpenIdConnectSecurityScheme {
     }
 }
 #[doc = "Part represents a container for a section of communication content.\n Parts can be purely textual, some sort of file (image, video, etc) or\n a structured data blob (i.e. JSON)."]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"Part\","]
-#[doc = "  \"description\": \"Part represents a container for a section of communication content.\\n Parts can be purely textual, some sort of file (image, video, etc) or\\n a structured data blob (i.e. JSON).\","]
-#[doc = "  \"type\": \"object\","]
-#[doc = "  \"properties\": {"]
-#[doc = "    \"data\": {"]
-#[doc = "      \"description\": \"The structured data content.\","]
-#[doc = "      \"$ref\": \"#/definitions/DataPart\""]
-#[doc = "    },"]
-#[doc = "    \"file\": {"]
-#[doc = "      \"description\": \"The file content, represented as either a URI or as base64-encoded bytes.\","]
-#[doc = "      \"$ref\": \"#/definitions/FilePart\""]
-#[doc = "    },"]
-#[doc = "    \"metadata\": {"]
-#[doc = "      \"description\": \"Optional metadata associated with this part.\","]
-#[doc = "      \"$ref\": \"#/definitions/Struct\""]
-#[doc = "    },"]
-#[doc = "    \"text\": {"]
-#[doc = "      \"description\": \"The string content of the text part.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    }"]
-#[doc = "  },"]
-#[doc = "  \"additionalProperties\": false,"]
-#[doc = "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\""]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
-#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
+#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
 #[serde(deny_unknown_fields)]
 pub struct Part {
     #[doc = "The structured data content."]
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub data: ::std::option::Option<DataPart>,
     #[doc = "The file content, represented as either a URI or as base64-encoded bytes."]
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub file: ::std::option::Option<FilePart>,
     #[doc = "Optional metadata associated with this part."]
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub metadata: ::std::option::Option<Struct>,
     #[doc = "The string content of the text part."]
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub text: ::std::option::Option<::std::string::String>,
-}
-impl ::std::default::Default for Part {
-    fn default() -> Self {
-        Self {
-            data: Default::default(),
-            file: Default::default(),
-            metadata: Default::default(),
-            text: Default::default(),
-        }
-    }
 }
 impl Part {
     pub fn builder() -> builder::Part {
@@ -2066,50 +818,12 @@ impl Part {
     }
 }
 #[doc = "Defines configuration details for the OAuth 2.0 Resource Owner Password flow."]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"PasswordO Auth Flow\","]
-#[doc = "  \"description\": \"Defines configuration details for the OAuth 2.0 Resource Owner Password flow.\","]
-#[doc = "  \"type\": \"object\","]
-#[doc = "  \"required\": ["]
-#[doc = "    \"scopes\","]
-#[doc = "    \"tokenUrl\""]
-#[doc = "  ],"]
-#[doc = "  \"properties\": {"]
-#[doc = "    \"refreshUrl\": {"]
-#[doc = "      \"description\": \"The URL to be used for obtaining refresh tokens.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"scopes\": {"]
-#[doc = "      \"description\": \"The available scopes for the OAuth2 security scheme.\","]
-#[doc = "      \"type\": \"object\","]
-#[doc = "      \"additionalProperties\": {"]
-#[doc = "        \"type\": \"string\""]
-#[doc = "      },"]
-#[doc = "      \"propertyNames\": {"]
-#[doc = "        \"type\": \"string\""]
-#[doc = "      }"]
-#[doc = "    },"]
-#[doc = "    \"tokenUrl\": {"]
-#[doc = "      \"description\": \"The token URL to be used for this flow.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    }"]
-#[doc = "  },"]
-#[doc = "  \"additionalProperties\": false,"]
-#[doc = "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\""]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct PasswordOAuthFlow {
     #[doc = "The URL to be used for obtaining refresh tokens."]
     #[serde(
         rename = "refreshUrl",
-        default,
         skip_serializing_if = "::std::option::Option::is_none"
     )]
     pub refresh_url: ::std::option::Option<::std::string::String>,
@@ -2125,51 +839,17 @@ impl PasswordOAuthFlow {
     }
 }
 #[doc = "Configuration for setting up push notifications for task updates."]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"Push Notification Config\","]
-#[doc = "  \"description\": \"Configuration for setting up push notifications for task updates.\","]
-#[doc = "  \"type\": \"object\","]
-#[doc = "  \"required\": ["]
-#[doc = "    \"url\""]
-#[doc = "  ],"]
-#[doc = "  \"properties\": {"]
-#[doc = "    \"authentication\": {"]
-#[doc = "      \"description\": \"Information about the authentication to sent with the notification\","]
-#[doc = "      \"$ref\": \"#/definitions/AuthenticationInfo\""]
-#[doc = "    },"]
-#[doc = "    \"id\": {"]
-#[doc = "      \"description\": \"A unique identifier (e.g. UUID) for this push notification.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"token\": {"]
-#[doc = "      \"description\": \"Token unique for this task/session\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"url\": {"]
-#[doc = "      \"description\": \"Url to send the notification too\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    }"]
-#[doc = "  },"]
-#[doc = "  \"additionalProperties\": false,"]
-#[doc = "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\""]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct PushNotificationConfig {
     #[doc = "Information about the authentication to sent with the notification"]
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub authentication: ::std::option::Option<AuthenticationInfo>,
     #[doc = "A unique identifier (e.g. UUID) for this push notification."]
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub id: ::std::option::Option<::std::string::String>,
     #[doc = "Token unique for this task/session"]
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub token: ::std::option::Option<::std::string::String>,
     #[doc = "Url to send the notification too"]
     pub url: ::std::string::String,
@@ -2180,22 +860,6 @@ impl PushNotificationConfig {
     }
 }
 #[doc = "Identifies the sender of the message."]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"Role\","]
-#[doc = "  \"description\": \"Identifies the sender of the message.\","]
-#[doc = "  \"type\": \"string\","]
-#[doc = "  \"enum\": ["]
-#[doc = "    \"ROLE_UNSPECIFIED\","]
-#[doc = "    \"ROLE_USER\","]
-#[doc = "    \"ROLE_AGENT\""]
-#[doc = "  ]"]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
 #[derive(
     :: serde :: Deserialize,
     :: serde :: Serialize,
@@ -2242,14 +906,6 @@ impl ::std::convert::TryFrom<&str> for Role {
         value.parse()
     }
 }
-impl ::std::convert::TryFrom<&::std::string::String> for Role {
-    type Error = self::error::ConversionError;
-    fn try_from(
-        value: &::std::string::String,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
-        value.parse()
-    }
-}
 impl ::std::convert::TryFrom<::std::string::String> for Role {
     type Error = self::error::ConversionError;
     fn try_from(
@@ -2259,30 +915,7 @@ impl ::std::convert::TryFrom<::std::string::String> for Role {
     }
 }
 #[doc = "`Security`"]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"Security\","]
-#[doc = "  \"type\": \"object\","]
-#[doc = "  \"properties\": {"]
-#[doc = "    \"schemes\": {"]
-#[doc = "      \"type\": \"object\","]
-#[doc = "      \"additionalProperties\": {"]
-#[doc = "        \"$ref\": \"#/definitions/StringList\""]
-#[doc = "      },"]
-#[doc = "      \"propertyNames\": {"]
-#[doc = "        \"type\": \"string\""]
-#[doc = "      }"]
-#[doc = "    }"]
-#[doc = "  },"]
-#[doc = "  \"additionalProperties\": false,"]
-#[doc = "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\""]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
-#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
+#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
 #[serde(deny_unknown_fields)]
 pub struct Security {
     #[serde(
@@ -2291,103 +924,45 @@ pub struct Security {
     )]
     pub schemes: ::std::collections::HashMap<::std::string::String, StringList>,
 }
-impl ::std::default::Default for Security {
-    fn default() -> Self {
-        Self {
-            schemes: Default::default(),
-        }
-    }
-}
 impl Security {
     pub fn builder() -> builder::Security {
         Default::default()
     }
 }
 #[doc = "Defines a security scheme that can be used to secure an agent's endpoints.\n This is a discriminated union type based on the OpenAPI 3.2 Security Scheme Object.\n See: https://spec.openapis.org/oas/v3.2.0.html#security-scheme-object"]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"Security Scheme\","]
-#[doc = "  \"description\": \"Defines a security scheme that can be used to secure an agent's endpoints.\\n This is a discriminated union type based on the OpenAPI 3.2 Security Scheme Object.\\n See: https://spec.openapis.org/oas/v3.2.0.html#security-scheme-object\","]
-#[doc = "  \"type\": \"object\","]
-#[doc = "  \"properties\": {"]
-#[doc = "    \"apiKeySecurityScheme\": {"]
-#[doc = "      \"description\": \"API key-based authentication.\","]
-#[doc = "      \"$ref\": \"#/definitions/APIKeySecurityScheme\""]
-#[doc = "    },"]
-#[doc = "    \"httpAuthSecurityScheme\": {"]
-#[doc = "      \"description\": \"HTTP authentication (Basic, Bearer, etc.).\","]
-#[doc = "      \"$ref\": \"#/definitions/HTTPAuthSecurityScheme\""]
-#[doc = "    },"]
-#[doc = "    \"mtlsSecurityScheme\": {"]
-#[doc = "      \"description\": \"Mutual TLS authentication.\","]
-#[doc = "      \"$ref\": \"#/definitions/MutualTlsSecurityScheme\""]
-#[doc = "    },"]
-#[doc = "    \"oauth2SecurityScheme\": {"]
-#[doc = "      \"description\": \"OAuth 2.0 authentication.\","]
-#[doc = "      \"$ref\": \"#/definitions/OAuth2SecurityScheme\""]
-#[doc = "    },"]
-#[doc = "    \"openIdConnectSecurityScheme\": {"]
-#[doc = "      \"description\": \"OpenID Connect authentication.\","]
-#[doc = "      \"$ref\": \"#/definitions/OpenIdConnectSecurityScheme\""]
-#[doc = "    }"]
-#[doc = "  },"]
-#[doc = "  \"additionalProperties\": false,"]
-#[doc = "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\""]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
-#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
+#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
 #[serde(deny_unknown_fields)]
 pub struct SecurityScheme {
     #[doc = "API key-based authentication."]
     #[serde(
         rename = "apiKeySecurityScheme",
-        default,
         skip_serializing_if = "::std::option::Option::is_none"
     )]
     pub api_key_security_scheme: ::std::option::Option<ApiKeySecurityScheme>,
     #[doc = "HTTP authentication (Basic, Bearer, etc.)."]
     #[serde(
         rename = "httpAuthSecurityScheme",
-        default,
         skip_serializing_if = "::std::option::Option::is_none"
     )]
     pub http_auth_security_scheme: ::std::option::Option<HttpAuthSecurityScheme>,
     #[doc = "Mutual TLS authentication."]
     #[serde(
         rename = "mtlsSecurityScheme",
-        default,
         skip_serializing_if = "::std::option::Option::is_none"
     )]
     pub mtls_security_scheme: ::std::option::Option<MutualTlsSecurityScheme>,
     #[doc = "OAuth 2.0 authentication."]
     #[serde(
         rename = "oauth2SecurityScheme",
-        default,
         skip_serializing_if = "::std::option::Option::is_none"
     )]
     pub oauth2_security_scheme: ::std::option::Option<OAuth2SecurityScheme>,
     #[doc = "OpenID Connect authentication."]
     #[serde(
         rename = "openIdConnectSecurityScheme",
-        default,
         skip_serializing_if = "::std::option::Option::is_none"
     )]
     pub open_id_connect_security_scheme: ::std::option::Option<OpenIdConnectSecurityScheme>,
-}
-impl ::std::default::Default for SecurityScheme {
-    fn default() -> Self {
-        Self {
-            api_key_security_scheme: Default::default(),
-            http_auth_security_scheme: Default::default(),
-            mtls_security_scheme: Default::default(),
-            oauth2_security_scheme: Default::default(),
-            open_id_connect_security_scheme: Default::default(),
-        }
-    }
 }
 impl SecurityScheme {
     pub fn builder() -> builder::SecurityScheme {
@@ -2395,46 +970,7 @@ impl SecurityScheme {
     }
 }
 #[doc = "Configuration of a send message request."]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"Send Message Configuration\","]
-#[doc = "  \"description\": \"Configuration of a send message request.\","]
-#[doc = "  \"type\": \"object\","]
-#[doc = "  \"required\": ["]
-#[doc = "    \"blocking\""]
-#[doc = "  ],"]
-#[doc = "  \"properties\": {"]
-#[doc = "    \"acceptedOutputModes\": {"]
-#[doc = "      \"description\": \"A list of media types the client is prepared to accept for response parts. Agents SHOULD use this to tailor their output.\","]
-#[doc = "      \"type\": \"array\","]
-#[doc = "      \"items\": {"]
-#[doc = "        \"type\": \"string\""]
-#[doc = "      }"]
-#[doc = "    },"]
-#[doc = "    \"blocking\": {"]
-#[doc = "      \"description\": \"If true, the operation waits until the task reaches a terminal state before returning. Default is false.\","]
-#[doc = "      \"type\": \"boolean\""]
-#[doc = "    },"]
-#[doc = "    \"historyLength\": {"]
-#[doc = "      \"description\": \"The maximum number of messages to include in the history.\","]
-#[doc = "      \"type\": \"integer\","]
-#[doc = "      \"maximum\": 2147483647.0,"]
-#[doc = "      \"minimum\": -2147483648.0"]
-#[doc = "    },"]
-#[doc = "    \"pushNotificationConfig\": {"]
-#[doc = "      \"description\": \"Configuration for the agent to send push notifications for task updates.\","]
-#[doc = "      \"$ref\": \"#/definitions/PushNotificationConfig\""]
-#[doc = "    }"]
-#[doc = "  },"]
-#[doc = "  \"additionalProperties\": false,"]
-#[doc = "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\""]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
-#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
+#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
 #[serde(deny_unknown_fields)]
 pub struct SendMessageConfiguration {
     #[doc = "A list of media types the client is prepared to accept for response parts. Agents SHOULD use this to tailor their output."]
@@ -2445,18 +981,17 @@ pub struct SendMessageConfiguration {
     )]
     pub accepted_output_modes: ::std::vec::Vec<::std::string::String>,
     #[doc = "If true, the operation waits until the task reaches a terminal state before returning. Default is false."]
-    pub blocking: bool,
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub blocking: ::std::option::Option<bool>,
     #[doc = "The maximum number of messages to include in the history."]
     #[serde(
         rename = "historyLength",
-        default,
         skip_serializing_if = "::std::option::Option::is_none"
     )]
     pub history_length: ::std::option::Option<i32>,
     #[doc = "Configuration for the agent to send push notifications for task updates."]
     #[serde(
         rename = "pushNotificationConfig",
-        default,
         skip_serializing_if = "::std::option::Option::is_none"
     )]
     pub push_notification_config: ::std::option::Option<PushNotificationConfig>,
@@ -2467,54 +1002,20 @@ impl SendMessageConfiguration {
     }
 }
 #[doc = "/////////// Request Messages ///////////\n Represents a request for the `message/send` method."]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"Send Message Request\","]
-#[doc = "  \"description\": \"/////////// Request Messages ///////////\\n Represents a request for the `message/send` method.\","]
-#[doc = "  \"type\": \"object\","]
-#[doc = "  \"required\": ["]
-#[doc = "    \"tenant\""]
-#[doc = "  ],"]
-#[doc = "  \"properties\": {"]
-#[doc = "    \"configuration\": {"]
-#[doc = "      \"description\": \"Configuration for the send request.\","]
-#[doc = "      \"$ref\": \"#/definitions/SendMessageConfiguration\""]
-#[doc = "    },"]
-#[doc = "    \"message\": {"]
-#[doc = "      \"description\": \"The message to send to the agent.\","]
-#[doc = "      \"$ref\": \"#/definitions/Message\""]
-#[doc = "    },"]
-#[doc = "    \"metadata\": {"]
-#[doc = "      \"description\": \"A flexible key-value map for passing additional context or parameters.\","]
-#[doc = "      \"$ref\": \"#/definitions/Struct\""]
-#[doc = "    },"]
-#[doc = "    \"tenant\": {"]
-#[doc = "      \"description\": \"Optional tenant, provided as a path parameter.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    }"]
-#[doc = "  },"]
-#[doc = "  \"additionalProperties\": false,"]
-#[doc = "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\""]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct SendMessageRequest {
     #[doc = "Configuration for the send request."]
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub configuration: ::std::option::Option<SendMessageConfiguration>,
     #[doc = "The message to send to the agent."]
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
-    pub message: ::std::option::Option<Message>,
+    pub message: Message,
     #[doc = "A flexible key-value map for passing additional context or parameters."]
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub metadata: ::std::option::Option<Struct>,
     #[doc = "Optional tenant, provided as a path parameter."]
-    pub tenant: ::std::string::String,
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub tenant: ::std::option::Option<::std::string::String>,
 }
 impl SendMessageRequest {
     pub fn builder() -> builder::SendMessageRequest {
@@ -2522,42 +1023,13 @@ impl SendMessageRequest {
     }
 }
 #[doc = "////// Response Messages ///////////"]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"Send Message Response\","]
-#[doc = "  \"description\": \"////// Response Messages ///////////\","]
-#[doc = "  \"type\": \"object\","]
-#[doc = "  \"properties\": {"]
-#[doc = "    \"message\": {"]
-#[doc = "      \"$ref\": \"#/definitions/Message\""]
-#[doc = "    },"]
-#[doc = "    \"task\": {"]
-#[doc = "      \"$ref\": \"#/definitions/Task\""]
-#[doc = "    }"]
-#[doc = "  },"]
-#[doc = "  \"additionalProperties\": false,"]
-#[doc = "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\""]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
-#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
+#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
 #[serde(deny_unknown_fields)]
 pub struct SendMessageResponse {
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub message: ::std::option::Option<Message>,
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub task: ::std::option::Option<Task>,
-}
-impl ::std::default::Default for SendMessageResponse {
-    fn default() -> Self {
-        Self {
-            message: Default::default(),
-            task: Default::default(),
-        }
-    }
 }
 impl SendMessageResponse {
     pub fn builder() -> builder::SendMessageResponse {
@@ -2565,42 +1037,6 @@ impl SendMessageResponse {
     }
 }
 #[doc = "Represents a request for the `tasks/pushNotificationConfig/set` method."]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"Set Task Push Notification Config Request\","]
-#[doc = "  \"description\": \"Represents a request for the `tasks/pushNotificationConfig/set` method.\","]
-#[doc = "  \"type\": \"object\","]
-#[doc = "  \"required\": ["]
-#[doc = "    \"config\","]
-#[doc = "    \"configId\","]
-#[doc = "    \"parent\""]
-#[doc = "  ],"]
-#[doc = "  \"properties\": {"]
-#[doc = "    \"config\": {"]
-#[doc = "      \"description\": \"The configuration to create.\","]
-#[doc = "      \"$ref\": \"#/definitions/TaskPushNotificationConfig\""]
-#[doc = "    },"]
-#[doc = "    \"configId\": {"]
-#[doc = "      \"description\": \"The ID for the new config.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"parent\": {"]
-#[doc = "      \"description\": \"The parent task resource for this config.\\n Format: tasks/{task_id}\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"tenant\": {"]
-#[doc = "      \"description\": \"Optional tenant, provided as a path parameter.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    }"]
-#[doc = "  },"]
-#[doc = "  \"additionalProperties\": false,"]
-#[doc = "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\""]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct SetTaskPushNotificationConfigRequest {
@@ -2612,7 +1048,7 @@ pub struct SetTaskPushNotificationConfigRequest {
     #[doc = "The parent task resource for this config.\n Format: tasks/{task_id}"]
     pub parent: ::std::string::String,
     #[doc = "Optional tenant, provided as a path parameter."]
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub tenant: ::std::option::Option<::std::string::String>,
 }
 impl SetTaskPushNotificationConfigRequest {
@@ -2621,70 +1057,27 @@ impl SetTaskPushNotificationConfigRequest {
     }
 }
 #[doc = "A wrapper object used in streaming operations to encapsulate different types of response data."]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"Stream Response\","]
-#[doc = "  \"description\": \"A wrapper object used in streaming operations to encapsulate different types of response data.\","]
-#[doc = "  \"type\": \"object\","]
-#[doc = "  \"properties\": {"]
-#[doc = "    \"artifactUpdate\": {"]
-#[doc = "      \"description\": \"An event indicating a task artifact update.\","]
-#[doc = "      \"$ref\": \"#/definitions/TaskArtifactUpdateEvent\""]
-#[doc = "    },"]
-#[doc = "    \"message\": {"]
-#[doc = "      \"description\": \"A Message object containing a message from the agent.\","]
-#[doc = "      \"$ref\": \"#/definitions/Message\""]
-#[doc = "    },"]
-#[doc = "    \"statusUpdate\": {"]
-#[doc = "      \"description\": \"An event indicating a task status update.\","]
-#[doc = "      \"$ref\": \"#/definitions/TaskStatusUpdateEvent\""]
-#[doc = "    },"]
-#[doc = "    \"task\": {"]
-#[doc = "      \"description\": \"A Task object containing the current state of the task.\","]
-#[doc = "      \"$ref\": \"#/definitions/Task\""]
-#[doc = "    }"]
-#[doc = "  },"]
-#[doc = "  \"additionalProperties\": false,"]
-#[doc = "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\""]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
-#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
+#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
 #[serde(deny_unknown_fields)]
 pub struct StreamResponse {
     #[doc = "An event indicating a task artifact update."]
     #[serde(
         rename = "artifactUpdate",
-        default,
         skip_serializing_if = "::std::option::Option::is_none"
     )]
     pub artifact_update: ::std::option::Option<TaskArtifactUpdateEvent>,
     #[doc = "A Message object containing a message from the agent."]
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub message: ::std::option::Option<Message>,
     #[doc = "An event indicating a task status update."]
     #[serde(
         rename = "statusUpdate",
-        default,
         skip_serializing_if = "::std::option::Option::is_none"
     )]
     pub status_update: ::std::option::Option<TaskStatusUpdateEvent>,
     #[doc = "A Task object containing the current state of the task."]
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub task: ::std::option::Option<Task>,
-}
-impl ::std::default::Default for StreamResponse {
-    fn default() -> Self {
-        Self {
-            artifact_update: Default::default(),
-            message: Default::default(),
-            status_update: Default::default(),
-            task: Default::default(),
-        }
-    }
 }
 impl StreamResponse {
     pub fn builder() -> builder::StreamResponse {
@@ -2692,39 +1085,11 @@ impl StreamResponse {
     }
 }
 #[doc = "protolint:disable REPEATED_FIELD_NAMES_PLURALIZED"]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"String List\","]
-#[doc = "  \"description\": \"protolint:disable REPEATED_FIELD_NAMES_PLURALIZED\","]
-#[doc = "  \"type\": \"object\","]
-#[doc = "  \"properties\": {"]
-#[doc = "    \"list\": {"]
-#[doc = "      \"type\": \"array\","]
-#[doc = "      \"items\": {"]
-#[doc = "        \"type\": \"string\""]
-#[doc = "      }"]
-#[doc = "    }"]
-#[doc = "  },"]
-#[doc = "  \"additionalProperties\": false,"]
-#[doc = "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\""]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
-#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
+#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
 #[serde(deny_unknown_fields)]
 pub struct StringList {
     #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
     pub list: ::std::vec::Vec<::std::string::String>,
-}
-impl ::std::default::Default for StringList {
-    fn default() -> Self {
-        Self {
-            list: Default::default(),
-        }
-    }
 }
 impl StringList {
     pub fn builder() -> builder::StringList {
@@ -2732,17 +1097,6 @@ impl StringList {
     }
 }
 #[doc = "`Struct`"]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"Struct\","]
-#[doc = "  \"type\": \"object\","]
-#[doc = "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\""]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
 #[serde(transparent)]
 pub struct Struct(pub ::serde_json::Map<::std::string::String, ::serde_json::Value>);
@@ -2767,39 +1121,15 @@ impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json:
     }
 }
 #[doc = "`SubscribeToTaskRequest`"]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"Subscribe To Task Request\","]
-#[doc = "  \"type\": \"object\","]
-#[doc = "  \"required\": ["]
-#[doc = "    \"name\","]
-#[doc = "    \"tenant\""]
-#[doc = "  ],"]
-#[doc = "  \"properties\": {"]
-#[doc = "    \"name\": {"]
-#[doc = "      \"description\": \"The resource name of the task to subscribe to.\\n Format: tasks/{task_id}\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"tenant\": {"]
-#[doc = "      \"description\": \"Optional tenant, provided as a path parameter.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    }"]
-#[doc = "  },"]
-#[doc = "  \"additionalProperties\": false,"]
-#[doc = "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\""]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
-#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
+#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
 #[serde(deny_unknown_fields)]
 pub struct SubscribeToTaskRequest {
     #[doc = "The resource name of the task to subscribe to.\n Format: tasks/{task_id}"]
-    pub name: ::std::string::String,
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub name: ::std::option::Option<::std::string::String>,
     #[doc = "Optional tenant, provided as a path parameter."]
-    pub tenant: ::std::string::String,
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub tenant: ::std::option::Option<::std::string::String>,
 }
 impl SubscribeToTaskRequest {
     pub fn builder() -> builder::SubscribeToTaskRequest {
@@ -2807,56 +1137,6 @@ impl SubscribeToTaskRequest {
     }
 }
 #[doc = "Task is the core unit of action for A2A. It has a current status\n and when results are created for the task they are stored in the\n artifact. If there are multiple turns for a task, these are stored in\n history."]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"Task\","]
-#[doc = "  \"description\": \"Task is the core unit of action for A2A. It has a current status\\n and when results are created for the task they are stored in the\\n artifact. If there are multiple turns for a task, these are stored in\\n history.\","]
-#[doc = "  \"type\": \"object\","]
-#[doc = "  \"required\": ["]
-#[doc = "    \"contextId\","]
-#[doc = "    \"id\","]
-#[doc = "    \"status\""]
-#[doc = "  ],"]
-#[doc = "  \"properties\": {"]
-#[doc = "    \"artifacts\": {"]
-#[doc = "      \"description\": \"A set of output artifacts for a Task.\","]
-#[doc = "      \"type\": \"array\","]
-#[doc = "      \"items\": {"]
-#[doc = "        \"$ref\": \"#/definitions/Artifact\""]
-#[doc = "      }"]
-#[doc = "    },"]
-#[doc = "    \"contextId\": {"]
-#[doc = "      \"description\": \"Unique identifier (e.g. UUID) for the contextual collection of interactions\\n (tasks and messages). Created by the A2A server.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"history\": {"]
-#[doc = "      \"description\": \"protolint:disable REPEATED_FIELD_NAMES_PLURALIZED\\n The history of interactions from a task.\","]
-#[doc = "      \"type\": \"array\","]
-#[doc = "      \"items\": {"]
-#[doc = "        \"$ref\": \"#/definitions/Message\""]
-#[doc = "      }"]
-#[doc = "    },"]
-#[doc = "    \"id\": {"]
-#[doc = "      \"description\": \"Unique identifier (e.g. UUID) for the task, generated by the server for a\\n new task.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"metadata\": {"]
-#[doc = "      \"description\": \"protolint:enable REPEATED_FIELD_NAMES_PLURALIZED\\n A key/value object to store custom metadata about a task.\","]
-#[doc = "      \"$ref\": \"#/definitions/Struct\""]
-#[doc = "    },"]
-#[doc = "    \"status\": {"]
-#[doc = "      \"description\": \"The current status of a Task, including state and a message.\","]
-#[doc = "      \"$ref\": \"#/definitions/TaskStatus\""]
-#[doc = "    }"]
-#[doc = "  },"]
-#[doc = "  \"additionalProperties\": false,"]
-#[doc = "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\""]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct Task {
@@ -2872,7 +1152,7 @@ pub struct Task {
     #[doc = "Unique identifier (e.g. UUID) for the task, generated by the server for a\n new task."]
     pub id: ::std::string::String,
     #[doc = "protolint:enable REPEATED_FIELD_NAMES_PLURALIZED\n A key/value object to store custom metadata about a task."]
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub metadata: ::std::option::Option<Struct>,
     #[doc = "The current status of a Task, including state and a message."]
     pub status: TaskStatus,
@@ -2883,55 +1163,11 @@ impl Task {
     }
 }
 #[doc = "TaskArtifactUpdateEvent represents a task delta where an artifact has\n been generated."]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"Task Artifact Update Event\","]
-#[doc = "  \"description\": \"TaskArtifactUpdateEvent represents a task delta where an artifact has\\n been generated.\","]
-#[doc = "  \"type\": \"object\","]
-#[doc = "  \"required\": ["]
-#[doc = "    \"artifact\","]
-#[doc = "    \"contextId\","]
-#[doc = "    \"taskId\""]
-#[doc = "  ],"]
-#[doc = "  \"properties\": {"]
-#[doc = "    \"append\": {"]
-#[doc = "      \"description\": \"If true, the content of this artifact should be appended to a previously\\n sent artifact with the same ID.\","]
-#[doc = "      \"type\": \"boolean\""]
-#[doc = "    },"]
-#[doc = "    \"artifact\": {"]
-#[doc = "      \"description\": \"The artifact that was generated or updated.\","]
-#[doc = "      \"$ref\": \"#/definitions/Artifact\""]
-#[doc = "    },"]
-#[doc = "    \"contextId\": {"]
-#[doc = "      \"description\": \"The id of the context that this task belongs to.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"lastChunk\": {"]
-#[doc = "      \"description\": \"If true, this is the final chunk of the artifact.\","]
-#[doc = "      \"type\": \"boolean\""]
-#[doc = "    },"]
-#[doc = "    \"metadata\": {"]
-#[doc = "      \"description\": \"Optional metadata associated with the artifact update.\","]
-#[doc = "      \"$ref\": \"#/definitions/Struct\""]
-#[doc = "    },"]
-#[doc = "    \"taskId\": {"]
-#[doc = "      \"description\": \"The id of the task for this artifact.\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    }"]
-#[doc = "  },"]
-#[doc = "  \"additionalProperties\": false,"]
-#[doc = "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\""]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct TaskArtifactUpdateEvent {
     #[doc = "If true, the content of this artifact should be appended to a previously\n sent artifact with the same ID."]
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub append: ::std::option::Option<bool>,
     #[doc = "The artifact that was generated or updated."]
     pub artifact: Artifact,
@@ -2941,12 +1177,11 @@ pub struct TaskArtifactUpdateEvent {
     #[doc = "If true, this is the final chunk of the artifact."]
     #[serde(
         rename = "lastChunk",
-        default,
         skip_serializing_if = "::std::option::Option::is_none"
     )]
     pub last_chunk: ::std::option::Option<bool>,
     #[doc = "Optional metadata associated with the artifact update."]
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub metadata: ::std::option::Option<Struct>,
     #[doc = "The id of the task for this artifact."]
     #[serde(rename = "taskId")]
@@ -2958,33 +1193,6 @@ impl TaskArtifactUpdateEvent {
     }
 }
 #[doc = "A container associating a push notification configuration with a specific\n task."]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"Task Push Notification Config\","]
-#[doc = "  \"description\": \"A container associating a push notification configuration with a specific\\n task.\","]
-#[doc = "  \"type\": \"object\","]
-#[doc = "  \"required\": ["]
-#[doc = "    \"name\","]
-#[doc = "    \"pushNotificationConfig\""]
-#[doc = "  ],"]
-#[doc = "  \"properties\": {"]
-#[doc = "    \"name\": {"]
-#[doc = "      \"description\": \"The resource name of the config.\\n Format: tasks/{task_id}/pushNotificationConfigs/{config_id}\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"pushNotificationConfig\": {"]
-#[doc = "      \"description\": \"The push notification configuration details.\","]
-#[doc = "      \"$ref\": \"#/definitions/PushNotificationConfig\""]
-#[doc = "    }"]
-#[doc = "  },"]
-#[doc = "  \"additionalProperties\": false,"]
-#[doc = "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\""]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct TaskPushNotificationConfig {
@@ -3000,28 +1208,6 @@ impl TaskPushNotificationConfig {
     }
 }
 #[doc = "Filter tasks by their current status state."]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"Task State\","]
-#[doc = "  \"description\": \"Filter tasks by their current status state.\","]
-#[doc = "  \"type\": \"string\","]
-#[doc = "  \"enum\": ["]
-#[doc = "    \"TASK_STATE_UNSPECIFIED\","]
-#[doc = "    \"TASK_STATE_SUBMITTED\","]
-#[doc = "    \"TASK_STATE_WORKING\","]
-#[doc = "    \"TASK_STATE_COMPLETED\","]
-#[doc = "    \"TASK_STATE_FAILED\","]
-#[doc = "    \"TASK_STATE_CANCELLED\","]
-#[doc = "    \"TASK_STATE_INPUT_REQUIRED\","]
-#[doc = "    \"TASK_STATE_REJECTED\","]
-#[doc = "    \"TASK_STATE_AUTH_REQUIRED\""]
-#[doc = "  ]"]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
 #[derive(
     :: serde :: Deserialize,
     :: serde :: Serialize,
@@ -3092,14 +1278,6 @@ impl ::std::convert::TryFrom<&str> for TaskState {
         value.parse()
     }
 }
-impl ::std::convert::TryFrom<&::std::string::String> for TaskState {
-    type Error = self::error::ConversionError;
-    fn try_from(
-        value: &::std::string::String,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
-        value.parse()
-    }
-}
 impl ::std::convert::TryFrom<::std::string::String> for TaskState {
     type Error = self::error::ConversionError;
     fn try_from(
@@ -3109,58 +1287,16 @@ impl ::std::convert::TryFrom<::std::string::String> for TaskState {
     }
 }
 #[doc = "A container for the status of a task"]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"Task Status\","]
-#[doc = "  \"description\": \"A container for the status of a task\","]
-#[doc = "  \"type\": \"object\","]
-#[doc = "  \"required\": ["]
-#[doc = "    \"state\""]
-#[doc = "  ],"]
-#[doc = "  \"properties\": {"]
-#[doc = "    \"message\": {"]
-#[doc = "      \"description\": \"A message associated with the status.\","]
-#[doc = "      \"$ref\": \"#/definitions/Message\""]
-#[doc = "    },"]
-#[doc = "    \"state\": {"]
-#[doc = "      \"title\": \"Task State\","]
-#[doc = "      \"description\": \"The current state of this task.\","]
-#[doc = "      \"type\": \"string\","]
-#[doc = "      \"enum\": ["]
-#[doc = "        \"TASK_STATE_UNSPECIFIED\","]
-#[doc = "        \"TASK_STATE_SUBMITTED\","]
-#[doc = "        \"TASK_STATE_WORKING\","]
-#[doc = "        \"TASK_STATE_COMPLETED\","]
-#[doc = "        \"TASK_STATE_FAILED\","]
-#[doc = "        \"TASK_STATE_CANCELLED\","]
-#[doc = "        \"TASK_STATE_INPUT_REQUIRED\","]
-#[doc = "        \"TASK_STATE_REJECTED\","]
-#[doc = "        \"TASK_STATE_AUTH_REQUIRED\""]
-#[doc = "      ]"]
-#[doc = "    },"]
-#[doc = "    \"timestamp\": {"]
-#[doc = "      \"description\": \"ISO 8601 Timestamp when the status was recorded.\\n Example: \\\"2023-10-27T10:00:00Z\\\"\","]
-#[doc = "      \"$ref\": \"#/definitions/Timestamp\""]
-#[doc = "    }"]
-#[doc = "  },"]
-#[doc = "  \"additionalProperties\": false,"]
-#[doc = "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\""]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct TaskStatus {
     #[doc = "A message associated with the status."]
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub message: ::std::option::Option<Message>,
     #[doc = "The current state of this task."]
     pub state: TaskState,
     #[doc = "ISO 8601 Timestamp when the status was recorded.\n Example: \"2023-10-27T10:00:00Z\""]
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub timestamp: ::std::option::Option<Timestamp>,
 }
 impl TaskStatus {
@@ -3169,47 +1305,6 @@ impl TaskStatus {
     }
 }
 #[doc = "An event sent by the agent to notify the client of a change in a task's\n status."]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"Task Status Update Event\","]
-#[doc = "  \"description\": \"An event sent by the agent to notify the client of a change in a task's\\n status.\","]
-#[doc = "  \"type\": \"object\","]
-#[doc = "  \"required\": ["]
-#[doc = "    \"contextId\","]
-#[doc = "    \"final\","]
-#[doc = "    \"status\","]
-#[doc = "    \"taskId\""]
-#[doc = "  ],"]
-#[doc = "  \"properties\": {"]
-#[doc = "    \"contextId\": {"]
-#[doc = "      \"description\": \"The id of the context that the task belongs to\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    },"]
-#[doc = "    \"final\": {"]
-#[doc = "      \"description\": \"If true, this is the final event in the stream for this interaction.\","]
-#[doc = "      \"type\": \"boolean\""]
-#[doc = "    },"]
-#[doc = "    \"metadata\": {"]
-#[doc = "      \"description\": \"Optional metadata to associate with the task update.\","]
-#[doc = "      \"$ref\": \"#/definitions/Struct\""]
-#[doc = "    },"]
-#[doc = "    \"status\": {"]
-#[doc = "      \"description\": \"The new status of the task.\","]
-#[doc = "      \"$ref\": \"#/definitions/TaskStatus\""]
-#[doc = "    },"]
-#[doc = "    \"taskId\": {"]
-#[doc = "      \"description\": \"The id of the task that is changed\","]
-#[doc = "      \"type\": \"string\""]
-#[doc = "    }"]
-#[doc = "  },"]
-#[doc = "  \"additionalProperties\": false,"]
-#[doc = "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\""]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct TaskStatusUpdateEvent {
@@ -3220,7 +1315,7 @@ pub struct TaskStatusUpdateEvent {
     #[serde(rename = "final")]
     pub final_: bool,
     #[doc = "Optional metadata to associate with the task update."]
-    #[serde(default, skip_serializing_if = "::std::option::Option::is_none")]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub metadata: ::std::option::Option<Struct>,
     #[doc = "The new status of the task."]
     pub status: TaskStatus,
@@ -3234,18 +1329,6 @@ impl TaskStatusUpdateEvent {
     }
 }
 #[doc = "`Timestamp`"]
-#[doc = r""]
-#[doc = r" <details><summary>JSON schema</summary>"]
-#[doc = r""]
-#[doc = r" ```json"]
-#[doc = "{"]
-#[doc = "  \"title\": \"Timestamp\","]
-#[doc = "  \"type\": \"string\","]
-#[doc = "  \"format\": \"date-time\","]
-#[doc = "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\""]
-#[doc = "}"]
-#[doc = r" ```"]
-#[doc = r" </details>"]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
 #[serde(transparent)]
 pub struct Timestamp(pub ::chrono::DateTime<::chrono::offset::Utc>);
@@ -3263,6 +1346,11 @@ impl ::std::convert::From<Timestamp> for ::chrono::DateTime<::chrono::offset::Ut
 impl ::std::convert::From<::chrono::DateTime<::chrono::offset::Utc>> for Timestamp {
     fn from(value: ::chrono::DateTime<::chrono::offset::Utc>) -> Self {
         Self(value)
+    }
+}
+impl ::std::fmt::Display for Timestamp {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        self.0.fmt(f)
     }
 }
 impl ::std::str::FromStr for Timestamp {
@@ -3283,12 +1371,7 @@ impl ::std::convert::TryFrom<String> for Timestamp {
         value.parse()
     }
 }
-impl ::std::fmt::Display for Timestamp {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-        self.0.fmt(f)
-    }
-}
-#[doc = r" Types for composing complex structures."]
+#[doc = " Types for composing complex structures."]
 pub mod builder {
     #[derive(Clone, Debug)]
     pub struct AgentCapabilities {
@@ -3765,25 +1848,31 @@ pub mod builder {
     }
     #[derive(Clone, Debug)]
     pub struct AgentExtension {
-        description: ::std::result::Result<::std::string::String, ::std::string::String>,
+        description: ::std::result::Result<
+            ::std::option::Option<::std::string::String>,
+            ::std::string::String,
+        >,
         params: ::std::result::Result<::std::option::Option<super::Struct>, ::std::string::String>,
-        required: ::std::result::Result<bool, ::std::string::String>,
-        uri: ::std::result::Result<::std::string::String, ::std::string::String>,
+        required: ::std::result::Result<::std::option::Option<bool>, ::std::string::String>,
+        uri: ::std::result::Result<
+            ::std::option::Option<::std::string::String>,
+            ::std::string::String,
+        >,
     }
     impl ::std::default::Default for AgentExtension {
         fn default() -> Self {
             Self {
-                description: Err("no value supplied for description".to_string()),
+                description: Ok(Default::default()),
                 params: Ok(Default::default()),
-                required: Err("no value supplied for required".to_string()),
-                uri: Err("no value supplied for uri".to_string()),
+                required: Ok(Default::default()),
+                uri: Ok(Default::default()),
             }
         }
     }
     impl AgentExtension {
         pub fn description<T>(mut self, value: T) -> Self
         where
-            T: ::std::convert::TryInto<::std::string::String>,
+            T: ::std::convert::TryInto<::std::option::Option<::std::string::String>>,
             T::Error: ::std::fmt::Display,
         {
             self.description = value
@@ -3803,7 +1892,7 @@ pub mod builder {
         }
         pub fn required<T>(mut self, value: T) -> Self
         where
-            T: ::std::convert::TryInto<bool>,
+            T: ::std::convert::TryInto<::std::option::Option<bool>>,
             T::Error: ::std::fmt::Display,
         {
             self.required = value
@@ -3813,7 +1902,7 @@ pub mod builder {
         }
         pub fn uri<T>(mut self, value: T) -> Self
         where
-            T: ::std::convert::TryInto<::std::string::String>,
+            T: ::std::convert::TryInto<::std::option::Option<::std::string::String>>,
             T::Error: ::std::fmt::Display,
         {
             self.uri = value
@@ -4448,21 +2537,27 @@ pub mod builder {
     }
     #[derive(Clone, Debug)]
     pub struct CancelTaskRequest {
-        name: ::std::result::Result<::std::string::String, ::std::string::String>,
-        tenant: ::std::result::Result<::std::string::String, ::std::string::String>,
+        name: ::std::result::Result<
+            ::std::option::Option<::std::string::String>,
+            ::std::string::String,
+        >,
+        tenant: ::std::result::Result<
+            ::std::option::Option<::std::string::String>,
+            ::std::string::String,
+        >,
     }
     impl ::std::default::Default for CancelTaskRequest {
         fn default() -> Self {
             Self {
-                name: Err("no value supplied for name".to_string()),
-                tenant: Err("no value supplied for tenant".to_string()),
+                name: Ok(Default::default()),
+                tenant: Ok(Default::default()),
             }
         }
     }
     impl CancelTaskRequest {
         pub fn name<T>(mut self, value: T) -> Self
         where
-            T: ::std::convert::TryInto<::std::string::String>,
+            T: ::std::convert::TryInto<::std::option::Option<::std::string::String>>,
             T::Error: ::std::fmt::Display,
         {
             self.name = value
@@ -4472,7 +2567,7 @@ pub mod builder {
         }
         pub fn tenant<T>(mut self, value: T) -> Self
         where
-            T: ::std::convert::TryInto<::std::string::String>,
+            T: ::std::convert::TryInto<::std::option::Option<::std::string::String>>,
             T::Error: ::std::fmt::Display,
         {
             self.tenant = value
@@ -4614,21 +2709,27 @@ pub mod builder {
     }
     #[derive(Clone, Debug)]
     pub struct DeleteTaskPushNotificationConfigRequest {
-        name: ::std::result::Result<::std::string::String, ::std::string::String>,
-        tenant: ::std::result::Result<::std::string::String, ::std::string::String>,
+        name: ::std::result::Result<
+            ::std::option::Option<::std::string::String>,
+            ::std::string::String,
+        >,
+        tenant: ::std::result::Result<
+            ::std::option::Option<::std::string::String>,
+            ::std::string::String,
+        >,
     }
     impl ::std::default::Default for DeleteTaskPushNotificationConfigRequest {
         fn default() -> Self {
             Self {
-                name: Err("no value supplied for name".to_string()),
-                tenant: Err("no value supplied for tenant".to_string()),
+                name: Ok(Default::default()),
+                tenant: Ok(Default::default()),
             }
         }
     }
     impl DeleteTaskPushNotificationConfigRequest {
         pub fn name<T>(mut self, value: T) -> Self
         where
-            T: ::std::convert::TryInto<::std::string::String>,
+            T: ::std::convert::TryInto<::std::option::Option<::std::string::String>>,
             T::Error: ::std::fmt::Display,
         {
             self.name = value
@@ -4638,7 +2739,7 @@ pub mod builder {
         }
         pub fn tenant<T>(mut self, value: T) -> Self
         where
-            T: ::std::convert::TryInto<::std::string::String>,
+            T: ::std::convert::TryInto<::std::option::Option<::std::string::String>>,
             T::Error: ::std::fmt::Display,
         {
             self.tenant = value
@@ -4680,16 +2781,22 @@ pub mod builder {
             ::std::option::Option<::std::string::String>,
             ::std::string::String,
         >,
-        media_type: ::std::result::Result<::std::string::String, ::std::string::String>,
-        name: ::std::result::Result<::std::string::String, ::std::string::String>,
+        media_type: ::std::result::Result<
+            ::std::option::Option<::std::string::String>,
+            ::std::string::String,
+        >,
+        name: ::std::result::Result<
+            ::std::option::Option<::std::string::String>,
+            ::std::string::String,
+        >,
     }
     impl ::std::default::Default for FilePart {
         fn default() -> Self {
             Self {
                 file_with_bytes: Ok(Default::default()),
                 file_with_uri: Ok(Default::default()),
-                media_type: Err("no value supplied for media_type".to_string()),
-                name: Err("no value supplied for name".to_string()),
+                media_type: Ok(Default::default()),
+                name: Ok(Default::default()),
             }
         }
     }
@@ -4716,7 +2823,7 @@ pub mod builder {
         }
         pub fn media_type<T>(mut self, value: T) -> Self
         where
-            T: ::std::convert::TryInto<::std::string::String>,
+            T: ::std::convert::TryInto<::std::option::Option<::std::string::String>>,
             T::Error: ::std::fmt::Display,
         {
             self.media_type = value
@@ -4726,7 +2833,7 @@ pub mod builder {
         }
         pub fn name<T>(mut self, value: T) -> Self
         where
-            T: ::std::convert::TryInto<::std::string::String>,
+            T: ::std::convert::TryInto<::std::option::Option<::std::string::String>>,
             T::Error: ::std::fmt::Display,
         {
             self.name = value
@@ -4758,19 +2865,22 @@ pub mod builder {
     }
     #[derive(Clone, Debug)]
     pub struct GetExtendedAgentCardRequest {
-        tenant: ::std::result::Result<::std::string::String, ::std::string::String>,
+        tenant: ::std::result::Result<
+            ::std::option::Option<::std::string::String>,
+            ::std::string::String,
+        >,
     }
     impl ::std::default::Default for GetExtendedAgentCardRequest {
         fn default() -> Self {
             Self {
-                tenant: Err("no value supplied for tenant".to_string()),
+                tenant: Ok(Default::default()),
             }
         }
     }
     impl GetExtendedAgentCardRequest {
         pub fn tenant<T>(mut self, value: T) -> Self
         where
-            T: ::std::convert::TryInto<::std::string::String>,
+            T: ::std::convert::TryInto<::std::option::Option<::std::string::String>>,
             T::Error: ::std::fmt::Display,
         {
             self.tenant = value
@@ -4798,21 +2908,27 @@ pub mod builder {
     }
     #[derive(Clone, Debug)]
     pub struct GetTaskPushNotificationConfigRequest {
-        name: ::std::result::Result<::std::string::String, ::std::string::String>,
-        tenant: ::std::result::Result<::std::string::String, ::std::string::String>,
+        name: ::std::result::Result<
+            ::std::option::Option<::std::string::String>,
+            ::std::string::String,
+        >,
+        tenant: ::std::result::Result<
+            ::std::option::Option<::std::string::String>,
+            ::std::string::String,
+        >,
     }
     impl ::std::default::Default for GetTaskPushNotificationConfigRequest {
         fn default() -> Self {
             Self {
-                name: Err("no value supplied for name".to_string()),
-                tenant: Err("no value supplied for tenant".to_string()),
+                name: Ok(Default::default()),
+                tenant: Ok(Default::default()),
             }
         }
     }
     impl GetTaskPushNotificationConfigRequest {
         pub fn name<T>(mut self, value: T) -> Self
         where
-            T: ::std::convert::TryInto<::std::string::String>,
+            T: ::std::convert::TryInto<::std::option::Option<::std::string::String>>,
             T::Error: ::std::fmt::Display,
         {
             self.name = value
@@ -4822,7 +2938,7 @@ pub mod builder {
         }
         pub fn tenant<T>(mut self, value: T) -> Self
         where
-            T: ::std::convert::TryInto<::std::string::String>,
+            T: ::std::convert::TryInto<::std::option::Option<::std::string::String>>,
             T::Error: ::std::fmt::Display,
         {
             self.tenant = value
@@ -5077,25 +3193,34 @@ pub mod builder {
     }
     #[derive(Clone, Debug)]
     pub struct ListTaskPushNotificationConfigRequest {
-        page_size: ::std::result::Result<i32, ::std::string::String>,
-        page_token: ::std::result::Result<::std::string::String, ::std::string::String>,
-        parent: ::std::result::Result<::std::string::String, ::std::string::String>,
-        tenant: ::std::result::Result<::std::string::String, ::std::string::String>,
+        page_size: ::std::result::Result<::std::option::Option<i32>, ::std::string::String>,
+        page_token: ::std::result::Result<
+            ::std::option::Option<::std::string::String>,
+            ::std::string::String,
+        >,
+        parent: ::std::result::Result<
+            ::std::option::Option<::std::string::String>,
+            ::std::string::String,
+        >,
+        tenant: ::std::result::Result<
+            ::std::option::Option<::std::string::String>,
+            ::std::string::String,
+        >,
     }
     impl ::std::default::Default for ListTaskPushNotificationConfigRequest {
         fn default() -> Self {
             Self {
-                page_size: Err("no value supplied for page_size".to_string()),
-                page_token: Err("no value supplied for page_token".to_string()),
-                parent: Err("no value supplied for parent".to_string()),
-                tenant: Err("no value supplied for tenant".to_string()),
+                page_size: Ok(Default::default()),
+                page_token: Ok(Default::default()),
+                parent: Ok(Default::default()),
+                tenant: Ok(Default::default()),
             }
         }
     }
     impl ListTaskPushNotificationConfigRequest {
         pub fn page_size<T>(mut self, value: T) -> Self
         where
-            T: ::std::convert::TryInto<i32>,
+            T: ::std::convert::TryInto<::std::option::Option<i32>>,
             T::Error: ::std::fmt::Display,
         {
             self.page_size = value
@@ -5105,7 +3230,7 @@ pub mod builder {
         }
         pub fn page_token<T>(mut self, value: T) -> Self
         where
-            T: ::std::convert::TryInto<::std::string::String>,
+            T: ::std::convert::TryInto<::std::option::Option<::std::string::String>>,
             T::Error: ::std::fmt::Display,
         {
             self.page_token = value
@@ -5115,7 +3240,7 @@ pub mod builder {
         }
         pub fn parent<T>(mut self, value: T) -> Self
         where
-            T: ::std::convert::TryInto<::std::string::String>,
+            T: ::std::convert::TryInto<::std::option::Option<::std::string::String>>,
             T::Error: ::std::fmt::Display,
         {
             self.parent = value
@@ -5125,7 +3250,7 @@ pub mod builder {
         }
         pub fn tenant<T>(mut self, value: T) -> Self
         where
-            T: ::std::convert::TryInto<::std::string::String>,
+            T: ::std::convert::TryInto<::std::option::Option<::std::string::String>>,
             T::Error: ::std::fmt::Display,
         {
             self.tenant = value
@@ -5167,13 +3292,16 @@ pub mod builder {
             ::std::vec::Vec<super::TaskPushNotificationConfig>,
             ::std::string::String,
         >,
-        next_page_token: ::std::result::Result<::std::string::String, ::std::string::String>,
+        next_page_token: ::std::result::Result<
+            ::std::option::Option<::std::string::String>,
+            ::std::string::String,
+        >,
     }
     impl ::std::default::Default for ListTaskPushNotificationConfigResponse {
         fn default() -> Self {
             Self {
                 configs: Ok(Default::default()),
-                next_page_token: Err("no value supplied for next_page_token".to_string()),
+                next_page_token: Ok(Default::default()),
             }
         }
     }
@@ -5190,7 +3318,7 @@ pub mod builder {
         }
         pub fn next_page_token<T>(mut self, value: T) -> Self
         where
-            T: ::std::convert::TryInto<::std::string::String>,
+            T: ::std::convert::TryInto<::std::option::Option<::std::string::String>>,
             T::Error: ::std::fmt::Display,
         {
             self.next_page_token = value
@@ -5224,34 +3352,45 @@ pub mod builder {
     }
     #[derive(Clone, Debug)]
     pub struct ListTasksRequest {
-        context_id: ::std::result::Result<::std::string::String, ::std::string::String>,
+        context_id: ::std::result::Result<
+            ::std::option::Option<::std::string::String>,
+            ::std::string::String,
+        >,
         history_length: ::std::result::Result<::std::option::Option<i32>, ::std::string::String>,
         include_artifacts:
             ::std::result::Result<::std::option::Option<bool>, ::std::string::String>,
-        last_updated_after: ::std::result::Result<i64, ::std::string::String>,
+        last_updated_after:
+            ::std::result::Result<::std::option::Option<i64>, ::std::string::String>,
         page_size: ::std::result::Result<::std::option::Option<i32>, ::std::string::String>,
-        page_token: ::std::result::Result<::std::string::String, ::std::string::String>,
-        status: ::std::result::Result<super::TaskState, ::std::string::String>,
-        tenant: ::std::result::Result<::std::string::String, ::std::string::String>,
+        page_token: ::std::result::Result<
+            ::std::option::Option<::std::string::String>,
+            ::std::string::String,
+        >,
+        status:
+            ::std::result::Result<::std::option::Option<super::TaskState>, ::std::string::String>,
+        tenant: ::std::result::Result<
+            ::std::option::Option<::std::string::String>,
+            ::std::string::String,
+        >,
     }
     impl ::std::default::Default for ListTasksRequest {
         fn default() -> Self {
             Self {
-                context_id: Err("no value supplied for context_id".to_string()),
+                context_id: Ok(Default::default()),
                 history_length: Ok(Default::default()),
                 include_artifacts: Ok(Default::default()),
-                last_updated_after: Err("no value supplied for last_updated_after".to_string()),
+                last_updated_after: Ok(Default::default()),
                 page_size: Ok(Default::default()),
-                page_token: Err("no value supplied for page_token".to_string()),
-                status: Err("no value supplied for status".to_string()),
-                tenant: Err("no value supplied for tenant".to_string()),
+                page_token: Ok(Default::default()),
+                status: Ok(Default::default()),
+                tenant: Ok(Default::default()),
             }
         }
     }
     impl ListTasksRequest {
         pub fn context_id<T>(mut self, value: T) -> Self
         where
-            T: ::std::convert::TryInto<::std::string::String>,
+            T: ::std::convert::TryInto<::std::option::Option<::std::string::String>>,
             T::Error: ::std::fmt::Display,
         {
             self.context_id = value
@@ -5281,7 +3420,7 @@ pub mod builder {
         }
         pub fn last_updated_after<T>(mut self, value: T) -> Self
         where
-            T: ::std::convert::TryInto<i64>,
+            T: ::std::convert::TryInto<::std::option::Option<i64>>,
             T::Error: ::std::fmt::Display,
         {
             self.last_updated_after = value.try_into().map_err(|e| {
@@ -5301,7 +3440,7 @@ pub mod builder {
         }
         pub fn page_token<T>(mut self, value: T) -> Self
         where
-            T: ::std::convert::TryInto<::std::string::String>,
+            T: ::std::convert::TryInto<::std::option::Option<::std::string::String>>,
             T::Error: ::std::fmt::Display,
         {
             self.page_token = value
@@ -5311,7 +3450,7 @@ pub mod builder {
         }
         pub fn status<T>(mut self, value: T) -> Self
         where
-            T: ::std::convert::TryInto<super::TaskState>,
+            T: ::std::convert::TryInto<::std::option::Option<super::TaskState>>,
             T::Error: ::std::fmt::Display,
         {
             self.status = value
@@ -5321,7 +3460,7 @@ pub mod builder {
         }
         pub fn tenant<T>(mut self, value: T) -> Self
         where
-            T: ::std::convert::TryInto<::std::string::String>,
+            T: ::std::convert::TryInto<::std::option::Option<::std::string::String>>,
             T::Error: ::std::fmt::Display,
         {
             self.tenant = value
@@ -5590,19 +3729,22 @@ pub mod builder {
     }
     #[derive(Clone, Debug)]
     pub struct MutualTlsSecurityScheme {
-        description: ::std::result::Result<::std::string::String, ::std::string::String>,
+        description: ::std::result::Result<
+            ::std::option::Option<::std::string::String>,
+            ::std::string::String,
+        >,
     }
     impl ::std::default::Default for MutualTlsSecurityScheme {
         fn default() -> Self {
             Self {
-                description: Err("no value supplied for description".to_string()),
+                description: Ok(Default::default()),
             }
         }
     }
     impl MutualTlsSecurityScheme {
         pub fn description<T>(mut self, value: T) -> Self
         where
-            T: ::std::convert::TryInto<::std::string::String>,
+            T: ::std::convert::TryInto<::std::option::Option<::std::string::String>>,
             T::Error: ::std::fmt::Display,
         {
             self.description = value
@@ -6262,7 +4404,7 @@ pub mod builder {
     pub struct SendMessageConfiguration {
         accepted_output_modes:
             ::std::result::Result<::std::vec::Vec<::std::string::String>, ::std::string::String>,
-        blocking: ::std::result::Result<bool, ::std::string::String>,
+        blocking: ::std::result::Result<::std::option::Option<bool>, ::std::string::String>,
         history_length: ::std::result::Result<::std::option::Option<i32>, ::std::string::String>,
         push_notification_config: ::std::result::Result<
             ::std::option::Option<super::PushNotificationConfig>,
@@ -6273,7 +4415,7 @@ pub mod builder {
         fn default() -> Self {
             Self {
                 accepted_output_modes: Ok(Default::default()),
-                blocking: Err("no value supplied for blocking".to_string()),
+                blocking: Ok(Default::default()),
                 history_length: Ok(Default::default()),
                 push_notification_config: Ok(Default::default()),
             }
@@ -6292,7 +4434,7 @@ pub mod builder {
         }
         pub fn blocking<T>(mut self, value: T) -> Self
         where
-            T: ::std::convert::TryInto<bool>,
+            T: ::std::convert::TryInto<::std::option::Option<bool>>,
             T::Error: ::std::fmt::Display,
         {
             self.blocking = value
@@ -6350,19 +4492,21 @@ pub mod builder {
             ::std::option::Option<super::SendMessageConfiguration>,
             ::std::string::String,
         >,
-        message:
-            ::std::result::Result<::std::option::Option<super::Message>, ::std::string::String>,
+        message: ::std::result::Result<super::Message, ::std::string::String>,
         metadata:
             ::std::result::Result<::std::option::Option<super::Struct>, ::std::string::String>,
-        tenant: ::std::result::Result<::std::string::String, ::std::string::String>,
+        tenant: ::std::result::Result<
+            ::std::option::Option<::std::string::String>,
+            ::std::string::String,
+        >,
     }
     impl ::std::default::Default for SendMessageRequest {
         fn default() -> Self {
             Self {
                 configuration: Ok(Default::default()),
-                message: Ok(Default::default()),
+                message: Err("no value supplied for message".to_string()),
                 metadata: Ok(Default::default()),
-                tenant: Err("no value supplied for tenant".to_string()),
+                tenant: Ok(Default::default()),
             }
         }
     }
@@ -6379,7 +4523,7 @@ pub mod builder {
         }
         pub fn message<T>(mut self, value: T) -> Self
         where
-            T: ::std::convert::TryInto<::std::option::Option<super::Message>>,
+            T: ::std::convert::TryInto<super::Message>,
             T::Error: ::std::fmt::Display,
         {
             self.message = value
@@ -6399,7 +4543,7 @@ pub mod builder {
         }
         pub fn tenant<T>(mut self, value: T) -> Self
         where
-            T: ::std::convert::TryInto<::std::string::String>,
+            T: ::std::convert::TryInto<::std::option::Option<::std::string::String>>,
             T::Error: ::std::fmt::Display,
         {
             self.tenant = value
@@ -6704,21 +4848,27 @@ pub mod builder {
     }
     #[derive(Clone, Debug)]
     pub struct SubscribeToTaskRequest {
-        name: ::std::result::Result<::std::string::String, ::std::string::String>,
-        tenant: ::std::result::Result<::std::string::String, ::std::string::String>,
+        name: ::std::result::Result<
+            ::std::option::Option<::std::string::String>,
+            ::std::string::String,
+        >,
+        tenant: ::std::result::Result<
+            ::std::option::Option<::std::string::String>,
+            ::std::string::String,
+        >,
     }
     impl ::std::default::Default for SubscribeToTaskRequest {
         fn default() -> Self {
             Self {
-                name: Err("no value supplied for name".to_string()),
-                tenant: Err("no value supplied for tenant".to_string()),
+                name: Ok(Default::default()),
+                tenant: Ok(Default::default()),
             }
         }
     }
     impl SubscribeToTaskRequest {
         pub fn name<T>(mut self, value: T) -> Self
         where
-            T: ::std::convert::TryInto<::std::string::String>,
+            T: ::std::convert::TryInto<::std::option::Option<::std::string::String>>,
             T::Error: ::std::fmt::Display,
         {
             self.name = value
@@ -6728,7 +4878,7 @@ pub mod builder {
         }
         pub fn tenant<T>(mut self, value: T) -> Self
         where
-            T: ::std::convert::TryInto<::std::string::String>,
+            T: ::std::convert::TryInto<::std::option::Option<::std::string::String>>,
             T::Error: ::std::fmt::Display,
         {
             self.tenant = value
@@ -7198,6 +5348,32 @@ pub mod builder {
                 status: Ok(value.status),
                 task_id: Ok(value.task_id),
             }
+        }
+    }
+}
+#[doc = " Error types."]
+pub mod error {
+    #[doc = r" Error from a `TryFrom` or `FromStr` implementation."]
+    pub struct ConversionError(::std::borrow::Cow<'static, str>);
+    impl ::std::error::Error for ConversionError {}
+    impl ::std::fmt::Display for ConversionError {
+        fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> Result<(), ::std::fmt::Error> {
+            ::std::fmt::Display::fmt(&self.0, f)
+        }
+    }
+    impl ::std::fmt::Debug for ConversionError {
+        fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> Result<(), ::std::fmt::Error> {
+            ::std::fmt::Debug::fmt(&self.0, f)
+        }
+    }
+    impl From<&'static str> for ConversionError {
+        fn from(value: &'static str) -> Self {
+            Self(value.into())
+        }
+    }
+    impl From<String> for ConversionError {
+        fn from(value: String) -> Self {
+            Self(value.into())
         }
     }
 }

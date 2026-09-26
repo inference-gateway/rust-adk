@@ -25,7 +25,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let seed = client
         .send_message(SendMessageRequest {
             configuration: None,
-            message: Some(Message {
+            message: Message {
                 context_id: None,
                 extensions: vec![],
                 message_id: Uuid::new_v4().to_string(),
@@ -39,9 +39,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 reference_task_ids: vec![],
                 role: Role::RoleUser,
                 task_id: None,
-            }),
+            },
             metadata: None,
-            tenant: "example".to_string(),
+            tenant: Some("example".to_string()),
         })
         .await?;
     let task = seed.task.ok_or("server did not return a task")?;
@@ -77,10 +77,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let listed = client
         .list_task_push_notification_configs(ListTaskPushNotificationConfigRequest {
-            parent: parent.clone(),
-            page_size: 10,
-            page_token: String::new(),
-            tenant: "example".to_string(),
+            parent: Some(parent.clone()),
+            page_size: Some(10),
+            page_token: Some(String::new()),
+            tenant: Some("example".to_string()),
         })
         .await?;
 

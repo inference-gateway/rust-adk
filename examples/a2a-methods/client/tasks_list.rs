@@ -19,7 +19,7 @@ async fn seed_task(client: &A2AClient, text: &str) -> anyhow::Result<()> {
     client
         .send_message(SendMessageRequest {
             configuration: None,
-            message: Some(Message {
+            message: Message {
                 context_id: None,
                 extensions: vec![],
                 message_id: Uuid::new_v4().to_string(),
@@ -33,9 +33,9 @@ async fn seed_task(client: &A2AClient, text: &str) -> anyhow::Result<()> {
                 reference_task_ids: vec![],
                 role: Role::RoleUser,
                 task_id: None,
-            }),
+            },
             metadata: None,
-            tenant: "example".to_string(),
+            tenant: Some("example".to_string()),
         })
         .await?;
     Ok(())
@@ -53,14 +53,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let listed = client
         .list_tasks(ListTasksRequest {
-            context_id: String::new(),
+            context_id: Some(String::new()),
             history_length: None,
             include_artifacts: None,
-            last_updated_after: 0,
+            last_updated_after: Some(0),
             page_size: Some(10),
-            page_token: String::new(),
-            status: TaskState::TaskStateUnspecified,
-            tenant: "example".to_string(),
+            page_token: Some(String::new()),
+            status: Some(TaskState::TaskStateUnspecified),
+            tenant: Some("example".to_string()),
         })
         .await?;
 

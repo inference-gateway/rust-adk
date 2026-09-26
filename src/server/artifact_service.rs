@@ -140,9 +140,10 @@ impl ArtifactService for DefaultArtifactService {
         mime: Option<&str>,
     ) -> Result<Artifact> {
         let artifact_id = uuid::Uuid::new_v4().to_string();
-        let media_type = mime
-            .map(|m| m.to_string())
-            .unwrap_or_else(|| infer_mime_type(filename).to_string());
+        let media_type = Some(
+            mime.map(|m| m.to_string())
+                .unwrap_or_else(|| infer_mime_type(filename).to_string()),
+        );
 
         let part = match self.storage.as_ref() {
             Some(storage) => {
@@ -159,7 +160,7 @@ impl ArtifactService for DefaultArtifactService {
                         file_with_bytes: None,
                         file_with_uri: Some(uri),
                         media_type,
-                        name: filename.to_string(),
+                        name: Some(filename.to_string()),
                     }),
                     metadata: None,
                     text: None,
@@ -177,7 +178,7 @@ impl ArtifactService for DefaultArtifactService {
                         file_with_bytes: Some(file_with_bytes),
                         file_with_uri: None,
                         media_type,
-                        name: filename.to_string(),
+                        name: Some(filename.to_string()),
                     }),
                     metadata: None,
                     text: None,
@@ -203,9 +204,10 @@ impl ArtifactService for DefaultArtifactService {
         uri: &str,
         mime: Option<&str>,
     ) -> Artifact {
-        let media_type = mime
-            .map(|m| m.to_string())
-            .unwrap_or_else(|| infer_mime_type(filename).to_string());
+        let media_type = Some(
+            mime.map(|m| m.to_string())
+                .unwrap_or_else(|| infer_mime_type(filename).to_string()),
+        );
         Artifact {
             artifact_id: uuid::Uuid::new_v4().to_string(),
             description: Some(description.to_string()),
@@ -218,7 +220,7 @@ impl ArtifactService for DefaultArtifactService {
                     file_with_bytes: None,
                     file_with_uri: Some(uri.to_string()),
                     media_type,
-                    name: filename.to_string(),
+                    name: Some(filename.to_string()),
                 }),
                 metadata: None,
                 text: None,
@@ -449,8 +451,8 @@ mod tests {
             .await
             .expect("create_file_artifact");
         let file_part = art.parts[0].file.as_ref().expect("file part");
-        assert_eq!(file_part.media_type, "application/pdf");
-        assert_eq!(file_part.name, "report.pdf");
+        assert_eq!(file_part.media_type.as_deref(), Some("application/pdf"));
+        assert_eq!(file_part.name.as_deref(), Some("report.pdf"));
         let uri = file_part.file_with_uri.as_ref().expect("uri");
         assert!(uri.contains("/artifacts/"));
         assert!(uri.ends_with("/report.pdf"));
@@ -487,7 +489,7 @@ mod tests {
             file_part.file_with_uri.as_deref(),
             Some("https://cdn.example.com/pic.png")
         );
-        assert_eq!(file_part.media_type, "image/png");
+        assert_eq!(file_part.media_type.as_deref(), Some("image/png"));
     }
 
     #[test]
