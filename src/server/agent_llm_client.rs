@@ -44,9 +44,10 @@ pub trait LLMClient: Send + Sync + std::fmt::Debug {
 /// via the [`InferenceGatewayClient`] SDK.
 ///
 /// Construct one via [`OpenAICompatibleLLMClient::new`] (reads provider,
-/// model, and base URL from [`AgentConfig`]). Each chat completion call
-/// retries up to `config.max_retries` times on failure, with a linear
-/// 1-second backoff per attempt.
+/// model, base URL, API key, `max_tokens` and `timeout_secs` from
+/// [`AgentConfig`]). Each chat completion call retries up to
+/// `config.max_retries` times on failure, with a linear 1-second backoff per
+/// attempt, and is bounded by `config.timeout_secs` (`0` disables the bound).
 pub struct OpenAICompatibleLLMClient {
     base_url: String,
     config: AgentConfig,
@@ -66,7 +67,8 @@ impl std::fmt::Debug for OpenAICompatibleLLMClient {
 
 impl OpenAICompatibleLLMClient {
     /// Build a client from an [`AgentConfig`]. Reads `provider`, `model`,
-    /// and `base_url`. If `base_url` is `None`, defaults to
+    /// `base_url`, `api_key`, `max_tokens`, `timeout_secs` and `max_retries`.
+    /// If `base_url` is `None`, defaults to
     /// `http://gateway:8080/v1` (matches the typical docker-compose service
     /// name for the Inference Gateway).
     pub fn new(config: &AgentConfig) -> Result<Self> {
@@ -104,12 +106,26 @@ impl OpenAICompatibleLLMClient {
         &self.base_url
     }
 
+    /// Build an SDK client carrying the configured API key (bearer token) and
+    /// `max_tokens`. The SDK omits `max_tokens` from streaming requests, so it
+    /// only takes effect on non-streaming completions.
     fn sdk_client(&self, tools: Option<Vec<ChatCompletionTool>>) -> InferenceGatewayClient {
-        let client = InferenceGatewayClient::new(&self.base_url);
+        let mut client = InferenceGatewayClient::new(&self.base_url);
+        if let Some(api_key) = self.config.api_key.as_deref().filter(|k| !k.is_empty()) {
+            client = client.with_token(api_key);
+        }
+        if self.config.max_tokens > 0 {
+            client = client.with_max_tokens(Some(self.config.max_tokens as i64));
+        }
         match tools {
             Some(t) if !t.is_empty() => client.with_tools(Some(t)),
             _ => client,
         }
+    }
+
+    /// Per-request timeout, or `None` when `timeout_secs` is `0`.
+    fn request_timeout(&self) -> Option<Duration> {
+        (self.config.timeout_secs > 0).then(|| self.config.timeout())
     }
 }
 
@@ -130,10 +146,16 @@ impl LLMClient for OpenAICompatibleLLMClient {
             }
 
             let client = self.sdk_client(tools.clone());
-            match client
-                .generate_content(self.provider, &self.model, messages.clone())
-                .await
-            {
+            let request = client.generate_content(self.provider, &self.model, messages.clone());
+            let result = match self.request_timeout() {
+                Some(d) => match tokio::time::timeout(d, request).await {
+                    Ok(r) => r.map_err(|e| anyhow!("{e}")),
+                    Err(_) => Err(anyhow!("llm request timed out after {}s", d.as_secs())),
+                },
+                None => request.await.map_err(|e| anyhow!("{e}")),
+            };
+
+            match result {
                 Ok(response) => {
                     if response.choices.is_empty() {
                         return Err(anyhow!("no choices returned from llm"));
@@ -142,7 +164,7 @@ impl LLMClient for OpenAICompatibleLLMClient {
                 }
                 Err(e) => {
                     debug!("llm request failed (attempt {}): {e}", attempt + 1);
-                    last_err = Some(anyhow!("{e}"));
+                    last_err = Some(e);
                 }
             }
         }
@@ -161,21 +183,33 @@ impl LLMClient for OpenAICompatibleLLMClient {
         messages: Vec<Message>,
         tools: Option<Vec<ChatCompletionTool>>,
     ) -> Pin<Box<dyn Stream<Item = Result<SSEvents>> + Send>> {
-        let base_url = self.base_url.clone();
         let provider = self.provider;
         let model = self.model.clone();
+        let client = self.sdk_client(tools);
+        let timeout = self.request_timeout();
 
         let (tx, rx) = mpsc::channel::<Result<SSEvents>>(32);
 
         tokio::spawn(async move {
-            let client = InferenceGatewayClient::new(&base_url);
-            let client = match tools {
-                Some(t) if !t.is_empty() => client.with_tools(Some(t)),
-                _ => client,
-            };
             let mut sdk_stream =
                 Box::pin(client.generate_content_stream(provider, &model, messages));
-            while let Some(item) = sdk_stream.next().await {
+            loop {
+                let next = match timeout {
+                    Some(d) => match tokio::time::timeout(d, sdk_stream.next()).await {
+                        Ok(item) => item,
+                        Err(_) => {
+                            let _ = tx
+                                .send(Err(anyhow!(
+                                    "llm stream stalled for more than {}s",
+                                    d.as_secs()
+                                )))
+                                .await;
+                            break;
+                        }
+                    },
+                    None => sdk_stream.next().await,
+                };
+                let Some(item) = next else { break };
                 let mapped = item.map_err(|e| anyhow!("{e}"));
                 if tx.send(mapped).await.is_err() {
                     break;
@@ -209,6 +243,138 @@ pub(super) fn parse_provider(provider_str: &str) -> Result<Provider> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use axum::{Json, Router, extract::State, http::HeaderMap, routing::post};
+    use std::sync::{Arc, Mutex};
+    use tokio::net::TcpListener;
+
+    type Captured = Arc<Mutex<Option<(Option<String>, serde_json::Value)>>>;
+
+    /// Mock OpenAI-compatible gateway recording the `Authorization` header and
+    /// request body of the last `POST /chat/completions`, answering after
+    /// `delay`.
+    async fn spawn_gateway(delay: Duration) -> (String, Captured) {
+        async fn chat(
+            State((captured, delay)): State<(Captured, Duration)>,
+            headers: HeaderMap,
+            body: axum::body::Bytes,
+        ) -> Json<serde_json::Value> {
+            *captured.lock().expect("mutex poisoned") = Some((
+                headers
+                    .get("authorization")
+                    .and_then(|v| v.to_str().ok())
+                    .map(str::to_string),
+                serde_json::from_slice(&body).expect("valid JSON"),
+            ));
+            sleep(delay).await;
+            Json(serde_json::json!({
+                "id": "chatcmpl-1",
+                "object": "chat.completion",
+                "created": 0,
+                "model": "test-model",
+                "choices": [{
+                    "index": 0,
+                    "finish_reason": "stop",
+                    "message": {"role": "assistant", "content": "ok", "tool_calls": []},
+                }],
+            }))
+        }
+
+        let captured: Captured = Arc::new(Mutex::new(None));
+        let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+        let addr = listener.local_addr().expect("addr");
+        let app = Router::new()
+            .route("/chat/completions", post(chat))
+            .with_state((Arc::clone(&captured), delay));
+        tokio::spawn(async move {
+            axum::serve(listener, app).await.ok();
+        });
+        (format!("http://{addr}"), captured)
+    }
+
+    fn config(base_url: String) -> AgentConfig {
+        AgentConfig {
+            provider: "openai".to_string(),
+            model: "test-model".to_string(),
+            base_url: Some(base_url),
+            max_retries: 0,
+            ..AgentConfig::default()
+        }
+    }
+
+    #[tokio::test]
+    async fn forwards_api_key_and_max_tokens() {
+        let (base_url, captured) = spawn_gateway(Duration::ZERO).await;
+        let client = OpenAICompatibleLLMClient::new(&AgentConfig {
+            api_key: Some("secret-key".to_string()),
+            max_tokens: 16,
+            ..config(base_url)
+        })
+        .expect("client builds");
+
+        client
+            .create_chat_completion(vec![], None)
+            .await
+            .expect("completion succeeds");
+
+        let (auth, body) = captured
+            .lock()
+            .expect("mutex poisoned")
+            .clone()
+            .expect("gateway was called");
+        assert_eq!(
+            auth.as_deref(),
+            Some("Bearer secret-key"),
+            "api_key should be sent as a bearer token"
+        );
+        assert_eq!(
+            body.get("max_tokens").and_then(|v| v.as_i64()),
+            Some(16),
+            "max_tokens should reach the gateway"
+        );
+    }
+
+    #[tokio::test]
+    async fn omits_credentials_when_unset() {
+        let (base_url, captured) = spawn_gateway(Duration::ZERO).await;
+        let client = OpenAICompatibleLLMClient::new(&AgentConfig {
+            max_tokens: 0,
+            ..config(base_url)
+        })
+        .expect("client builds");
+
+        client
+            .create_chat_completion(vec![], None)
+            .await
+            .expect("completion succeeds");
+
+        let (auth, body) = captured
+            .lock()
+            .expect("mutex poisoned")
+            .clone()
+            .expect("gateway was called");
+        assert!(auth.is_none(), "no api_key means no Authorization header");
+        assert!(
+            body.get("max_tokens").is_none_or(|v| v.is_null()),
+            "max_tokens of 0 should leave the gateway default in place"
+        );
+    }
+
+    #[tokio::test]
+    async fn times_out_slow_requests() {
+        let (base_url, _captured) = spawn_gateway(Duration::from_secs(30)).await;
+        let client = OpenAICompatibleLLMClient::new(&AgentConfig {
+            timeout_secs: 1,
+            ..config(base_url)
+        })
+        .expect("client builds");
+
+        let err = client
+            .create_chat_completion(vec![], None)
+            .await
+            .expect_err("slow gateway should time out")
+            .to_string();
+        assert!(err.contains("timed out"), "unexpected error: {err}");
+    }
 
     #[derive(Debug)]
     struct ProviderCase {
