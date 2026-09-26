@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.14.0](https://github.com/inference-gateway/rust-adk/compare/0.13.0...0.14.0) (2026-09-26)
+
+### ✨ Features
+
+* regenerate a2a types from fixed schema ([#174](https://github.com/inference-gateway/rust-adk/issues/174)) ([8684524](https://github.com/inference-gateway/rust-adk/commit/8684524a6c95aa790eebc3c4571bdcbc85ed933d)), closes [#173](https://github.com/inference-gateway/rust-adk/issues/173), references [inference-gateway/schemas#255](https://github.com/inference-gateway/schemas/issues/255)
+
 ## [0.13.0](https://github.com/inference-gateway/rust-adk/compare/0.12.1...0.13.0) (2026-09-26)
 
 ### ⚠ BREAKING CHANGES
