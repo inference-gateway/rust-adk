@@ -484,7 +484,7 @@ use inference_gateway_adk::a2a_types::{Message, Part, Role, SendMessageRequest};
 let response = client
     .send_message(SendMessageRequest {
         configuration: None,
-        message: Some(Message {
+        message: Message {
             context_id: None,
             extensions: vec![],
             message_id: uuid::Uuid::new_v4().to_string(),
@@ -498,9 +498,9 @@ let response = client
             reference_task_ids: vec![],
             role: Role::RoleUser,
             task_id: None,
-        }),
+        },
         metadata: None,
-        tenant: "example".to_string(),
+        tenant: Some("example".to_string()),
     })
     .await?;
 
@@ -556,14 +556,14 @@ use inference_gateway_adk::a2a_types::{ListTasksRequest, TaskState};
 
 let page = client
     .list_tasks(ListTasksRequest {
-        context_id: String::new(),
+        context_id: Some(String::new()),
         history_length: None,
         include_artifacts: None,
-        last_updated_after: 0,
+        last_updated_after: Some(0),
         page_size: Some(50),
-        page_token: String::new(),
-        status: TaskState::TaskStateUnspecified,
-        tenant: "example".to_string(),
+        page_token: Some(String::new()),
+        status: Some(TaskState::TaskStateUnspecified),
+        tenant: Some("example".to_string()),
     })
     .await?;
 ```
@@ -575,8 +575,8 @@ use inference_gateway_adk::a2a_types::CancelTaskRequest;
 
 let cancelled = client
     .cancel_task(CancelTaskRequest {
-        name: format!("tasks/{task_id}"),
-        tenant: "example".to_string(),
+        name: Some(format!("tasks/{task_id}")),
+        tenant: Some("example".to_string()),
     })
     .await?;
 ```
@@ -595,8 +595,8 @@ use inference_gateway_adk::a2a_types::SubscribeToTaskRequest;
 let mut stream = Box::pin(
     client
         .resubscribe_task(SubscribeToTaskRequest {
-            name: format!("tasks/{task_id}"),
-            tenant: "example".to_string(),
+            name: Some(format!("tasks/{task_id}")),
+            tenant: Some("example".to_string()),
         })
         .await?,
 );
@@ -647,8 +647,8 @@ use inference_gateway_adk::a2a_types::GetTaskPushNotificationConfigRequest;
 
 let cfg = client
     .get_task_push_notification_config(GetTaskPushNotificationConfigRequest {
-        name: name.clone(),
-        tenant: "example".to_string(),
+        name: Some(name.clone()),
+        tenant: Some("example".to_string()),
     })
     .await?;
 ```
@@ -660,10 +660,10 @@ use inference_gateway_adk::a2a_types::ListTaskPushNotificationConfigRequest;
 
 let listed = client
     .list_task_push_notification_configs(ListTaskPushNotificationConfigRequest {
-        parent: parent.clone(),
-        page_size: 10,
-        page_token: String::new(),
-        tenant: "example".to_string(),
+        parent: Some(parent.clone()),
+        page_size: Some(10),
+        page_token: Some(String::new()),
+        tenant: Some("example".to_string()),
     })
     .await?;
 ```
@@ -675,8 +675,8 @@ use inference_gateway_adk::a2a_types::DeleteTaskPushNotificationConfigRequest;
 
 client
     .delete_task_push_notification_config(DeleteTaskPushNotificationConfigRequest {
-        name: name.clone(),
-        tenant: "example".to_string(),
+        name: Some(name.clone()),
+        tenant: Some("example".to_string()),
     })
     .await?;
 ```
@@ -701,7 +701,7 @@ use inference_gateway_adk::a2a_types::GetExtendedAgentCardRequest;
 
 let card = client
     .get_authenticated_extended_card(GetExtendedAgentCardRequest {
-        tenant: "example".to_string(),
+        tenant: Some("example".to_string()),
     })
     .await?;
 ```
@@ -1120,26 +1120,26 @@ use inference_gateway_adk::a2a_types::{
 // get
 let cfg = client
     .get_task_push_notification_config(GetTaskPushNotificationConfigRequest {
-        name: name.clone(),
-        tenant: "example".to_string(),
+        name: Some(name.clone()),
+        tenant: Some("example".to_string()),
     })
     .await?;
 
 // list (paged)
 let page = client
     .list_task_push_notification_configs(ListTaskPushNotificationConfigRequest {
-        parent: parent.clone(),
-        page_size: 10,
-        page_token: String::new(),
-        tenant: "example".to_string(),
+        parent: Some(parent.clone()),
+        page_size: Some(10),
+        page_token: Some(String::new()),
+        tenant: Some("example".to_string()),
     })
     .await?;
 
 // delete
 client
     .delete_task_push_notification_config(DeleteTaskPushNotificationConfigRequest {
-        name,
-        tenant: "example".to_string(),
+        name: Some(name),
+        tenant: Some("example".to_string()),
     })
     .await?;
 ```

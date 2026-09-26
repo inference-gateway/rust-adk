@@ -157,7 +157,7 @@ async fn message_stream_emits_file_artifact_resolvable_via_artifacts_server() {
 
     let request = SendMessageRequest {
         configuration: None,
-        message: Some(Message {
+        message: Message {
             context_id: None,
             extensions: vec![],
             message_id: "msg-artifacts-e2e".to_string(),
@@ -171,9 +171,9 @@ async fn message_stream_emits_file_artifact_resolvable_via_artifacts_server() {
             reference_task_ids: vec![],
             role: Role::RoleUser,
             task_id: None,
-        }),
+        },
         metadata: None,
-        tenant: "tests".to_string(),
+        tenant: Some("tests".to_string()),
     };
 
     let mut stream = Box::pin(client.stream_message(request).await.expect("stream"));
@@ -191,7 +191,7 @@ async fn message_stream_emits_file_artifact_resolvable_via_artifacts_server() {
                     && let Some(uri) = file_part.file_with_uri.as_ref()
                 {
                     file_uri = Some(uri.clone());
-                    filename = Some(file_part.name.clone());
+                    filename = file_part.name.clone();
                 }
             }
         }

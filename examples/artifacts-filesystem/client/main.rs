@@ -14,7 +14,7 @@ use uuid::Uuid;
 fn user_message(text: &str) -> SendMessageRequest {
     SendMessageRequest {
         configuration: None,
-        message: Some(Message {
+        message: Message {
             context_id: None,
             extensions: vec![],
             message_id: Uuid::new_v4().to_string(),
@@ -28,9 +28,9 @@ fn user_message(text: &str) -> SendMessageRequest {
             reference_task_ids: vec![],
             role: Role::RoleUser,
             task_id: None,
-        }),
+        },
         metadata: None,
-        tenant: "artifacts-demo".to_string(),
+        tenant: Some("artifacts-demo".to_string()),
     }
 }
 
@@ -64,9 +64,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     for part in &update.artifact.parts {
                         if let Some(file_part) = part.file.as_ref() {
                             artifact_uri = file_part.file_with_uri.clone();
-                            artifact_name = Some(file_part.name.clone());
+                            artifact_name = file_part.name.clone();
                             info!(
-                                "received file artifact `{}` (mime={}) at {:?}",
+                                "received file artifact `{:?}` (mime={:?}) at {:?}",
                                 file_part.name, file_part.media_type, artifact_uri,
                             );
                         }

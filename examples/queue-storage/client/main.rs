@@ -11,7 +11,7 @@ use uuid::Uuid;
 fn make_user_message(text: &str) -> SendMessageRequest {
     SendMessageRequest {
         configuration: None,
-        message: Some(Message {
+        message: Message {
             context_id: None,
             extensions: vec![],
             message_id: Uuid::new_v4().to_string(),
@@ -25,9 +25,9 @@ fn make_user_message(text: &str) -> SendMessageRequest {
             reference_task_ids: vec![],
             role: Role::RoleUser,
             task_id: None,
-        }),
+        },
         metadata: None,
-        tenant: "queue-storage".to_string(),
+        tenant: Some("queue-storage".to_string()),
     }
 }
 

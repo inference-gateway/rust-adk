@@ -36,7 +36,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 2. Authenticated extended card via JSON-RPC.
     match client
         .get_authenticated_extended_card(GetExtendedAgentCardRequest {
-            tenant: "example".to_string(),
+            tenant: Some("example".to_string()),
         })
         .await
     {

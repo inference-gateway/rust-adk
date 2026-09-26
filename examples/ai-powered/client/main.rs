@@ -36,7 +36,7 @@ async fn poll_until_terminal(
 fn user_message(text: &str) -> SendMessageRequest {
     SendMessageRequest {
         configuration: None,
-        message: Some(Message {
+        message: Message {
             context_id: None,
             extensions: vec![],
             message_id: Uuid::new_v4().to_string(),
@@ -50,9 +50,9 @@ fn user_message(text: &str) -> SendMessageRequest {
             reference_task_ids: vec![],
             role: Role::RoleUser,
             task_id: None,
-        }),
+        },
         metadata: None,
-        tenant: "ai-powered".to_string(),
+        tenant: Some("ai-powered".to_string()),
     }
 }
 
