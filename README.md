@@ -728,8 +728,14 @@ pub struct Config {
     pub queue_config: QueueConfig,               // A2A_QUEUE_*
     pub server_config: ServerConfig,             // A2A_SERVER_*
     pub telemetry_config: TelemetryConfig,       // A2A_TELEMETRY_* + A2A_OTEL_TRACES_EXPORTER
+    pub artifacts_config: ArtifactsConfig,       // ARTIFACTS_* - see below
 }
 ```
+
+`artifacts_config` is `#[serde(skip)]`, so an `envy::prefixed("A2A_")` load
+leaves it at its (disabled) default. Load it separately under the
+`ARTIFACTS_` prefix and assign it - see
+[Artifacts](#artifacts).
 
 See [Environment Configuration](#environment-configuration) for the full
 env-var reference, or the rustdocs for `inference_gateway_adk::Config` and
@@ -1239,13 +1245,41 @@ server can sit behind TLS/mTLS too.
 
 Streaming task handlers can mint file artifacts via
 `StreamEmitter::emit_file_artifact(...)` and structured-data artifacts
-via `StreamEmitter::emit_data_artifact(...)`. Both routes write the
-artifact to storage, attach the resulting `Artifact` (with `FilePart`
-`fileWithUri` set) to the stored task, and emit a
-`TaskArtifactUpdateEvent` to the SSE stream — clients then download the
-file directly from the artifacts server.
+via `StreamEmitter::emit_data_artifact(...)`. Both attach the resulting
+`Artifact` to the stored task and emit a `TaskArtifactUpdateEvent` to the
+SSE stream, but they differ in what ends up in the artifact:
+
+- `emit_file_artifact` writes the bytes to artifact storage through the
+  `ArtifactService` and emits a `FilePart` with `fileWithUri` set -
+  clients then download the file directly from the artifacts server. When
+  no `ArtifactService` is configured it falls back to a `FilePart` with
+  inline `fileWithBytes`.
+- `emit_data_artifact` builds an **inline** `DataPart` artifact and writes
+  nothing to artifact storage - the JSON payload travels inside the event
+  itself, so there is no URI to download.
 
 #### Environment variables
+
+`ArtifactsConfig` is **not** part of the `A2A_` env surface:
+`Config::artifacts_config` is `#[serde(skip)]`, so
+`envy::prefixed("A2A_").from_env::<Config>()` always leaves the artifacts
+subsystem disabled no matter what `ARTIFACTS_*` vars are set. Load it with
+its own loader and assign it onto the config:
+
+```rust,no_run
+use inference_gateway_adk::{ArtifactsConfig, Config};
+
+# fn run() -> anyhow::Result<()> {
+let artifacts_config = envy::prefixed("ARTIFACTS_").from_env::<ArtifactsConfig>()?;
+let config = Config {
+    artifacts_config,
+    ..envy::prefixed("A2A_").from_env::<Config>()?
+};
+# Ok(())
+# }
+```
+
+See `examples/artifacts-filesystem/server/main.rs` for a runnable version.
 
 | Variable | Default | Description |
 | --- | --- | --- |
