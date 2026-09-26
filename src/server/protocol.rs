@@ -414,7 +414,10 @@ async fn handle_tasks_list(state: &Arc<AppState>, id: Value, params: Value) -> J
     if let Some(context_id) = request.context_id.filter(|c| !c.is_empty()) {
         tasks.retain(|t| t.context_id == context_id);
     }
-    if let Some(status) = request.status.filter(|s| *s != TaskState::TaskStateUnspecified) {
+    if let Some(status) = request
+        .status
+        .filter(|s| *s != TaskState::TaskStateUnspecified)
+    {
         tasks.retain(|t| t.status.state == status);
     }
 
