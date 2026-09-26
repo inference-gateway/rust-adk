@@ -102,22 +102,49 @@ Add the ADK to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-inference-gateway-adk = "0.4.0"
+inference-gateway-adk = "0.12"
 ```
 
 ### Basic Usage (Minimal Server)
 
 ```rust
 use inference_gateway_adk::A2AServerBuilder;
+use inference_gateway_adk::a2a_types::AgentCard;
+use serde_json::json;
 use tracing::{error, info};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt().init();
 
-    // Smallest possible A2A server - no agent, no custom handlers.
-    // Health, agent card, and JSON-RPC routes are all wired in by the builder.
-    let server = A2AServerBuilder::new().build().await?;
+    // An agent card is required - `build()` fails without one. The card's
+    // `capabilities.streaming` flag also decides which task handlers the
+    // builder demands (streaming here, so a streaming handler is required).
+    let agent_card: AgentCard = serde_json::from_value(json!({
+        "name": "Minimal Rust A2A Agent",
+        "description": "A minimal A2A server built with the Rust ADK",
+        "version": "0.1.0",
+        "protocolVersion": "0.2.6",
+        "url": "http://localhost:8080",
+        "preferredTransport": "JSONRPC",
+        "capabilities": {
+            "streaming": true,
+            "pushNotifications": false,
+            "stateTransitionHistory": false
+        },
+        "defaultInputModes": ["text/plain"],
+        "defaultOutputModes": ["text/plain"],
+        "skills": []
+    }))?;
+
+    // Smallest possible A2A server - no agent, no custom handlers. With no
+    // agent registered the bundled default handlers reply with a fixed
+    // instructional message.
+    let server = A2AServerBuilder::new()
+        .with_agent_card(agent_card)
+        .with_default_task_handlers()
+        .build()
+        .await?;
 
     let addr = "0.0.0.0:8080".parse()?;
     info!("A2A server listening on {addr}");
@@ -258,7 +285,7 @@ suggested learning path.
 
 **Without AI** (no Inference Gateway, no provider keys):
 
-- **[Minimal](./examples/minimal/)** - Bare A2A server + client, no agent (built-in default echo reply)
+- **[Minimal](./examples/minimal/)** - Bare A2A server + client, no agent (default handlers reply with a fixed "configure an agent" message)
 - **[Static Agent Card](./examples/static-agent-card/)** - Load agent metadata from JSON with `AgentCardOverrides`
 - **[Streaming](./examples/streaming/)** - Custom `StreamableTaskHandler` emits a sentence word-by-word over SSE
 - **[Input Required](./examples/input-required/)** - Handler chooses `TaskStateInputRequired` when the user message is incomplete
@@ -312,13 +339,19 @@ suggested learning path.
 
 #### A2AServer
 
-The main server trait that handles A2A protocol communication.
+The main server struct that handles A2A protocol communication. Construct it
+through `A2AServerBuilder` - an agent card and at least one task handler are
+always required.
 
 ```rust
 use inference_gateway_adk::{A2AServerBuilder};
 
-// Smallest possible A2A server - built-in default handlers, no agent
-let server = A2AServerBuilder::new().build().await?;
+// Smallest possible A2A server - bundled default handlers, no agent
+let server = A2AServerBuilder::new()
+    .with_agent_card(agent_card)
+    .with_default_task_handlers()
+    .build()
+    .await?;
 
 // Server with an LLM agent and an agent card loaded from disk
 let server = A2AServerBuilder::new()
@@ -331,6 +364,7 @@ let server = A2AServerBuilder::new()
 // Server with a custom message/send (background) and message/stream handler
 let server = A2AServerBuilder::new()
     .with_config(config)
+    .with_agent_card_from_file(".well-known/agent.json", None)
     .with_background_task_handler(my_background_handler)
     .with_streaming_task_handler(my_streaming_handler)
     .build()
@@ -780,13 +814,17 @@ The `AgentBuilder` provides a fluent interface for creating highly customized ag
 use inference_gateway_adk::server::AgentBuilder;
 use tracing;
 
-// Create a simple agent with defaults
+// Provider and model are mandatory - `build()` fails fast without them
 let agent = AgentBuilder::new()
+    .with_provider("deepseek")
+    .with_model("deepseek-v4-flash")
     .build()
     .await?;
 
 // Or use the builder pattern for more control
 let agent = AgentBuilder::new()
+    .with_provider("deepseek")
+    .with_model("deepseek-v4-flash")
     .with_system_prompt("You are a helpful AI assistant specialized in customer support.")
     .with_max_chat_completion(15)
     .with_max_conversation_history(30)
@@ -964,7 +1002,7 @@ registered `Agent`; override either trait to plug in custom logic:
 use async_trait::async_trait;
 use inference_gateway_adk::{
     A2AServerBuilder, TaskHandler,
-    a2a_types::{Message, Part, Role, Task, TaskState, TaskStatus},
+    a2a_types::{Message, Part, Role, Task, TaskState, TaskStatus, Timestamp},
 };
 
 #[derive(Debug)]
@@ -972,29 +1010,49 @@ struct EchoHandler;
 
 #[async_trait]
 impl TaskHandler for EchoHandler {
-    async fn handle(&self, task: Task, message: Message) -> anyhow::Result<Task> {
-        let reply = message
-            .parts
-            .iter()
-            .filter_map(|p| p.text.as_deref())
-            .collect::<Vec<_>>()
-            .join(" ");
+    async fn handle_task(&self, mut task: Task, message: Option<Message>) -> anyhow::Result<Task> {
+        let reply_text = message
+            .as_ref()
+            .map(|m| {
+                m.parts
+                    .iter()
+                    .filter_map(|p| p.text.as_deref())
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            })
+            .unwrap_or_default();
 
-        let mut updated = task.clone();
-        updated.status = TaskStatus {
-            state: TaskState::TaskStateCompleted,
-            ..updated.status
-        };
-        updated.history.push(Message {
+        let reply = Message {
+            context_id: Some(task.context_id.clone()),
+            extensions: vec![],
+            message_id: uuid::Uuid::new_v4().to_string(),
+            metadata: None,
+            parts: vec![Part {
+                data: None,
+                file: None,
+                metadata: None,
+                text: Some(reply_text),
+            }],
+            reference_task_ids: vec![],
             role: Role::RoleAgent,
-            parts: vec![Part { text: Some(reply), ..Default::default() }],
-            ..message
-        });
-        Ok(updated)
+            task_id: Some(task.id.clone()),
+        };
+
+        task.history.push(reply.clone());
+        task.status = TaskStatus {
+            message: Some(reply),
+            state: TaskState::TaskStateCompleted,
+            timestamp: Some(Timestamp(chrono::Utc::now())),
+        };
+        Ok(task)
     }
 }
 
+// `build()` requires an agent card. A background-only handler needs a card
+// with `capabilities.streaming: false`; a streaming-enabled card additionally
+// requires `with_streaming_task_handler(...)`.
 let server = A2AServerBuilder::new()
+    .with_agent_card_from_file(".well-known/agent.json", None)
     .with_background_task_handler(EchoHandler)
     .build()
     .await?;
@@ -1144,6 +1202,7 @@ let server = A2AServerBuilder::new()
                 .with_version("dev-1.0.0"),
         ),
     )
+    .with_default_task_handlers()
     .build()
     .await?;
 ```
@@ -1516,7 +1575,7 @@ This ADK is part of the broader Inference Gateway ecosystem:
 
 ## Requirements
 
-- **Rust**: 1.94 or later
+- **Rust**: 1.95.0 or later (matches `rust-version` in [Cargo.toml](./Cargo.toml))
 - **Dependencies**: See [Cargo.toml](./Cargo.toml) for full dependency list
 
 ## OCI Compliant
@@ -1524,7 +1583,7 @@ This ADK is part of the broader Inference Gateway ecosystem:
 Build and run your A2A agent application in any OCI-compliant container runtime (Docker, Podman, containerd, etc.). Here's an example Containerfile for an application using the ADK:
 
 ```dockerfile
-FROM rust:1.94 AS builder
+FROM rust:1.95 AS builder
 
 WORKDIR /app
 COPY Cargo.toml Cargo.lock ./
