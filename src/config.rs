@@ -51,6 +51,54 @@ mod de {
     int_helper!(u64, u64);
     int_helper!(usize, usize);
 
+    /// `Option<f64>` that also accepts a string (`"0.7"`); an empty string
+    /// means "unset", so `A2A_AGENT_CLIENT_TEMPERATURE=` keeps the default.
+    pub mod opt_f64 {
+        pub fn deserialize<'de, D>(d: D) -> Result<Option<f64>, D::Error>
+        where
+            D: serde::Deserializer<'de>,
+        {
+            struct V;
+            impl<'de> serde::de::Visitor<'de> for V {
+                type Value = Option<f64>;
+                fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                    f.write_str("an optional f64 (native or string representation)")
+                }
+                fn visit_f64<E: serde::de::Error>(self, v: f64) -> Result<Option<f64>, E> {
+                    Ok(Some(v))
+                }
+                fn visit_u64<E: serde::de::Error>(self, v: u64) -> Result<Option<f64>, E> {
+                    Ok(Some(v as f64))
+                }
+                fn visit_i64<E: serde::de::Error>(self, v: i64) -> Result<Option<f64>, E> {
+                    Ok(Some(v as f64))
+                }
+                fn visit_str<E: serde::de::Error>(self, v: &str) -> Result<Option<f64>, E> {
+                    if v.trim().is_empty() {
+                        return Ok(None);
+                    }
+                    v.trim().parse().map(Some).map_err(serde::de::Error::custom)
+                }
+                fn visit_string<E: serde::de::Error>(self, v: String) -> Result<Option<f64>, E> {
+                    self.visit_str(&v)
+                }
+                fn visit_none<E: serde::de::Error>(self) -> Result<Option<f64>, E> {
+                    Ok(None)
+                }
+                fn visit_unit<E: serde::de::Error>(self) -> Result<Option<f64>, E> {
+                    Ok(None)
+                }
+                fn visit_some<D: serde::Deserializer<'de>>(
+                    self,
+                    d: D,
+                ) -> Result<Option<f64>, D::Error> {
+                    d.deserialize_any(V)
+                }
+            }
+            d.deserialize_option(V)
+        }
+    }
+
     pub mod boolean {
         pub fn deserialize<'de, D>(d: D) -> Result<bool, D::Error>
         where
@@ -292,6 +340,15 @@ pub struct AgentConfig {
         deserialize_with = "de::u32::deserialize"
     )]
     pub max_tokens: u32,
+
+    /// Sampling temperature (`0.0` - `2.0`) sent with every chat completion,
+    /// streaming and non-streaming alike. `None` leaves the gateway default in
+    /// place. Loaded from `A2A_AGENT_CLIENT_TEMPERATURE`.
+    #[serde(
+        rename = "agent_client_temperature",
+        deserialize_with = "de::opt_f64::deserialize"
+    )]
+    pub temperature: Option<f64>,
 
     #[serde(rename = "agent_client_system_prompt")]
     pub system_prompt: Option<String>,
@@ -779,6 +836,7 @@ impl Default for AgentConfig {
             max_retries: 3,
             max_chat_completion_iterations: 10,
             max_tokens: 4096,
+            temperature: None,
             system_prompt: None,
             enable_usage_metadata: true,
         }
@@ -896,6 +954,25 @@ mod tests {
         assert!(!cfg.enable);
         assert_eq!(cfg.server.port, ArtifactsServerConfig::default().port);
         assert_eq!(cfg.storage.provider, ArtifactsStorageProvider::default());
+    }
+
+    /// `A2A_AGENT_CLIENT_TEMPERATURE` arrives as a string through a flattened
+    /// sub-struct, so it needs the `opt_f64` helper to coerce.
+    #[test]
+    fn agent_temperature_loads_from_env_string() {
+        let cases = [(Some("0.25"), Some(0.25)), (Some(""), None), (None, None)];
+        for (raw, expected) in cases {
+            let vars = raw
+                .map(|v| vec![("A2A_AGENT_CLIENT_TEMPERATURE".to_string(), v.to_string())])
+                .unwrap_or_default();
+            let cfg = envy::prefixed("A2A_")
+                .from_iter::<_, Config>(vars)
+                .expect("Config should load");
+            assert_eq!(
+                cfg.agent_config.temperature, expected,
+                "temperature {raw:?} should deserialize to {expected:?}"
+            );
+        }
     }
 
     #[test]
