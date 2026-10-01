@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.15.0](https://github.com/inference-gateway/rust-adk/compare/0.14.0...0.15.0) (2026-10-01)
+
+### ✨ Features
+
+* add schemas-sync task and workflow caller ([#180](https://github.com/inference-gateway/rust-adk/issues/180)) ([ba1fea1](https://github.com/inference-gateway/rust-adk/commit/ba1fea1d4dfe17e517ade60242779e8529b3aba9))
+
+### ♻️ Improvements
+
+* migrate to a2a v1.0.1 types ([#182](https://github.com/inference-gateway/rust-adk/issues/182)) ([a461058](https://github.com/inference-gateway/rust-adk/commit/a46105853af5ec287b88a3f6dcaf489199569b16))
+
+### 📚 Documentation
+
+* **agents:** add code readability guidelines ([#175](https://github.com/inference-gateway/rust-adk/issues/175)) ([cebb0d1](https://github.com/inference-gateway/rust-adk/commit/cebb0d1f27d6ada545df0ea0e5dc742163558392))
+
+### 🔧 Miscellaneous
+
+* **deps:** bump claude-code 2.1.280 -> 2.1.283 ([#176](https://github.com/inference-gateway/rust-adk/issues/176)) ([bd256b7](https://github.com/inference-gateway/rust-adk/commit/bd256b7e8eddc3795ed56400b5444a94d1473aa5))
+* **deps:** bump infer CLI v0.208.0 -> v0.218.0 ([#177](https://github.com/inference-gateway/rust-adk/issues/177)) ([0037520](https://github.com/inference-gateway/rust-adk/commit/003752080474b7244f807845d055ab4f663e7f42))
+* **deps:** bump infer CLI v0.218.0 -> v0.221.1 ([#179](https://github.com/inference-gateway/rust-adk/issues/179)) ([2d0e40f](https://github.com/inference-gateway/rust-adk/commit/2d0e40fbf2ead50a3bc7534b640fdd8a68605fd2))
+* **deps:** bump the cargo group with 5 updates ([#178](https://github.com/inference-gateway/rust-adk/issues/178)) ([362827b](https://github.com/inference-gateway/rust-adk/commit/362827ba5382cea7d92dfaac23f011232e5c52d9))
+
 ## [0.14.0](https://github.com/inference-gateway/rust-adk/compare/0.13.0...0.14.0) (2026-09-26)
 
 ### ✨ Features
