@@ -20,7 +20,7 @@
 //! primitive). The worker uses a dedicated connection per call so the
 //! pool stays usable.
 
-use super::storage::{QueuedTask, Storage, StorageStats, TaskFilter};
+use super::storage::{QueuedTask, Storage, StorageStats, TaskFilter, push_config_key};
 use crate::a2a_types::{Task, TaskPushNotificationConfig, TaskState};
 use anyhow::{Context, Result, anyhow};
 use async_trait::async_trait;
@@ -163,7 +163,7 @@ impl Storage for RedisStorage {
             .lpush(self.queue_key(), payload)
             .await
             .map_err(redis_err)?;
-        self.record_context(&task.context_id, &task.id).await?;
+        self.record_context(task.context_id_str(), &task.id).await?;
         Ok(())
     }
 
@@ -211,7 +211,7 @@ impl Storage for RedisStorage {
             .sadd(self.active_index_key(), &task.id)
             .await
             .map_err(redis_err)?;
-        self.record_context(&task.context_id, &task.id).await?;
+        self.record_context(task.context_id_str(), &task.id).await?;
         Ok(())
     }
 
@@ -249,9 +249,11 @@ impl Storage for RedisStorage {
         };
         let _: redis::RedisResult<()> = conn.set(self.active_key(&task.id), payload).await;
         let _: redis::RedisResult<()> = conn.sadd(self.active_index_key(), &task.id).await;
-        let _: redis::RedisResult<()> = conn.sadd(self.contexts_set_key(), &task.context_id).await;
         let _: redis::RedisResult<()> = conn
-            .sadd(self.context_members_key(&task.context_id), &task.id)
+            .sadd(self.contexts_set_key(), task.context_id_str())
+            .await;
+        let _: redis::RedisResult<()> = conn
+            .sadd(self.context_members_key(task.context_id_str()), &task.id)
             .await;
     }
 
@@ -276,7 +278,7 @@ impl Storage for RedisStorage {
             .srem(self.active_index_key(), &task.id)
             .await
             .map_err(redis_err)?;
-        self.record_context(&task.context_id, &task.id).await?;
+        self.record_context(task.context_id_str(), &task.id).await?;
         Ok(())
     }
 
@@ -292,7 +294,7 @@ impl Storage for RedisStorage {
 
     async fn get_task_by_context_and_id(&self, context_id: &str, task_id: &str) -> Option<Task> {
         let task = self.get_task(task_id).await?;
-        if task.context_id == context_id {
+        if task.context_id.as_deref() == Some(context_id) {
             Some(task)
         } else {
             None
@@ -520,26 +522,34 @@ impl Storage for RedisStorage {
         let Ok(payload) = serde_json::to_string(&config) else {
             return;
         };
-        let _: redis::RedisResult<()> = conn.set(self.push_config_key(&config.name), payload).await;
-        let _: redis::RedisResult<()> = conn.sadd(self.push_config_index_key(), &config.name).await;
+        let name = push_config_key(&config);
+        let _: redis::RedisResult<()> = conn.set(self.push_config_key(&name), payload).await;
+        let _: redis::RedisResult<()> = conn.sadd(self.push_config_index_key(), &name).await;
     }
 
-    async fn get_push_notification_config(&self, name: &str) -> Option<TaskPushNotificationConfig> {
+    async fn get_push_notification_config(
+        &self,
+        task_id: &str,
+        id: &str,
+    ) -> Option<TaskPushNotificationConfig> {
         let mut conn = self.conn();
-        let payload: Option<String> = conn.get(self.push_config_key(name)).await.ok()?;
+        let payload: Option<String> = conn
+            .get(self.push_config_key(&format!("{task_id}/{id}")))
+            .await
+            .ok()?;
         payload.and_then(|s| serde_json::from_str(&s).ok())
     }
 
     async fn list_push_notification_configs(
         &self,
-        parent: &str,
+        task_id: &str,
     ) -> Vec<TaskPushNotificationConfig> {
         let mut conn = self.conn();
         let names: Vec<String> = conn
             .smembers(self.push_config_index_key())
             .await
             .unwrap_or_default();
-        let prefix = format!("{parent}/pushNotificationConfigs/");
+        let prefix = format!("{task_id}/");
         let filtered: Vec<String> = names
             .into_iter()
             .filter(|n| n.starts_with(&prefix))
@@ -556,13 +566,14 @@ impl Storage for RedisStorage {
             .collect()
     }
 
-    async fn delete_push_notification_config(&self, name: &str) -> bool {
+    async fn delete_push_notification_config(&self, task_id: &str, id: &str) -> bool {
         let mut conn = self.conn();
-        let removed: i32 = match conn.del(self.push_config_key(name)).await {
+        let name = format!("{task_id}/{id}");
+        let removed: i32 = match conn.del(self.push_config_key(&name)).await {
             Ok(n) => n,
             Err(_) => return false,
         };
-        let _: redis::RedisResult<()> = conn.srem(self.push_config_index_key(), name).await;
+        let _: redis::RedisResult<()> = conn.srem(self.push_config_index_key(), &name).await;
         removed > 0
     }
 }

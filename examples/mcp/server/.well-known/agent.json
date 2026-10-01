@@ -2,13 +2,10 @@
   "name": "Rust MCP Agent",
   "description": "A2A server that discovers and invokes MCP tools via selector tools, built with the Rust ADK",
   "version": "0.1.0",
-  "protocolVersion": "0.2.6",
-  "url": "http://localhost:8086",
-  "preferredTransport": "JSONRPC",
+  "supportedInterfaces": [{"url": "http://localhost:8086", "protocolBinding": "JSONRPC", "protocolVersion": "1.0"}],
   "capabilities": {
     "streaming": true,
-    "pushNotifications": false,
-    "stateTransitionHistory": false
+    "pushNotifications": false
   },
   "provider": {
     "organization": "Inference Gateway",

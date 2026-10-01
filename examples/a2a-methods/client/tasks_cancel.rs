@@ -32,10 +32,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 message_id: Uuid::new_v4().to_string(),
                 metadata: None,
                 parts: vec![Part {
-                    data: None,
-                    file: None,
-                    metadata: None,
                     text: Some("seed for tasks/cancel".to_string()),
+                    ..Default::default()
                 }],
                 reference_task_ids: vec![],
                 role: Role::RoleUser,
@@ -49,7 +47,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let cancelled = client
         .cancel_task(CancelTaskRequest {
-            name: Some(format!("tasks/{}", task.id)),
+            id: task.id.clone(),
             tenant: Some("example".to_string()),
         })
         .await?;

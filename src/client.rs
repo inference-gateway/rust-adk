@@ -1,10 +1,9 @@
 use crate::a2a_types::{
     AgentCard, CancelTaskRequest, DeleteTaskPushNotificationConfigRequest,
     GetExtendedAgentCardRequest, GetTaskPushNotificationConfigRequest, GetTaskRequest,
-    ListTaskPushNotificationConfigRequest, ListTaskPushNotificationConfigResponse,
-    ListTasksRequest, ListTasksResponse, SendMessageRequest, SendMessageResponse,
-    SetTaskPushNotificationConfigRequest, StreamResponse, SubscribeToTaskRequest, Task,
-    TaskPushNotificationConfig, TaskState,
+    ListTaskPushNotificationConfigsRequest, ListTaskPushNotificationConfigsResponse,
+    ListTasksRequest, ListTasksResponse, SendMessageRequest, SendMessageResponse, StreamResponse,
+    SubscribeToTaskRequest, Task, TaskPushNotificationConfig,
 };
 use crate::config::ClientConfig;
 use anyhow::{Result, anyhow};
@@ -211,13 +210,8 @@ impl A2AClient {
                 if let Some(ref mut task) = latest_task {
                     task.status = update.status.clone();
                 }
-                if matches!(
-                    update.status.state,
-                    TaskState::TaskStateCompleted
-                        | TaskState::TaskStateFailed
-                        | TaskState::TaskStateCancelled
-                        | TaskState::TaskStateRejected
-                ) && let Some(msg) = update.status.message.clone()
+                if update.status.state.is_terminal()
+                    && let Some(msg) = update.status.message.clone()
                 {
                     final_message = Some(msg);
                 }
@@ -252,7 +246,7 @@ impl A2AClient {
     /// notification configuration for a task.
     pub async fn set_task_push_notification_config(
         &self,
-        params: SetTaskPushNotificationConfigRequest,
+        params: TaskPushNotificationConfig,
     ) -> Result<TaskPushNotificationConfig> {
         self.call_typed("tasks/pushNotificationConfig/set", params)
             .await
@@ -272,8 +266,8 @@ impl A2AClient {
     /// belonging to a parent task.
     pub async fn list_task_push_notification_configs(
         &self,
-        params: ListTaskPushNotificationConfigRequest,
-    ) -> Result<ListTaskPushNotificationConfigResponse> {
+        params: ListTaskPushNotificationConfigsRequest,
+    ) -> Result<ListTaskPushNotificationConfigsResponse> {
         self.call_typed("tasks/pushNotificationConfig/list", params)
             .await
     }

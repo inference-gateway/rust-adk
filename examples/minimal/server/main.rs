@@ -19,13 +19,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "name": "Minimal Rust A2A Agent",
         "description": "A minimal A2A server built with the Rust ADK",
         "version": "0.1.0",
-        "protocolVersion": "0.2.6",
-        "url": "http://server:8080",
-        "preferredTransport": "JSONRPC",
+        "supportedInterfaces": [{"url": "http://server:8080", "protocolBinding": "JSONRPC", "protocolVersion": "1.0"}],
         "capabilities": {
             "streaming": true,
-            "pushNotifications": false,
-            "stateTransitionHistory": false
+            "pushNotifications": false
         },
         "defaultInputModes": ["text/plain"],
         "defaultOutputModes": ["text/plain"],

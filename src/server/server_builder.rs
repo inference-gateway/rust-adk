@@ -9,7 +9,7 @@ use super::task_handler::{
     DefaultBackgroundTaskHandler, DefaultStreamingTaskHandler, StreamableTaskHandler, TaskHandler,
 };
 use super::task_manager::DefaultTaskManager;
-use crate::a2a_types::AgentCard;
+use crate::a2a_types::{AgentCard, AgentInterface};
 use crate::config::{ArtifactsStorageProvider, Config};
 use anyhow::{Result, anyhow};
 use std::sync::Arc;
@@ -228,8 +228,16 @@ impl A2AServerBuilder {
                     card.version = version;
                 }
                 if let Some(url) = overrides.url {
-                    info!("Overriding agent card URL: {:?} -> {}", card.url, url);
-                    card.url = Some(url);
+                    info!("Overriding agent card URL -> {}", url);
+                    match card.supported_interfaces.first_mut() {
+                        Some(interface) => interface.url = url,
+                        None => card.supported_interfaces.push(AgentInterface {
+                            protocol_binding: "JSONRPC".to_string(),
+                            protocol_version: "1.0".to_string(),
+                            tenant: None,
+                            url,
+                        }),
+                    }
                 }
             }
         }
@@ -237,7 +245,7 @@ impl A2AServerBuilder {
         if self.extended_agent_card.is_some()
             && let Some(ref mut card) = agent_card
         {
-            card.supports_extended_agent_card = Some(true);
+            card.capabilities.extended_agent_card = Some(true);
         }
 
         let gateway_url = self
@@ -424,13 +432,10 @@ mod tests {
             "name": "Validation Agent",
             "description": "Builder validation tests",
             "version": "0.0.0",
-            "protocolVersion": "0.2.6",
-            "url": "http://localhost/a2a",
-            "preferredTransport": "JSONRPC",
+            "supportedInterfaces": [{"url": "http://localhost/a2a", "protocolBinding": "JSONRPC", "protocolVersion": "1.0"}],
             "capabilities": {
                 "streaming": streaming,
-                "pushNotifications": false,
-                "stateTransitionHistory": false
+                "pushNotifications": false
             },
             "defaultInputModes": ["text/plain"],
             "defaultOutputModes": ["text/plain"],
@@ -450,13 +455,10 @@ mod tests {
                         "name": "Test Agent",
                         "description": "A test agent for unit testing",
                         "version": "1.0.0",
-                        "protocolVersion": "0.2.6",
-                        "url": "http://localhost:8080/a2a",
-                        "preferredTransport": "JSONRPC",
+                        "supportedInterfaces": [{"url": "http://localhost:8080/a2a", "protocolBinding": "JSONRPC", "protocolVersion": "1.0"}],
                         "capabilities": {
                             "streaming": true,
-                            "pushNotifications": false,
-                            "stateTransitionHistory": false
+                            "pushNotifications": false
                         },
                         "defaultInputModes": ["text/plain"],
                         "defaultOutputModes": ["text/plain"],
@@ -483,13 +485,10 @@ mod tests {
                         "name": "Test Agent",
                         "description": "A test agent for unit testing",
                         "version": "1.0.0",
-                        "protocolVersion": "0.2.6",
-                        "url": "http://localhost:8080/a2a",
-                        "preferredTransport": "JSONRPC",
+                        "supportedInterfaces": [{"url": "http://localhost:8080/a2a", "protocolBinding": "JSONRPC", "protocolVersion": "1.0"}],
                         "capabilities": {
                             "streaming": true,
-                            "pushNotifications": false,
-                            "stateTransitionHistory": false
+                            "pushNotifications": false
                         },
                         "defaultInputModes": ["text/plain"],
                         "defaultOutputModes": ["text/plain"],

@@ -171,13 +171,7 @@ async fn route_terminal_or_active(
     worker_id: usize,
     result: crate::a2a_types::Task,
 ) {
-    let terminal = matches!(
-        result.status.state,
-        TaskState::TaskStateCompleted
-            | TaskState::TaskStateFailed
-            | TaskState::TaskStateCancelled
-            | TaskState::TaskStateRejected
-    );
+    let terminal = result.status.state.is_terminal();
     if terminal {
         if let Err(e) = storage.store_dead_letter_task(&result).await {
             warn!(worker_id, task_id = %result.id, error = %e, "store_dead_letter_task failed");
@@ -202,17 +196,15 @@ mod tests {
     fn make_task(id: &str) -> Task {
         Task {
             artifacts: vec![],
-            context_id: "ctx".to_string(),
+            context_id: Some("ctx".to_string()),
             history: vec![A2AMessage {
                 context_id: Some("ctx".to_string()),
                 extensions: vec![],
                 message_id: format!("msg-{id}"),
                 metadata: None,
                 parts: vec![Part {
-                    data: None,
-                    file: None,
-                    metadata: None,
                     text: Some("hello".to_string()),
+                    ..Default::default()
                 }],
                 reference_task_ids: vec![],
                 role: Role::RoleUser,
@@ -267,13 +259,7 @@ mod tests {
     async fn wait_for_terminal(storage: &Arc<InMemoryStorage>, task_id: &str) -> Task {
         for _ in 0..50 {
             if let Some(task) = storage.get_task(task_id).await
-                && matches!(
-                    task.status.state,
-                    TaskState::TaskStateCompleted
-                        | TaskState::TaskStateFailed
-                        | TaskState::TaskStateCancelled
-                        | TaskState::TaskStateRejected
-                )
+                && task.status.state.is_terminal()
             {
                 return task;
             }

@@ -66,13 +66,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "name": "Auth-Gated Rust A2A Agent",
         "description": "Example showing AuthConfig + bearer token enforcement",
         "version": "0.1.0",
-        "protocolVersion": "0.2.6",
-        "url": format!("http://localhost:{port}/a2a"),
-        "preferredTransport": "JSONRPC",
+        "supportedInterfaces": [{"url": format!("http://localhost:{port}/a2a"), "protocolBinding": "JSONRPC", "protocolVersion": "1.0"}],
         "capabilities": {
             "streaming": true,
             "pushNotifications": false,
-            "stateTransitionHistory": false
+            "extendedAgentCard": true
         },
         "defaultInputModes": ["text/plain"],
         "defaultOutputModes": ["text/plain"],
@@ -83,10 +81,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "description": "Echo back user messages",
                 "tags": ["echo", "auth"]
             }
-        ],
-        // Required for agent/getAuthenticatedExtendedCard to return the
-        // card rather than -32601 METHOD_NOT_FOUND.
-        "supportsExtendedAgentCard": true
+        ]
     }))?;
 
     let mut builder = A2AServerBuilder::new()

@@ -5,7 +5,7 @@ filesystem-backed storage provider:
 
 - `server/` runs an `A2AServer` plus the standalone artifacts HTTP
   server. A `StreamableTaskHandler` produces a small text report and
-  emits it as a `FilePart` whose `fileWithUri` points at the artifacts
+  emits it as a file part whose `url` points at the artifacts
   server.
 - `client/` opens `message/stream`, collects the file artifact URI,
   then downloads the artifact directly from the artifacts HTTP server
@@ -28,7 +28,7 @@ artifacts-filesystem/
 ```
                   message/stream                   GET /artifacts/<id>/<file>
    client ───────────────────────► A2A :8087       ┌──────────────────────────► artifacts :8088
-                                   (FilePart.fileWithUri points here)          └─► filesystem
+                                   (file part `url` points here)          └─► filesystem
                                                                                   ./server/artifacts-data/
 ```
 
@@ -41,10 +41,10 @@ server exposes `GET /artifacts/{artifact_id}/{filename}` (plus a
 
 - **`StreamableTaskHandler::handle_streaming_task`** drives the stream.
   The handler emits a working status, then a single file artifact, then
-  a final completed status with `final: true`.
+  a final completed status update (its state is terminal).
 - **`StreamEmitter::emit_file_artifact(...)`** writes the file bytes
   through `ArtifactService` into the configured storage provider, then
-  publishes a `TaskArtifactUpdateEvent` whose `FilePart.fileWithUri`
+  publishes a `TaskArtifactUpdateEvent` whose the file part `url`
   points at the artifacts HTTP server (URL prefix taken from
   `ARTIFACTS_STORAGE_BASE_URL`).
 - The filesystem provider lays files out under

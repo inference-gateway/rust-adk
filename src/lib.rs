@@ -27,6 +27,28 @@ pub use server::{
     spawn_retention_task,
 };
 
+impl a2a_types::TaskState {
+    /// A terminal task never changes state again; A2A v1.0 dropped the `final` flag,
+    /// so this is the signal that ends a stream.
+    pub fn is_terminal(self) -> bool {
+        matches!(
+            self,
+            Self::TaskStateCompleted
+                | Self::TaskStateFailed
+                | Self::TaskStateCanceled
+                | Self::TaskStateRejected
+        )
+    }
+}
+
+impl a2a_types::Task {
+    /// The task's context id, or "" when unset. The ADK always assigns one on tasks it
+    /// creates; the field is optional only because A2A v1.0 made it so on the wire.
+    pub fn context_id_str(&self) -> &str {
+        self.context_id.as_deref().unwrap_or_default()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     #[test]

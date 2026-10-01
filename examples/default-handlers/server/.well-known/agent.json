@@ -2,13 +2,10 @@
   "name": "Rust A2A Default-Handlers Agent",
   "description": "LLM-backed A2A server using the built-in default task handlers (no custom handler code)",
   "version": "0.1.0",
-  "protocolVersion": "0.2.6",
-  "url": "http://localhost:8085",
-  "preferredTransport": "JSONRPC",
+  "supportedInterfaces": [{"url": "http://localhost:8085", "protocolBinding": "JSONRPC", "protocolVersion": "1.0"}],
   "capabilities": {
     "streaming": true,
-    "pushNotifications": false,
-    "stateTransitionHistory": false
+    "pushNotifications": false
   },
   "provider": {
     "organization": "Inference Gateway",

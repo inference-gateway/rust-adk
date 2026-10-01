@@ -15,10 +15,8 @@ fn user_message(text: &str) -> SendMessageRequest {
             message_id: Uuid::new_v4().to_string(),
             metadata: None,
             parts: vec![Part {
-                data: None,
-                file: None,
-                metadata: None,
                 text: Some(text.to_string()),
+                ..Default::default()
             }],
             reference_task_ids: vec![],
             role: Role::RoleUser,
@@ -66,7 +64,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     );
                 }
                 if let Some(update) = event.status_update {
-                    let suffix = if update.final_ { " (final)" } else { "" };
+                    let suffix = if update.status.state.is_terminal() {
+                        " (final)"
+                    } else {
+                        ""
+                    };
                     info!(
                         "[{elapsed:.2}s] #{event_index} → status: {:?}{suffix}",
                         update.status.state

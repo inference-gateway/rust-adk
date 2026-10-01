@@ -8,8 +8,8 @@
 
 use inference_gateway_adk::A2AClient;
 use inference_gateway_adk::a2a_types::{
-    DeleteTaskPushNotificationConfigRequest, Message, Part, PushNotificationConfig, Role,
-    SendMessageRequest, SetTaskPushNotificationConfigRequest, TaskPushNotificationConfig,
+    DeleteTaskPushNotificationConfigRequest, Message, Part, Role, SendMessageRequest,
+    TaskPushNotificationConfig,
 };
 use std::env;
 use tracing::info;
@@ -31,10 +31,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 message_id: Uuid::new_v4().to_string(),
                 metadata: None,
                 parts: vec![Part {
-                    data: None,
-                    file: None,
-                    metadata: None,
                     text: Some("seed for pushNotificationConfig/delete".to_string()),
+                    ..Default::default()
                 }],
                 reference_task_ids: vec![],
                 role: Role::RoleUser,
@@ -45,35 +43,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         })
         .await?;
     let task = seed.task.ok_or("server did not return a task")?;
-    let parent = format!("tasks/{}", task.id);
     let config_id = "transient";
-    let name = format!("{parent}/pushNotificationConfigs/{config_id}");
 
     client
-        .set_task_push_notification_config(SetTaskPushNotificationConfigRequest {
-            parent: parent.clone(),
-            config_id: config_id.to_string(),
+        .set_task_push_notification_config(TaskPushNotificationConfig {
+            authentication: None,
+            id: Some(config_id.to_string()),
+            task_id: Some(task.id.clone()),
             tenant: Some("example".to_string()),
-            config: TaskPushNotificationConfig {
-                name: name.clone(),
-                push_notification_config: PushNotificationConfig {
-                    authentication: None,
-                    id: None,
-                    token: None,
-                    url: "https://your-app.example/webhooks/throwaway".to_string(),
-                },
-            },
+            token: None,
+            url: "https://your-app.example/webhooks/throwaway".to_string(),
         })
         .await?;
 
     client
         .delete_task_push_notification_config(DeleteTaskPushNotificationConfigRequest {
-            name: Some(name.clone()),
+            id: config_id.to_string(),
+            task_id: task.id.clone(),
             tenant: Some("example".to_string()),
         })
         .await?;
 
-    info!("tasks/pushNotificationConfig/delete → removed {name}");
+    info!(
+        "tasks/pushNotificationConfig/delete → removed {}/{config_id}",
+        task.id
+    );
 
     Ok(())
 }

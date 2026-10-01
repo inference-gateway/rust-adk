@@ -2,13 +2,10 @@
   "name": "Rust A2A AI-Powered Streaming Agent",
   "description": "LLM-backed A2A server streaming delta chunks over message/stream",
   "version": "0.1.0",
-  "protocolVersion": "0.2.6",
-  "url": "http://localhost:8084",
-  "preferredTransport": "JSONRPC",
+  "supportedInterfaces": [{"url": "http://localhost:8084", "protocolBinding": "JSONRPC", "protocolVersion": "1.0"}],
   "capabilities": {
     "streaming": true,
-    "pushNotifications": false,
-    "stateTransitionHistory": false
+    "pushNotifications": false
   },
   "provider": {
     "organization": "Inference Gateway",

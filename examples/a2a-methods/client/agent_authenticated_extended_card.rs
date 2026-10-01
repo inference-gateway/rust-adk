@@ -29,8 +29,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 1. Unauthenticated card (discovery endpoint) for comparison.
     let discovery_card = client.get_agent_card().await?;
     info!(
-        "/.well-known/agent.json → name={:?} version={:?} supportsExtendedAgentCard={:?}",
-        discovery_card.name, discovery_card.version, discovery_card.supports_extended_agent_card
+        "/.well-known/agent.json → name={:?} version={:?} extendedAgentCard={:?}",
+        discovery_card.name,
+        discovery_card.version,
+        discovery_card.capabilities.extended_agent_card
     );
 
     // 2. Authenticated extended card via JSON-RPC.

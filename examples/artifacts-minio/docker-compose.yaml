@@ -63,7 +63,7 @@ services:
       ARTIFACTS_STORAGE_ACCESS_KEY: minioadmin
       ARTIFACTS_STORAGE_SECRET_KEY: minioadmin
       ARTIFACTS_STORAGE_BUCKET_NAME: artifacts
-      # Baked into FilePart.fileWithUri. Points at MinIO via the Docker
+      # Baked into file part `url`. Points at MinIO via the Docker
       # service name so the client container can reach it; downloads
       # bypass the artifacts HTTP server entirely. The bucket has an
       # anonymous-download policy (set by `createbucket` above).

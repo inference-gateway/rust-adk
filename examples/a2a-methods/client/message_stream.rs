@@ -32,10 +32,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             message_id: Uuid::new_v4().to_string(),
             metadata: None,
             parts: vec![Part {
-                data: None,
-                file: None,
-                metadata: None,
                 text: Some("Hello via message/stream".to_string()),
+                ..Default::default()
             }],
             reference_task_ids: vec![],
             role: Role::RoleUser,
@@ -60,7 +58,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         if let Some(update) = response.status_update {
-            let suffix = if update.final_ { " (final)" } else { "" };
+            let suffix = if update.status.state.is_terminal() {
+                " (final)"
+            } else {
+                ""
+            };
             info!(
                 "[{event_index}] message/stream → status update: {:?}{suffix}",
                 update.status.state

@@ -13,6 +13,12 @@
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
 #[serde(deny_unknown_fields)]
 pub struct AgentCapabilities {
+    #[doc = "Indicates if the agent supports providing an extended agent card when authenticated."]
+    #[serde(
+        rename = "extendedAgentCard",
+        skip_serializing_if = "::std::option::Option::is_none"
+    )]
+    pub extended_agent_card: ::std::option::Option<bool>,
     #[doc = "A list of protocol extensions supported by the agent."]
     #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
     pub extensions: ::std::vec::Vec<AgentExtension>,
@@ -22,12 +28,6 @@ pub struct AgentCapabilities {
         skip_serializing_if = "::std::option::Option::is_none"
     )]
     pub push_notifications: ::std::option::Option<bool>,
-    #[doc = "Indicates if the agent provides a history of state transitions for a task."]
-    #[serde(
-        rename = "stateTransitionHistory",
-        skip_serializing_if = "::std::option::Option::is_none"
-    )]
-    pub state_transition_history: ::std::option::Option<bool>,
     #[doc = "Indicates if the agent supports streaming responses."]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub streaming: ::std::option::Option<bool>,
@@ -37,17 +37,10 @@ impl AgentCapabilities {
         Default::default()
     }
 }
-#[doc = "AgentCard is a self-describing manifest for an agent. It provides essential\n metadata including the agent's identity, capabilities, skills, supported\n communication methods, and security requirements.\n Next ID: 20"]
+#[doc = "A self-describing manifest for an agent. It provides essential\n metadata including the agent's identity, capabilities, skills, supported\n communication methods, and security requirements.\n Next ID: 20"]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct AgentCard {
-    #[doc = "DEPRECATED: Use 'supported_interfaces' instead."]
-    #[serde(
-        rename = "additionalInterfaces",
-        default,
-        skip_serializing_if = "::std::vec::Vec::is_empty"
-    )]
-    pub additional_interfaces: ::std::vec::Vec<AgentInterface>,
     #[doc = "A2A Capability set supported by the agent."]
     pub capabilities: AgentCapabilities,
     #[doc = "protolint:enable REPEATED_FIELD_NAMES_PLURALIZED\n The set of interaction modes that the agent supports across all skills.\n This can be overridden per skill. Defined as media types."]
@@ -58,13 +51,13 @@ pub struct AgentCard {
     pub default_output_modes: ::std::vec::Vec<::std::string::String>,
     #[doc = "A human-readable description of the agent, assisting users and other agents\n in understanding its purpose.\n Example: \"Agent that helps users with recipes and cooking.\""]
     pub description: ::std::string::String,
-    #[doc = "A url to provide additional documentation about the agent."]
+    #[doc = "A URL providing additional documentation about the agent."]
     #[serde(
         rename = "documentationUrl",
         skip_serializing_if = "::std::option::Option::is_none"
     )]
     pub documentation_url: ::std::option::Option<::std::string::String>,
-    #[doc = "An optional URL to an icon for the agent."]
+    #[doc = "Optional. A URL to an icon for the agent."]
     #[serde(
         rename = "iconUrl",
         skip_serializing_if = "::std::option::Option::is_none"
@@ -72,21 +65,16 @@ pub struct AgentCard {
     pub icon_url: ::std::option::Option<::std::string::String>,
     #[doc = "A human readable name for the agent.\n Example: \"Recipe Agent\""]
     pub name: ::std::string::String,
-    #[doc = "DEPRECATED: Use 'supported_interfaces' instead."]
-    #[serde(
-        rename = "preferredTransport",
-        skip_serializing_if = "::std::option::Option::is_none"
-    )]
-    pub preferred_transport: ::std::option::Option<::std::string::String>,
-    #[doc = "The version of the A2A protocol this agent supports.\n Default: \"1.0\""]
-    #[serde(rename = "protocolVersion")]
-    pub protocol_version: ::std::string::String,
     #[doc = "The service provider of the agent."]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub provider: ::std::option::Option<AgentProvider>,
-    #[doc = "protolint:disable REPEATED_FIELD_NAMES_PLURALIZED\n Security requirements for contacting the agent."]
-    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
-    pub security: ::std::vec::Vec<Security>,
+    #[doc = "Security requirements for contacting the agent."]
+    #[serde(
+        rename = "securityRequirements",
+        default,
+        skip_serializing_if = "::std::vec::Vec::is_empty"
+    )]
+    pub security_requirements: ::std::vec::Vec<SecurityRequirement>,
     #[doc = "The security scheme details used for authenticating with this agent."]
     #[serde(
         rename = "securitySchemes",
@@ -94,27 +82,14 @@ pub struct AgentCard {
         skip_serializing_if = ":: std :: collections :: HashMap::is_empty"
     )]
     pub security_schemes: ::std::collections::HashMap<::std::string::String, SecurityScheme>,
-    #[doc = "JSON Web Signatures computed for this AgentCard."]
+    #[doc = "JSON Web Signatures computed for this `AgentCard`."]
     #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
     pub signatures: ::std::vec::Vec<AgentCardSignature>,
-    #[doc = "Skills represent an ability of an agent. It is largely\n a descriptive concept but represents a more focused set of behaviors that the\n agent is likely to succeed at."]
+    #[doc = "Skills represent the abilities of an agent.\n It is largely a descriptive concept but represents a more focused set of behaviors that the\n agent is likely to succeed at."]
     pub skills: ::std::vec::Vec<AgentSkill>,
-    #[doc = "Ordered list of supported interfaces. First entry is preferred."]
-    #[serde(
-        rename = "supportedInterfaces",
-        default,
-        skip_serializing_if = "::std::vec::Vec::is_empty"
-    )]
+    #[doc = "Ordered list of supported interfaces. The first entry is preferred."]
+    #[serde(rename = "supportedInterfaces")]
     pub supported_interfaces: ::std::vec::Vec<AgentInterface>,
-    #[doc = "Whether the agent supports providing an extended agent card when authenticated."]
-    #[serde(
-        rename = "supportsExtendedAgentCard",
-        skip_serializing_if = "::std::option::Option::is_none"
-    )]
-    pub supports_extended_agent_card: ::std::option::Option<bool>,
-    #[doc = "DEPRECATED: Use 'supported_interfaces' instead."]
-    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
-    pub url: ::std::option::Option<::std::string::String>,
     #[doc = "The version of the agent.\n Example: \"1.0.0\""]
     pub version: ::std::string::String,
 }
@@ -130,9 +105,9 @@ pub struct AgentCardSignature {
     #[doc = "The unprotected JWS header values."]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub header: ::std::option::Option<Struct>,
-    #[doc = "The protected JWS header for the signature. This is always a\n base64url-encoded JSON object. Required."]
+    #[doc = "(-- api-linter: core::0140::reserved-words=disabled\n     aip.dev/not-precedent: Backwards compatibility --)\n Required. The protected JWS header for the signature. This is always a\n base64url-encoded JSON object."]
     pub protected: ::std::string::String,
-    #[doc = "The computed signature, base64url-encoded. Required."]
+    #[doc = "Required. The computed signature, base64url-encoded."]
     pub signature: ::std::string::String,
 }
 impl AgentCardSignature {
@@ -147,7 +122,7 @@ pub struct AgentExtension {
     #[doc = "A human-readable description of how this agent uses the extension."]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub description: ::std::option::Option<::std::string::String>,
-    #[doc = "Optional, extension-specific configuration parameters."]
+    #[doc = "Optional. Extension-specific configuration parameters."]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub params: ::std::option::Option<Struct>,
     #[doc = "If true, the client must understand and comply with the extension's requirements."]
@@ -162,14 +137,17 @@ impl AgentExtension {
         Default::default()
     }
 }
-#[doc = "Declares a combination of a target URL and a transport protocol for interacting with the agent.\n This allows agents to expose the same functionality over multiple protocol binding mechanisms."]
+#[doc = "Declares a combination of a target URL, transport and protocol version for interacting with the agent.\n This allows agents to expose the same functionality over multiple protocol binding mechanisms."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct AgentInterface {
     #[doc = "The protocol binding supported at this URL. This is an open form string, to be\n easily extended for other protocol bindings. The core ones officially\n supported are `JSONRPC`, `GRPC` and `HTTP+JSON`."]
     #[serde(rename = "protocolBinding")]
     pub protocol_binding: ::std::string::String,
-    #[doc = "Tenant to be set in the request when calling the agent."]
+    #[doc = "The version of the A2A protocol this interface exposes.\n Use the latest supported minor version per major version.\n Examples: \"0.3\", \"1.0\""]
+    #[serde(rename = "protocolVersion")]
+    pub protocol_version: ::std::string::String,
+    #[doc = "Optional. An opaque string used for routing requests to a specific agent\n or tenant when multiple agents are served behind a single A2A endpoint.\n When set, clients MUST include this value in the `tenant` field of all\n request messages sent to this interface. The server is responsible for\n interpreting the value and routing requests accordingly; the protocol\n does not define its format or semantics."]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub tenant: ::std::option::Option<::std::string::String>,
     #[doc = "The URL where this interface is available. Must be a valid absolute HTTPS URL in production.\n Example: \"https://api.example.com/a2a/v1\", \"https://grpc.example.com/a2a\""]
@@ -221,9 +199,13 @@ pub struct AgentSkill {
         skip_serializing_if = "::std::vec::Vec::is_empty"
     )]
     pub output_modes: ::std::vec::Vec<::std::string::String>,
-    #[doc = "protolint:disable REPEATED_FIELD_NAMES_PLURALIZED\n Security schemes necessary for this skill."]
-    #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
-    pub security: ::std::vec::Vec<Security>,
+    #[doc = "Security schemes necessary for this skill."]
+    #[serde(
+        rename = "securityRequirements",
+        default,
+        skip_serializing_if = "::std::vec::Vec::is_empty"
+    )]
+    pub security_requirements: ::std::vec::Vec<SecurityRequirement>,
     #[doc = "A set of keywords describing the skill's capabilities."]
     pub tags: ::std::vec::Vec<::std::string::String>,
 }
@@ -253,16 +235,16 @@ impl ApiKeySecurityScheme {
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct Artifact {
-    #[doc = "Unique identifier (e.g. UUID) for the artifact. It must be at least unique\n within a task."]
+    #[doc = "Unique identifier (e.g. UUID) for the artifact. It must be unique within a task."]
     #[serde(rename = "artifactId")]
     pub artifact_id: ::std::string::String,
-    #[doc = "A human readable description of the artifact, optional."]
+    #[doc = "Optional. A human readable description of the artifact."]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub description: ::std::option::Option<::std::string::String>,
     #[doc = "The URIs of extensions that are present or contributed to this Artifact."]
     #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
     pub extensions: ::std::vec::Vec<::std::string::String>,
-    #[doc = "Optional metadata included with the artifact."]
+    #[doc = "Optional. Metadata included with the artifact."]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub metadata: ::std::option::Option<Struct>,
     #[doc = "A human readable name for the artifact."]
@@ -280,11 +262,11 @@ impl Artifact {
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct AuthenticationInfo {
-    #[doc = "Optional credentials"]
+    #[doc = "Push Notification credentials. Format depends on the scheme (e.g., token for Bearer)."]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub credentials: ::std::option::Option<::std::string::String>,
-    #[doc = "A list of supported authentication schemes (e.g., 'Basic', 'Bearer')."]
-    pub schemes: ::std::vec::Vec<::std::string::String>,
+    #[doc = "HTTP Authentication Scheme from the [IANA registry](https://www.iana.org/assignments/http-authschemes/).\n Examples: `Bearer`, `Basic`, `Digest`.\n Scheme names are case-insensitive per [RFC 9110 Section 11.1](https://www.rfc-editor.org/rfc/rfc9110#section-11.1)."]
+    pub scheme: ::std::string::String,
 }
 impl AuthenticationInfo {
     pub fn builder() -> builder::AuthenticationInfo {
@@ -298,6 +280,12 @@ pub struct AuthorizationCodeOAuthFlow {
     #[doc = "The authorization URL to be used for this flow."]
     #[serde(rename = "authorizationUrl")]
     pub authorization_url: ::std::string::String,
+    #[doc = "Indicates if PKCE (RFC 7636) is required for this flow.\n PKCE should always be used for public clients and is recommended for all clients."]
+    #[serde(
+        rename = "pkceRequired",
+        skip_serializing_if = "::std::option::Option::is_none"
+    )]
+    pub pkce_required: ::std::option::Option<bool>,
     #[doc = "The URL to be used for obtaining refresh tokens."]
     #[serde(
         rename = "refreshUrl",
@@ -315,14 +303,16 @@ impl AuthorizationCodeOAuthFlow {
         Default::default()
     }
 }
-#[doc = "Represents a request for the `tasks/cancel` method."]
-#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
+#[doc = "Represents a request for the `CancelTask` method."]
+#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct CancelTaskRequest {
-    #[doc = "The resource name of the task to cancel.\n Format: tasks/{task_id}"]
+    #[doc = "The resource ID of the task to cancel."]
+    pub id: ::std::string::String,
+    #[doc = "A flexible key-value map for passing additional context or parameters."]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
-    pub name: ::std::option::Option<::std::string::String>,
-    #[doc = "Optional tenant, provided as a path parameter."]
+    pub metadata: ::std::option::Option<Struct>,
+    #[doc = "Optional. Opaque routing identifier. Must match the `tenant` value from\n the selected `AgentInterface` in the Agent Card when that field is set."]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub tenant: ::std::option::Option<::std::string::String>,
 }
@@ -352,26 +342,16 @@ impl ClientCredentialsOAuthFlow {
         Default::default()
     }
 }
-#[doc = "DataPart represents a structured blob."]
+#[doc = "Represents a request for the `DeleteTaskPushNotificationConfig` method."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
-pub struct DataPart {
-    #[doc = "A JSON object containing arbitrary data."]
-    pub data: Struct,
-}
-impl DataPart {
-    pub fn builder() -> builder::DataPart {
-        Default::default()
-    }
-}
-#[doc = "Represents a request for the `tasks/pushNotificationConfig/delete` method."]
-#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
-#[serde(deny_unknown_fields)]
 pub struct DeleteTaskPushNotificationConfigRequest {
-    #[doc = "The resource name of the config to delete.\n Format: tasks/{task_id}/pushNotificationConfigs/{config_id}"]
-    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
-    pub name: ::std::option::Option<::std::string::String>,
-    #[doc = "Optional tenant, provided as a path parameter."]
+    #[doc = "The resource ID of the configuration to delete."]
+    pub id: ::std::string::String,
+    #[doc = "The parent task resource ID."]
+    #[serde(rename = "taskId")]
+    pub task_id: ::std::string::String,
+    #[doc = "Optional. Opaque routing identifier. Must match the `tenant` value from\n the selected `AgentInterface` in the Agent Card when that field is set."]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub tenant: ::std::option::Option<::std::string::String>,
 }
@@ -380,94 +360,35 @@ impl DeleteTaskPushNotificationConfigRequest {
         Default::default()
     }
 }
-#[doc = "FilePart represents the different ways files can be provided. If files are\n small, directly feeding the bytes is supported via file_with_bytes. If the\n file is large, the agent should read the content as appropriate directly\n from the file_with_uri source."]
-#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
+#[doc = "Defines configuration details for the OAuth 2.0 Device Code flow (RFC 8628).\n This flow is designed for input-constrained devices such as IoT devices,\n and CLI tools where the user authenticates on a separate device."]
+#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
-pub struct FilePart {
-    #[doc = "The base64-encoded content of the file."]
+pub struct DeviceCodeOAuthFlow {
+    #[doc = "The device authorization endpoint URL."]
+    #[serde(rename = "deviceAuthorizationUrl")]
+    pub device_authorization_url: ::std::string::String,
+    #[doc = "The URL to be used for obtaining refresh tokens."]
     #[serde(
-        rename = "fileWithBytes",
+        rename = "refreshUrl",
         skip_serializing_if = "::std::option::Option::is_none"
     )]
-    pub file_with_bytes: ::std::option::Option<FilePartFileWithBytes>,
-    #[doc = "A URL pointing to the file's content."]
-    #[serde(
-        rename = "fileWithUri",
-        skip_serializing_if = "::std::option::Option::is_none"
-    )]
-    pub file_with_uri: ::std::option::Option<::std::string::String>,
-    #[doc = "The media type of the file (e.g., \"application/pdf\")."]
-    #[serde(
-        rename = "mediaType",
-        skip_serializing_if = "::std::option::Option::is_none"
-    )]
-    pub media_type: ::std::option::Option<::std::string::String>,
-    #[doc = "An optional name for the file (e.g., \"document.pdf\")."]
-    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
-    pub name: ::std::option::Option<::std::string::String>,
+    pub refresh_url: ::std::option::Option<::std::string::String>,
+    #[doc = "The available scopes for the OAuth2 security scheme."]
+    pub scopes: ::std::collections::HashMap<::std::string::String, ::std::string::String>,
+    #[doc = "The token URL to be used for this flow."]
+    #[serde(rename = "tokenUrl")]
+    pub token_url: ::std::string::String,
 }
-impl FilePart {
-    pub fn builder() -> builder::FilePart {
+impl DeviceCodeOAuthFlow {
+    pub fn builder() -> builder::DeviceCodeOAuthFlow {
         Default::default()
     }
 }
-#[doc = "The base64-encoded content of the file."]
-#[derive(:: serde :: Serialize, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-#[serde(transparent)]
-pub struct FilePartFileWithBytes(::std::string::String);
-impl ::std::ops::Deref for FilePartFileWithBytes {
-    type Target = ::std::string::String;
-    fn deref(&self) -> &::std::string::String {
-        &self.0
-    }
-}
-impl ::std::convert::From<FilePartFileWithBytes> for ::std::string::String {
-    fn from(value: FilePartFileWithBytes) -> Self {
-        value.0
-    }
-}
-impl ::std::str::FromStr for FilePartFileWithBytes {
-    type Err = self::error::ConversionError;
-    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
-        static PATTERN: ::std::sync::LazyLock<::regress::Regex> =
-            ::std::sync::LazyLock::new(|| ::regress::Regex::new("^[A-Za-z0-9+/]*={0,2}$").unwrap());
-        if PATTERN.find(value).is_none() {
-            return Err("doesn't match pattern \"^[A-Za-z0-9+/]*={0,2}$\"".into());
-        }
-        Ok(Self(value.to_string()))
-    }
-}
-impl ::std::convert::TryFrom<&str> for FilePartFileWithBytes {
-    type Error = self::error::ConversionError;
-    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
-        value.parse()
-    }
-}
-impl ::std::convert::TryFrom<::std::string::String> for FilePartFileWithBytes {
-    type Error = self::error::ConversionError;
-    fn try_from(
-        value: ::std::string::String,
-    ) -> ::std::result::Result<Self, self::error::ConversionError> {
-        value.parse()
-    }
-}
-impl<'de> ::serde::Deserialize<'de> for FilePartFileWithBytes {
-    fn deserialize<D>(deserializer: D) -> ::std::result::Result<Self, D::Error>
-    where
-        D: ::serde::Deserializer<'de>,
-    {
-        ::std::string::String::deserialize(deserializer)?
-            .parse()
-            .map_err(|e: self::error::ConversionError| {
-                <D::Error as ::serde::de::Error>::custom(e.to_string())
-            })
-    }
-}
-#[doc = "`GetExtendedAgentCardRequest`"]
+#[doc = "Represents a request for the `GetExtendedAgentCard` method."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
 #[serde(deny_unknown_fields)]
 pub struct GetExtendedAgentCardRequest {
-    #[doc = "Optional tenant, provided as a path parameter."]
+    #[doc = "Optional. Opaque routing identifier. Must match the `tenant` value from\n the selected `AgentInterface` in the Agent Card when that field is set."]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub tenant: ::std::option::Option<::std::string::String>,
 }
@@ -476,14 +397,16 @@ impl GetExtendedAgentCardRequest {
         Default::default()
     }
 }
-#[doc = "`GetTaskPushNotificationConfigRequest`"]
-#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
+#[doc = "Represents a request for the `GetTaskPushNotificationConfig` method."]
+#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct GetTaskPushNotificationConfigRequest {
-    #[doc = "The resource name of the config to retrieve.\n Format: tasks/{task_id}/pushNotificationConfigs/{config_id}"]
-    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
-    pub name: ::std::option::Option<::std::string::String>,
-    #[doc = "Optional tenant, provided as a path parameter."]
+    #[doc = "The resource ID of the configuration to retrieve."]
+    pub id: ::std::string::String,
+    #[doc = "The parent task resource ID."]
+    #[serde(rename = "taskId")]
+    pub task_id: ::std::string::String,
+    #[doc = "Optional. Opaque routing identifier. Must match the `tenant` value from\n the selected `AgentInterface` in the Agent Card when that field is set."]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub tenant: ::std::option::Option<::std::string::String>,
 }
@@ -492,19 +415,19 @@ impl GetTaskPushNotificationConfigRequest {
         Default::default()
     }
 }
-#[doc = "Represents a request for the `tasks/get` method."]
+#[doc = "Represents a request for the `GetTask` method."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct GetTaskRequest {
-    #[doc = "The maximum number of messages to include in the history."]
+    #[doc = "The maximum number of most recent messages from the task's history to retrieve. An\n unset value means the client does not impose any limit. A value of zero is\n a request to not include any messages. The server MUST NOT return more\n messages than the provided value, but MAY apply a lower limit."]
     #[serde(
         rename = "historyLength",
         skip_serializing_if = "::std::option::Option::is_none"
     )]
     pub history_length: ::std::option::Option<i32>,
-    #[doc = "The resource name of the task.\n Format: tasks/{task_id}"]
-    pub name: ::std::string::String,
-    #[doc = "Optional tenant, provided as a path parameter."]
+    #[doc = "The resource ID of the task to retrieve."]
+    pub id: ::std::string::String,
+    #[doc = "Optional. Opaque routing identifier. Must match the `tenant` value from\n the selected `AgentInterface` in the Agent Card when that field is set."]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub tenant: ::std::option::Option<::std::string::String>,
 }
@@ -517,7 +440,7 @@ impl GetTaskRequest {
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct HttpAuthSecurityScheme {
-    #[doc = "A hint to the client to identify how the bearer token is formatted (e.g., \"JWT\").\n This is primarily for documentation purposes."]
+    #[doc = "A hint to the client to identify how the bearer token is formatted (e.g., \"JWT\").\n Primarily for documentation purposes."]
     #[serde(
         rename = "bearerFormat",
         skip_serializing_if = "::std::option::Option::is_none"
@@ -534,20 +457,27 @@ impl HttpAuthSecurityScheme {
         Default::default()
     }
 }
-#[doc = "Defines configuration details for the OAuth 2.0 Implicit flow."]
-#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
+#[doc = "Deprecated: Use Authorization Code + PKCE instead."]
+#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
 #[serde(deny_unknown_fields)]
 pub struct ImplicitOAuthFlow {
-    #[doc = "The authorization URL to be used for this flow."]
-    #[serde(rename = "authorizationUrl")]
-    pub authorization_url: ::std::string::String,
-    #[doc = "The URL to be used for obtaining refresh tokens."]
+    #[doc = "The authorization URL to be used for this flow. This MUST be in the\n form of a URL. The OAuth2 standard requires the use of TLS"]
+    #[serde(
+        rename = "authorizationUrl",
+        skip_serializing_if = "::std::option::Option::is_none"
+    )]
+    pub authorization_url: ::std::option::Option<::std::string::String>,
+    #[doc = "The URL to be used for obtaining refresh tokens. This MUST be in the\n form of a URL. The OAuth2 standard requires the use of TLS."]
     #[serde(
         rename = "refreshUrl",
         skip_serializing_if = "::std::option::Option::is_none"
     )]
     pub refresh_url: ::std::option::Option<::std::string::String>,
-    #[doc = "The available scopes for the OAuth2 security scheme."]
+    #[doc = "The available scopes for the OAuth2 security scheme. A map between the\n scope name and a short description for it. The map MAY be empty."]
+    #[serde(
+        default,
+        skip_serializing_if = ":: std :: collections :: HashMap::is_empty"
+    )]
     pub scopes: ::std::collections::HashMap<::std::string::String, ::std::string::String>,
 }
 impl ImplicitOAuthFlow {
@@ -555,50 +485,50 @@ impl ImplicitOAuthFlow {
         Default::default()
     }
 }
-#[doc = "`ListTaskPushNotificationConfigRequest`"]
-#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
+#[doc = "Represents a request for the `ListTaskPushNotificationConfigs` method."]
+#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
-pub struct ListTaskPushNotificationConfigRequest {
+pub struct ListTaskPushNotificationConfigsRequest {
     #[doc = "The maximum number of configurations to return."]
     #[serde(
         rename = "pageSize",
         skip_serializing_if = "::std::option::Option::is_none"
     )]
     pub page_size: ::std::option::Option<i32>,
-    #[doc = "A page token received from a previous ListTaskPushNotificationConfigRequest call."]
+    #[doc = "A page token received from a previous `ListTaskPushNotificationConfigsRequest` call."]
     #[serde(
         rename = "pageToken",
         skip_serializing_if = "::std::option::Option::is_none"
     )]
     pub page_token: ::std::option::Option<::std::string::String>,
-    #[doc = "The parent task resource.\n Format: tasks/{task_id}"]
-    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
-    pub parent: ::std::option::Option<::std::string::String>,
-    #[doc = "Optional tenant, provided as a path parameter."]
+    #[doc = "The parent task resource ID."]
+    #[serde(rename = "taskId")]
+    pub task_id: ::std::string::String,
+    #[doc = "Optional. Opaque routing identifier. Must match the `tenant` value from\n the selected `AgentInterface` in the Agent Card when that field is set."]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub tenant: ::std::option::Option<::std::string::String>,
 }
-impl ListTaskPushNotificationConfigRequest {
-    pub fn builder() -> builder::ListTaskPushNotificationConfigRequest {
+impl ListTaskPushNotificationConfigsRequest {
+    pub fn builder() -> builder::ListTaskPushNotificationConfigsRequest {
         Default::default()
     }
 }
-#[doc = "Represents a successful response for the `tasks/pushNotificationConfig/list`\n method."]
+#[doc = "Represents a successful response for the `ListTaskPushNotificationConfigs`\n method."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
 #[serde(deny_unknown_fields)]
-pub struct ListTaskPushNotificationConfigResponse {
+pub struct ListTaskPushNotificationConfigsResponse {
     #[doc = "The list of push notification configurations."]
     #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
     pub configs: ::std::vec::Vec<TaskPushNotificationConfig>,
-    #[doc = "A token, which can be sent as `page_token` to retrieve the next page.\n If this field is omitted, there are no subsequent pages."]
+    #[doc = "A token to retrieve the next page of results, or empty if there are no more results in the list."]
     #[serde(
         rename = "nextPageToken",
         skip_serializing_if = "::std::option::Option::is_none"
     )]
     pub next_page_token: ::std::option::Option<::std::string::String>,
 }
-impl ListTaskPushNotificationConfigResponse {
-    pub fn builder() -> builder::ListTaskPushNotificationConfigResponse {
+impl ListTaskPushNotificationConfigsResponse {
+    pub fn builder() -> builder::ListTaskPushNotificationConfigsResponse {
         Default::default()
     }
 }
@@ -624,19 +554,13 @@ pub struct ListTasksRequest {
         skip_serializing_if = "::std::option::Option::is_none"
     )]
     pub include_artifacts: ::std::option::Option<bool>,
-    #[doc = "Filter tasks updated after this timestamp (milliseconds since epoch).\n Only tasks with a last updated time greater than or equal to this value will be returned."]
-    #[serde(
-        rename = "lastUpdatedAfter",
-        skip_serializing_if = "::std::option::Option::is_none"
-    )]
-    pub last_updated_after: ::std::option::Option<i64>,
-    #[doc = "Maximum number of tasks to return. Must be between 1 and 100.\n Defaults to 50 if not specified."]
+    #[doc = "The maximum number of tasks to return. The service may return fewer than this value.\n If unspecified, at most 50 tasks will be returned.\n The minimum value is 1.\n The maximum value is 100."]
     #[serde(
         rename = "pageSize",
         skip_serializing_if = "::std::option::Option::is_none"
     )]
     pub page_size: ::std::option::Option<i32>,
-    #[doc = "Token for pagination. Use the next_page_token from a previous ListTasksResponse."]
+    #[doc = "A page token, received from a previous `ListTasks` call.\n `ListTasksResponse.next_page_token`.\n Provide this to retrieve the subsequent page."]
     #[serde(
         rename = "pageToken",
         skip_serializing_if = "::std::option::Option::is_none"
@@ -645,7 +569,13 @@ pub struct ListTasksRequest {
     #[doc = "Filter tasks by their current status state."]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub status: ::std::option::Option<TaskState>,
-    #[doc = "Optional tenant, provided as a path parameter."]
+    #[doc = "Filter tasks which have a status updated after the provided timestamp in ISO 8601 format (e.g., \"2023-10-27T10:00:00Z\").\n Only tasks with a status timestamp time greater than or equal to this value will be returned."]
+    #[serde(
+        rename = "statusTimestampAfter",
+        skip_serializing_if = "::std::option::Option::is_none"
+    )]
+    pub status_timestamp_after: ::std::option::Option<Timestamp>,
+    #[doc = "Optional. Opaque routing identifier. Must match the `tenant` value from\n the selected `AgentInterface` in the Agent Card when that field is set."]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub tenant: ::std::option::Option<::std::string::String>,
 }
@@ -654,14 +584,14 @@ impl ListTasksRequest {
         Default::default()
     }
 }
-#[doc = "Result object for tasks/list method containing an array of tasks and pagination information."]
+#[doc = "Result object for `ListTasks` method containing an array of tasks and pagination information."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct ListTasksResponse {
-    #[doc = "Token for retrieving the next page. Empty string if no more results."]
+    #[doc = "A token to retrieve the next page of results, or empty if there are no more results in the list."]
     #[serde(rename = "nextPageToken")]
     pub next_page_token: ::std::string::String,
-    #[doc = "The size of page requested."]
+    #[doc = "The page size used for this response."]
     #[serde(rename = "pageSize")]
     pub page_size: i32,
     #[doc = "Array of tasks matching the specified criteria."]
@@ -675,11 +605,11 @@ impl ListTasksResponse {
         Default::default()
     }
 }
-#[doc = "Message is one unit of communication between client and server. It is\n associated with a context and optionally a task. Since the server is\n responsible for the context definition, it must always provide a context_id\n in its messages. The client can optionally provide the context_id if it\n knows the context to associate the message to. Similarly for task_id,\n except the server decides if a task is created and whether to include the\n task_id."]
+#[doc = "`Message` is one unit of communication between client and server. It can be\n associated with a context and/or a task. For server messages, `context_id` must\n be provided, and `task_id` only if a task was created. For client messages, both\n fields are optional, with the caveat that if both are provided, they have to\n match (the `context_id` has to be the one that is set on the task). If only\n `task_id` is provided, the server will infer `context_id` from it."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct Message {
-    #[doc = "The context id of the message. This is optional and if set, the message\n will be associated with the given context."]
+    #[doc = "Optional. The context id of the message. If set, the message will be associated with the given context."]
     #[serde(
         rename = "contextId",
         skip_serializing_if = "::std::option::Option::is_none"
@@ -688,13 +618,13 @@ pub struct Message {
     #[doc = "The URIs of extensions that are present or contributed to this Message."]
     #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
     pub extensions: ::std::vec::Vec<::std::string::String>,
-    #[doc = "The unique identifier (e.g. UUID) of the message. This is required and\n created by the message creator."]
+    #[doc = "The unique identifier (e.g. UUID) of the message. This is created by the message creator."]
     #[serde(rename = "messageId")]
     pub message_id: ::std::string::String,
-    #[doc = "protolint:enable REPEATED_FIELD_NAMES_PLURALIZED\n Any optional metadata to provide along with the message."]
+    #[doc = "Optional. Any metadata to provide along with the message."]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub metadata: ::std::option::Option<Struct>,
-    #[doc = "protolint:disable REPEATED_FIELD_NAMES_PLURALIZED\n Parts is the container of the message content."]
+    #[doc = "Parts is the container of the message content."]
     pub parts: ::std::vec::Vec<Part>,
     #[doc = "A list of task IDs that this message references for additional context."]
     #[serde(
@@ -705,7 +635,7 @@ pub struct Message {
     pub reference_task_ids: ::std::vec::Vec<::std::string::String>,
     #[doc = "Identifies the sender of the message."]
     pub role: Role,
-    #[doc = "The task id of the message. This is optional and if set, the message\n will be associated with the given task."]
+    #[doc = "Optional. The task id of the message. If set, the message will be associated with the given task."]
     #[serde(
         rename = "taskId",
         skip_serializing_if = "::std::option::Option::is_none"
@@ -739,7 +669,7 @@ pub struct OAuth2SecurityScheme {
     pub description: ::std::option::Option<::std::string::String>,
     #[doc = "An object containing configuration information for the supported OAuth 2.0 flows."]
     pub flows: OAuthFlows,
-    #[doc = "URL to the oauth2 authorization server metadata\n RFC8414 (https://datatracker.ietf.org/doc/html/rfc8414). TLS is required."]
+    #[doc = "URL to the OAuth2 authorization server metadata [RFC 8414](https://datatracker.ietf.org/doc/html/rfc8414).\n TLS is required."]
     #[serde(
         rename = "oauth2MetadataUrl",
         skip_serializing_if = "::std::option::Option::is_none"
@@ -767,10 +697,16 @@ pub struct OAuthFlows {
         skip_serializing_if = "::std::option::Option::is_none"
     )]
     pub client_credentials: ::std::option::Option<ClientCredentialsOAuthFlow>,
-    #[doc = "Configuration for the OAuth Implicit flow."]
+    #[doc = "Configuration for the OAuth Device Code flow."]
+    #[serde(
+        rename = "deviceCode",
+        skip_serializing_if = "::std::option::Option::is_none"
+    )]
+    pub device_code: ::std::option::Option<DeviceCodeOAuthFlow>,
+    #[doc = "Deprecated: Use Authorization Code + PKCE instead."]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub implicit: ::std::option::Option<ImplicitOAuthFlow>,
-    #[doc = "Configuration for the OAuth Resource Owner Password flow."]
+    #[doc = "Deprecated: Use Authorization Code + PKCE or Device Code."]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub password: ::std::option::Option<PasswordOAuthFlow>,
 }
@@ -786,7 +722,7 @@ pub struct OpenIdConnectSecurityScheme {
     #[doc = "An optional description for the security scheme."]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub description: ::std::option::Option<::std::string::String>,
-    #[doc = "The OpenID Connect Discovery URL for the OIDC provider's metadata.\n See: https://openid.net/specs/openid-connect-discovery-1_0.html"]
+    #[doc = "The [OpenID Connect Discovery URL](https://openid.net/specs/openid-connect-discovery-1_0.html) for the OIDC provider's metadata."]
     #[serde(rename = "openIdConnectUrl")]
     pub open_id_connect_url: ::std::string::String,
 }
@@ -795,67 +731,117 @@ impl OpenIdConnectSecurityScheme {
         Default::default()
     }
 }
-#[doc = "Part represents a container for a section of communication content.\n Parts can be purely textual, some sort of file (image, video, etc) or\n a structured data blob (i.e. JSON)."]
+#[doc = "`Part` represents a container for a section of communication content.\n Parts can be purely textual, some sort of file (image, video, etc) or\n a structured data blob (i.e. JSON)."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
 #[serde(deny_unknown_fields)]
 pub struct Part {
-    #[doc = "The structured data content."]
+    #[doc = "Arbitrary structured `data` as a JSON value (object, array, string, number, boolean, or null)."]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
-    pub data: ::std::option::Option<DataPart>,
-    #[doc = "The file content, represented as either a URI or as base64-encoded bytes."]
+    pub data: ::std::option::Option<Value>,
+    #[doc = "An optional `filename` for the file (e.g., \"document.pdf\")."]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
-    pub file: ::std::option::Option<FilePart>,
-    #[doc = "Optional metadata associated with this part."]
+    pub filename: ::std::option::Option<::std::string::String>,
+    #[doc = "The `media_type` (MIME type) of the part content (e.g., \"text/plain\", \"application/json\", \"image/png\").\n This field is available for all part types."]
+    #[serde(
+        rename = "mediaType",
+        skip_serializing_if = "::std::option::Option::is_none"
+    )]
+    pub media_type: ::std::option::Option<::std::string::String>,
+    #[doc = "Optional. metadata associated with this part."]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub metadata: ::std::option::Option<Struct>,
-    #[doc = "The string content of the text part."]
+    #[doc = "The `raw` byte content of a file. In JSON serialization, this is encoded as a base64 string."]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub raw: ::std::option::Option<PartRaw>,
+    #[doc = "The string content of the `text` part."]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub text: ::std::option::Option<::std::string::String>,
+    #[doc = "A `url` pointing to the file's content."]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub url: ::std::option::Option<::std::string::String>,
 }
 impl Part {
     pub fn builder() -> builder::Part {
         Default::default()
     }
 }
-#[doc = "Defines configuration details for the OAuth 2.0 Resource Owner Password flow."]
-#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
+#[doc = "The `raw` byte content of a file. In JSON serialization, this is encoded as a base64 string."]
+#[derive(:: serde :: Serialize, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[serde(transparent)]
+pub struct PartRaw(::std::string::String);
+impl ::std::ops::Deref for PartRaw {
+    type Target = ::std::string::String;
+    fn deref(&self) -> &::std::string::String {
+        &self.0
+    }
+}
+impl ::std::convert::From<PartRaw> for ::std::string::String {
+    fn from(value: PartRaw) -> Self {
+        value.0
+    }
+}
+impl ::std::str::FromStr for PartRaw {
+    type Err = self::error::ConversionError;
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        static PATTERN: ::std::sync::LazyLock<::regress::Regex> =
+            ::std::sync::LazyLock::new(|| ::regress::Regex::new("^[A-Za-z0-9+/]*={0,2}$").unwrap());
+        if PATTERN.find(value).is_none() {
+            return Err("doesn't match pattern \"^[A-Za-z0-9+/]*={0,2}$\"".into());
+        }
+        Ok(Self(value.to_string()))
+    }
+}
+impl ::std::convert::TryFrom<&str> for PartRaw {
+    type Error = self::error::ConversionError;
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for PartRaw {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl<'de> ::serde::Deserialize<'de> for PartRaw {
+    fn deserialize<D>(deserializer: D) -> ::std::result::Result<Self, D::Error>
+    where
+        D: ::serde::Deserializer<'de>,
+    {
+        ::std::string::String::deserialize(deserializer)?
+            .parse()
+            .map_err(|e: self::error::ConversionError| {
+                <D::Error as ::serde::de::Error>::custom(e.to_string())
+            })
+    }
+}
+#[doc = "Deprecated: Use Authorization Code + PKCE or Device Code."]
+#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
 #[serde(deny_unknown_fields)]
 pub struct PasswordOAuthFlow {
-    #[doc = "The URL to be used for obtaining refresh tokens."]
+    #[doc = "The URL to be used for obtaining refresh tokens. This MUST be in the\n form of a URL. The OAuth2 standard requires the use of TLS."]
     #[serde(
         rename = "refreshUrl",
         skip_serializing_if = "::std::option::Option::is_none"
     )]
     pub refresh_url: ::std::option::Option<::std::string::String>,
-    #[doc = "The available scopes for the OAuth2 security scheme."]
+    #[doc = "The available scopes for the OAuth2 security scheme. A map between the\n scope name and a short description for it. The map MAY be empty."]
+    #[serde(
+        default,
+        skip_serializing_if = ":: std :: collections :: HashMap::is_empty"
+    )]
     pub scopes: ::std::collections::HashMap<::std::string::String, ::std::string::String>,
-    #[doc = "The token URL to be used for this flow."]
-    #[serde(rename = "tokenUrl")]
-    pub token_url: ::std::string::String,
+    #[doc = "The token URL to be used for this flow. This MUST be in the form of a URL.\n The OAuth2 standard requires the use of TLS."]
+    #[serde(
+        rename = "tokenUrl",
+        skip_serializing_if = "::std::option::Option::is_none"
+    )]
+    pub token_url: ::std::option::Option<::std::string::String>,
 }
 impl PasswordOAuthFlow {
     pub fn builder() -> builder::PasswordOAuthFlow {
-        Default::default()
-    }
-}
-#[doc = "Configuration for setting up push notifications for task updates."]
-#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
-#[serde(deny_unknown_fields)]
-pub struct PushNotificationConfig {
-    #[doc = "Information about the authentication to sent with the notification"]
-    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
-    pub authentication: ::std::option::Option<AuthenticationInfo>,
-    #[doc = "A unique identifier (e.g. UUID) for this push notification."]
-    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
-    pub id: ::std::option::Option<::std::string::String>,
-    #[doc = "Token unique for this task/session"]
-    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
-    pub token: ::std::option::Option<::std::string::String>,
-    #[doc = "Url to send the notification too"]
-    pub url: ::std::string::String,
-}
-impl PushNotificationConfig {
-    pub fn builder() -> builder::PushNotificationConfig {
         Default::default()
     }
 }
@@ -914,18 +900,19 @@ impl ::std::convert::TryFrom<::std::string::String> for Role {
         value.parse()
     }
 }
-#[doc = "`Security`"]
+#[doc = "Defines the security requirements for an agent."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
 #[serde(deny_unknown_fields)]
-pub struct Security {
+pub struct SecurityRequirement {
+    #[doc = "A map of security schemes to the required scopes."]
     #[serde(
         default,
         skip_serializing_if = ":: std :: collections :: HashMap::is_empty"
     )]
     pub schemes: ::std::collections::HashMap<::std::string::String, StringList>,
 }
-impl Security {
-    pub fn builder() -> builder::Security {
+impl SecurityRequirement {
+    pub fn builder() -> builder::SecurityRequirement {
         Default::default()
     }
 }
@@ -973,35 +960,38 @@ impl SecurityScheme {
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
 #[serde(deny_unknown_fields)]
 pub struct SendMessageConfiguration {
-    #[doc = "A list of media types the client is prepared to accept for response parts. Agents SHOULD use this to tailor their output."]
+    #[doc = "A list of media types the client is prepared to accept for response parts.\n Agents SHOULD use this to tailor their output."]
     #[serde(
         rename = "acceptedOutputModes",
         default,
         skip_serializing_if = "::std::vec::Vec::is_empty"
     )]
     pub accepted_output_modes: ::std::vec::Vec<::std::string::String>,
-    #[doc = "If true, the operation waits until the task reaches a terminal state before returning. Default is false."]
-    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
-    pub blocking: ::std::option::Option<bool>,
-    #[doc = "The maximum number of messages to include in the history."]
+    #[doc = "The maximum number of most recent messages from the task's history to retrieve in\n the response. An unset value means the client does not impose any limit. A\n value of zero is a request to not include any messages. The server MUST NOT\n return more messages than the provided value, but MAY apply a lower limit."]
     #[serde(
         rename = "historyLength",
         skip_serializing_if = "::std::option::Option::is_none"
     )]
     pub history_length: ::std::option::Option<i32>,
-    #[doc = "Configuration for the agent to send push notifications for task updates."]
+    #[doc = "If `true`, the operation returns immediately after creating the task,\n even if processing is still in progress.\n If `false` (default), the operation MUST wait until the task reaches a\n terminal (`COMPLETED`, `FAILED`, `CANCELED`, `REJECTED`) or interrupted\n (`INPUT_REQUIRED`, `AUTH_REQUIRED`) state before returning."]
     #[serde(
-        rename = "pushNotificationConfig",
+        rename = "returnImmediately",
         skip_serializing_if = "::std::option::Option::is_none"
     )]
-    pub push_notification_config: ::std::option::Option<PushNotificationConfig>,
+    pub return_immediately: ::std::option::Option<bool>,
+    #[doc = "Configuration for the agent to send push notifications for task updates.\n Task id should be empty when sending this configuration in a `SendMessage` request."]
+    #[serde(
+        rename = "taskPushNotificationConfig",
+        skip_serializing_if = "::std::option::Option::is_none"
+    )]
+    pub task_push_notification_config: ::std::option::Option<TaskPushNotificationConfig>,
 }
 impl SendMessageConfiguration {
     pub fn builder() -> builder::SendMessageConfiguration {
         Default::default()
     }
 }
-#[doc = "/////////// Request Messages ///////////\n Represents a request for the `message/send` method."]
+#[doc = "Represents a request for the `SendMessage` method."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct SendMessageRequest {
@@ -1013,7 +1003,7 @@ pub struct SendMessageRequest {
     #[doc = "A flexible key-value map for passing additional context or parameters."]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub metadata: ::std::option::Option<Struct>,
-    #[doc = "Optional tenant, provided as a path parameter."]
+    #[doc = "Optional. Opaque routing identifier. Must match the `tenant` value from\n the selected `AgentInterface` in the Agent Card when that field is set."]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub tenant: ::std::option::Option<::std::string::String>,
 }
@@ -1022,37 +1012,19 @@ impl SendMessageRequest {
         Default::default()
     }
 }
-#[doc = "////// Response Messages ///////////"]
+#[doc = "Represents the response for the `SendMessage` method."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
 #[serde(deny_unknown_fields)]
 pub struct SendMessageResponse {
+    #[doc = "A message from the agent."]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub message: ::std::option::Option<Message>,
+    #[doc = "The task created or updated by the message."]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub task: ::std::option::Option<Task>,
 }
 impl SendMessageResponse {
     pub fn builder() -> builder::SendMessageResponse {
-        Default::default()
-    }
-}
-#[doc = "Represents a request for the `tasks/pushNotificationConfig/set` method."]
-#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
-#[serde(deny_unknown_fields)]
-pub struct SetTaskPushNotificationConfigRequest {
-    #[doc = "The configuration to create."]
-    pub config: TaskPushNotificationConfig,
-    #[doc = "The ID for the new config."]
-    #[serde(rename = "configId")]
-    pub config_id: ::std::string::String,
-    #[doc = "The parent task resource for this config.\n Format: tasks/{task_id}"]
-    pub parent: ::std::string::String,
-    #[doc = "Optional tenant, provided as a path parameter."]
-    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
-    pub tenant: ::std::option::Option<::std::string::String>,
-}
-impl SetTaskPushNotificationConfigRequest {
-    pub fn builder() -> builder::SetTaskPushNotificationConfigRequest {
         Default::default()
     }
 }
@@ -1084,10 +1056,11 @@ impl StreamResponse {
         Default::default()
     }
 }
-#[doc = "protolint:disable REPEATED_FIELD_NAMES_PLURALIZED"]
+#[doc = "protolint:disable REPEATED_FIELD_NAMES_PLURALIZED\n A list of strings."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
 #[serde(deny_unknown_fields)]
 pub struct StringList {
+    #[doc = "The individual string values."]
     #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
     pub list: ::std::vec::Vec<::std::string::String>,
 }
@@ -1120,14 +1093,13 @@ impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json:
         Self(value)
     }
 }
-#[doc = "`SubscribeToTaskRequest`"]
-#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
+#[doc = "Represents a request for the `SubscribeToTask` method."]
+#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct SubscribeToTaskRequest {
-    #[doc = "The resource name of the task to subscribe to.\n Format: tasks/{task_id}"]
-    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
-    pub name: ::std::option::Option<::std::string::String>,
-    #[doc = "Optional tenant, provided as a path parameter."]
+    #[doc = "The resource ID of the task to subscribe to."]
+    pub id: ::std::string::String,
+    #[doc = "Optional. Opaque routing identifier. Must match the `tenant` value from\n the selected `AgentInterface` in the Agent Card when that field is set."]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub tenant: ::std::option::Option<::std::string::String>,
 }
@@ -1136,17 +1108,20 @@ impl SubscribeToTaskRequest {
         Default::default()
     }
 }
-#[doc = "Task is the core unit of action for A2A. It has a current status\n and when results are created for the task they are stored in the\n artifact. If there are multiple turns for a task, these are stored in\n history."]
+#[doc = "`Task` is the core unit of action for A2A. It has a current status\n and when results are created for the task they are stored in the\n artifact. If there are multiple turns for a task, these are stored in\n history."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct Task {
-    #[doc = "A set of output artifacts for a Task."]
+    #[doc = "A set of output artifacts for a `Task`."]
     #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
     pub artifacts: ::std::vec::Vec<Artifact>,
-    #[doc = "Unique identifier (e.g. UUID) for the contextual collection of interactions\n (tasks and messages). Created by the A2A server."]
-    #[serde(rename = "contextId")]
-    pub context_id: ::std::string::String,
-    #[doc = "protolint:disable REPEATED_FIELD_NAMES_PLURALIZED\n The history of interactions from a task."]
+    #[doc = "Unique identifier (e.g. UUID) for the contextual collection of interactions\n (tasks and messages)."]
+    #[serde(
+        rename = "contextId",
+        skip_serializing_if = "::std::option::Option::is_none"
+    )]
+    pub context_id: ::std::option::Option<::std::string::String>,
+    #[doc = "protolint:disable REPEATED_FIELD_NAMES_PLURALIZED\n The history of interactions from a `Task`."]
     #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
     pub history: ::std::vec::Vec<Message>,
     #[doc = "Unique identifier (e.g. UUID) for the task, generated by the server for a\n new task."]
@@ -1154,7 +1129,7 @@ pub struct Task {
     #[doc = "protolint:enable REPEATED_FIELD_NAMES_PLURALIZED\n A key/value object to store custom metadata about a task."]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub metadata: ::std::option::Option<Struct>,
-    #[doc = "The current status of a Task, including state and a message."]
+    #[doc = "The current status of a `Task`, including `state` and a `message`."]
     pub status: TaskStatus,
 }
 impl Task {
@@ -1162,7 +1137,7 @@ impl Task {
         Default::default()
     }
 }
-#[doc = "TaskArtifactUpdateEvent represents a task delta where an artifact has\n been generated."]
+#[doc = "A task delta where an artifact has been generated."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct TaskArtifactUpdateEvent {
@@ -1171,7 +1146,7 @@ pub struct TaskArtifactUpdateEvent {
     pub append: ::std::option::Option<bool>,
     #[doc = "The artifact that was generated or updated."]
     pub artifact: Artifact,
-    #[doc = "The id of the context that this task belongs to."]
+    #[doc = "The ID of the context that this task belongs to."]
     #[serde(rename = "contextId")]
     pub context_id: ::std::string::String,
     #[doc = "If true, this is the final chunk of the artifact."]
@@ -1180,10 +1155,10 @@ pub struct TaskArtifactUpdateEvent {
         skip_serializing_if = "::std::option::Option::is_none"
     )]
     pub last_chunk: ::std::option::Option<bool>,
-    #[doc = "Optional metadata associated with the artifact update."]
+    #[doc = "Optional. Metadata associated with the artifact update."]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub metadata: ::std::option::Option<Struct>,
-    #[doc = "The id of the task for this artifact."]
+    #[doc = "The ID of the task for this artifact."]
     #[serde(rename = "taskId")]
     pub task_id: ::std::string::String,
 }
@@ -1192,15 +1167,30 @@ impl TaskArtifactUpdateEvent {
         Default::default()
     }
 }
-#[doc = "A container associating a push notification configuration with a specific\n task."]
+#[doc = "A container associating a push notification configuration with a specific task."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct TaskPushNotificationConfig {
-    #[doc = "The resource name of the config.\n Format: tasks/{task_id}/pushNotificationConfigs/{config_id}"]
-    pub name: ::std::string::String,
-    #[doc = "The push notification configuration details."]
-    #[serde(rename = "pushNotificationConfig")]
-    pub push_notification_config: PushNotificationConfig,
+    #[doc = "Authentication information required to send the notification."]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub authentication: ::std::option::Option<AuthenticationInfo>,
+    #[doc = "The push notification configuration details.\n A unique identifier (e.g. UUID) for this push notification configuration."]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub id: ::std::option::Option<::std::string::String>,
+    #[doc = "The ID of the task this configuration is associated with."]
+    #[serde(
+        rename = "taskId",
+        skip_serializing_if = "::std::option::Option::is_none"
+    )]
+    pub task_id: ::std::option::Option<::std::string::String>,
+    #[doc = "Optional. Opaque routing identifier. Must match the `tenant` value from\n the selected `AgentInterface` in the Agent Card when that field is set."]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub tenant: ::std::option::Option<::std::string::String>,
+    #[doc = "A token unique for this task or session."]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub token: ::std::option::Option<::std::string::String>,
+    #[doc = "The URL where the notification should be sent."]
+    pub url: ::std::string::String,
 }
 impl TaskPushNotificationConfig {
     pub fn builder() -> builder::TaskPushNotificationConfig {
@@ -1231,8 +1221,8 @@ pub enum TaskState {
     TaskStateCompleted,
     #[serde(rename = "TASK_STATE_FAILED")]
     TaskStateFailed,
-    #[serde(rename = "TASK_STATE_CANCELLED")]
-    TaskStateCancelled,
+    #[serde(rename = "TASK_STATE_CANCELED")]
+    TaskStateCanceled,
     #[serde(rename = "TASK_STATE_INPUT_REQUIRED")]
     TaskStateInputRequired,
     #[serde(rename = "TASK_STATE_REJECTED")]
@@ -1248,7 +1238,7 @@ impl ::std::fmt::Display for TaskState {
             Self::TaskStateWorking => f.write_str("TASK_STATE_WORKING"),
             Self::TaskStateCompleted => f.write_str("TASK_STATE_COMPLETED"),
             Self::TaskStateFailed => f.write_str("TASK_STATE_FAILED"),
-            Self::TaskStateCancelled => f.write_str("TASK_STATE_CANCELLED"),
+            Self::TaskStateCanceled => f.write_str("TASK_STATE_CANCELED"),
             Self::TaskStateInputRequired => f.write_str("TASK_STATE_INPUT_REQUIRED"),
             Self::TaskStateRejected => f.write_str("TASK_STATE_REJECTED"),
             Self::TaskStateAuthRequired => f.write_str("TASK_STATE_AUTH_REQUIRED"),
@@ -1264,7 +1254,7 @@ impl ::std::str::FromStr for TaskState {
             "TASK_STATE_WORKING" => Ok(Self::TaskStateWorking),
             "TASK_STATE_COMPLETED" => Ok(Self::TaskStateCompleted),
             "TASK_STATE_FAILED" => Ok(Self::TaskStateFailed),
-            "TASK_STATE_CANCELLED" => Ok(Self::TaskStateCancelled),
+            "TASK_STATE_CANCELED" => Ok(Self::TaskStateCanceled),
             "TASK_STATE_INPUT_REQUIRED" => Ok(Self::TaskStateInputRequired),
             "TASK_STATE_REJECTED" => Ok(Self::TaskStateRejected),
             "TASK_STATE_AUTH_REQUIRED" => Ok(Self::TaskStateAuthRequired),
@@ -1304,22 +1294,19 @@ impl TaskStatus {
         Default::default()
     }
 }
-#[doc = "An event sent by the agent to notify the client of a change in a task's\n status."]
+#[doc = "An event sent by the agent to notify the client of a change in a task's status."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct TaskStatusUpdateEvent {
-    #[doc = "The id of the context that the task belongs to"]
+    #[doc = "The ID of the context that the task belongs to."]
     #[serde(rename = "contextId")]
     pub context_id: ::std::string::String,
-    #[doc = "If true, this is the final event in the stream for this interaction."]
-    #[serde(rename = "final")]
-    pub final_: bool,
-    #[doc = "Optional metadata to associate with the task update."]
+    #[doc = "Optional. Metadata associated with the task update."]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub metadata: ::std::option::Option<Struct>,
     #[doc = "The new status of the task."]
     pub status: TaskStatus,
-    #[doc = "The id of the task that is changed"]
+    #[doc = "The ID of the task that has changed."]
     #[serde(rename = "taskId")]
     pub task_id: ::std::string::String,
 }
@@ -1371,29 +1358,59 @@ impl ::std::convert::TryFrom<String> for Timestamp {
         value.parse()
     }
 }
+#[doc = "`Value`"]
+#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
+#[serde(transparent)]
+pub struct Value(pub ::serde_json::Value);
+impl ::std::ops::Deref for Value {
+    type Target = ::serde_json::Value;
+    fn deref(&self) -> &::serde_json::Value {
+        &self.0
+    }
+}
+impl ::std::convert::From<Value> for ::serde_json::Value {
+    fn from(value: Value) -> Self {
+        value.0
+    }
+}
+impl ::std::convert::From<::serde_json::Value> for Value {
+    fn from(value: ::serde_json::Value) -> Self {
+        Self(value)
+    }
+}
 #[doc = " Types for composing complex structures."]
 pub mod builder {
     #[derive(Clone, Debug)]
     pub struct AgentCapabilities {
+        extended_agent_card:
+            ::std::result::Result<::std::option::Option<bool>, ::std::string::String>,
         extensions:
             ::std::result::Result<::std::vec::Vec<super::AgentExtension>, ::std::string::String>,
         push_notifications:
-            ::std::result::Result<::std::option::Option<bool>, ::std::string::String>,
-        state_transition_history:
             ::std::result::Result<::std::option::Option<bool>, ::std::string::String>,
         streaming: ::std::result::Result<::std::option::Option<bool>, ::std::string::String>,
     }
     impl ::std::default::Default for AgentCapabilities {
         fn default() -> Self {
             Self {
+                extended_agent_card: Ok(Default::default()),
                 extensions: Ok(Default::default()),
                 push_notifications: Ok(Default::default()),
-                state_transition_history: Ok(Default::default()),
                 streaming: Ok(Default::default()),
             }
         }
     }
     impl AgentCapabilities {
+        pub fn extended_agent_card<T>(mut self, value: T) -> Self
+        where
+            T: ::std::convert::TryInto<::std::option::Option<bool>>,
+            T::Error: ::std::fmt::Display,
+        {
+            self.extended_agent_card = value.try_into().map_err(|e| {
+                format!("error converting supplied value for extended_agent_card: {e}")
+            });
+            self
+        }
         pub fn extensions<T>(mut self, value: T) -> Self
         where
             T: ::std::convert::TryInto<::std::vec::Vec<super::AgentExtension>>,
@@ -1414,16 +1431,6 @@ pub mod builder {
             });
             self
         }
-        pub fn state_transition_history<T>(mut self, value: T) -> Self
-        where
-            T: ::std::convert::TryInto<::std::option::Option<bool>>,
-            T::Error: ::std::fmt::Display,
-        {
-            self.state_transition_history = value.try_into().map_err(|e| {
-                format!("error converting supplied value for state_transition_history: {e}")
-            });
-            self
-        }
         pub fn streaming<T>(mut self, value: T) -> Self
         where
             T: ::std::convert::TryInto<::std::option::Option<bool>>,
@@ -1441,9 +1448,9 @@ pub mod builder {
             value: AgentCapabilities,
         ) -> ::std::result::Result<Self, super::error::ConversionError> {
             Ok(Self {
+                extended_agent_card: value.extended_agent_card?,
                 extensions: value.extensions?,
                 push_notifications: value.push_notifications?,
-                state_transition_history: value.state_transition_history?,
                 streaming: value.streaming?,
             })
         }
@@ -1451,17 +1458,15 @@ pub mod builder {
     impl ::std::convert::From<super::AgentCapabilities> for AgentCapabilities {
         fn from(value: super::AgentCapabilities) -> Self {
             Self {
+                extended_agent_card: Ok(value.extended_agent_card),
                 extensions: Ok(value.extensions),
                 push_notifications: Ok(value.push_notifications),
-                state_transition_history: Ok(value.state_transition_history),
                 streaming: Ok(value.streaming),
             }
         }
     }
     #[derive(Clone, Debug)]
     pub struct AgentCard {
-        additional_interfaces:
-            ::std::result::Result<::std::vec::Vec<super::AgentInterface>, ::std::string::String>,
         capabilities: ::std::result::Result<super::AgentCapabilities, ::std::string::String>,
         default_input_modes:
             ::std::result::Result<::std::vec::Vec<::std::string::String>, ::std::string::String>,
@@ -1477,16 +1482,14 @@ pub mod builder {
             ::std::string::String,
         >,
         name: ::std::result::Result<::std::string::String, ::std::string::String>,
-        preferred_transport: ::std::result::Result<
-            ::std::option::Option<::std::string::String>,
-            ::std::string::String,
-        >,
-        protocol_version: ::std::result::Result<::std::string::String, ::std::string::String>,
         provider: ::std::result::Result<
             ::std::option::Option<super::AgentProvider>,
             ::std::string::String,
         >,
-        security: ::std::result::Result<::std::vec::Vec<super::Security>, ::std::string::String>,
+        security_requirements: ::std::result::Result<
+            ::std::vec::Vec<super::SecurityRequirement>,
+            ::std::string::String,
+        >,
         security_schemes: ::std::result::Result<
             ::std::collections::HashMap<::std::string::String, super::SecurityScheme>,
             ::std::string::String,
@@ -1498,18 +1501,11 @@ pub mod builder {
         skills: ::std::result::Result<::std::vec::Vec<super::AgentSkill>, ::std::string::String>,
         supported_interfaces:
             ::std::result::Result<::std::vec::Vec<super::AgentInterface>, ::std::string::String>,
-        supports_extended_agent_card:
-            ::std::result::Result<::std::option::Option<bool>, ::std::string::String>,
-        url: ::std::result::Result<
-            ::std::option::Option<::std::string::String>,
-            ::std::string::String,
-        >,
         version: ::std::result::Result<::std::string::String, ::std::string::String>,
     }
     impl ::std::default::Default for AgentCard {
         fn default() -> Self {
             Self {
-                additional_interfaces: Ok(Default::default()),
                 capabilities: Err("no value supplied for capabilities".to_string()),
                 default_input_modes: Err("no value supplied for default_input_modes".to_string()),
                 default_output_modes: Err("no value supplied for default_output_modes".to_string()),
@@ -1517,31 +1513,17 @@ pub mod builder {
                 documentation_url: Ok(Default::default()),
                 icon_url: Ok(Default::default()),
                 name: Err("no value supplied for name".to_string()),
-                preferred_transport: Ok(Default::default()),
-                protocol_version: Err("no value supplied for protocol_version".to_string()),
                 provider: Ok(Default::default()),
-                security: Ok(Default::default()),
+                security_requirements: Ok(Default::default()),
                 security_schemes: Ok(Default::default()),
                 signatures: Ok(Default::default()),
                 skills: Err("no value supplied for skills".to_string()),
-                supported_interfaces: Ok(Default::default()),
-                supports_extended_agent_card: Ok(Default::default()),
-                url: Ok(Default::default()),
+                supported_interfaces: Err("no value supplied for supported_interfaces".to_string()),
                 version: Err("no value supplied for version".to_string()),
             }
         }
     }
     impl AgentCard {
-        pub fn additional_interfaces<T>(mut self, value: T) -> Self
-        where
-            T: ::std::convert::TryInto<::std::vec::Vec<super::AgentInterface>>,
-            T::Error: ::std::fmt::Display,
-        {
-            self.additional_interfaces = value.try_into().map_err(|e| {
-                format!("error converting supplied value for additional_interfaces: {e}")
-            });
-            self
-        }
         pub fn capabilities<T>(mut self, value: T) -> Self
         where
             T: ::std::convert::TryInto<super::AgentCapabilities>,
@@ -1612,26 +1594,6 @@ pub mod builder {
                 .map_err(|e| format!("error converting supplied value for name: {e}"));
             self
         }
-        pub fn preferred_transport<T>(mut self, value: T) -> Self
-        where
-            T: ::std::convert::TryInto<::std::option::Option<::std::string::String>>,
-            T::Error: ::std::fmt::Display,
-        {
-            self.preferred_transport = value.try_into().map_err(|e| {
-                format!("error converting supplied value for preferred_transport: {e}")
-            });
-            self
-        }
-        pub fn protocol_version<T>(mut self, value: T) -> Self
-        where
-            T: ::std::convert::TryInto<::std::string::String>,
-            T::Error: ::std::fmt::Display,
-        {
-            self.protocol_version = value
-                .try_into()
-                .map_err(|e| format!("error converting supplied value for protocol_version: {e}"));
-            self
-        }
         pub fn provider<T>(mut self, value: T) -> Self
         where
             T: ::std::convert::TryInto<::std::option::Option<super::AgentProvider>>,
@@ -1642,14 +1604,14 @@ pub mod builder {
                 .map_err(|e| format!("error converting supplied value for provider: {e}"));
             self
         }
-        pub fn security<T>(mut self, value: T) -> Self
+        pub fn security_requirements<T>(mut self, value: T) -> Self
         where
-            T: ::std::convert::TryInto<::std::vec::Vec<super::Security>>,
+            T: ::std::convert::TryInto<::std::vec::Vec<super::SecurityRequirement>>,
             T::Error: ::std::fmt::Display,
         {
-            self.security = value
-                .try_into()
-                .map_err(|e| format!("error converting supplied value for security: {e}"));
+            self.security_requirements = value.try_into().map_err(|e| {
+                format!("error converting supplied value for security_requirements: {e}")
+            });
             self
         }
         pub fn security_schemes<T>(mut self, value: T) -> Self
@@ -1694,26 +1656,6 @@ pub mod builder {
             });
             self
         }
-        pub fn supports_extended_agent_card<T>(mut self, value: T) -> Self
-        where
-            T: ::std::convert::TryInto<::std::option::Option<bool>>,
-            T::Error: ::std::fmt::Display,
-        {
-            self.supports_extended_agent_card = value.try_into().map_err(|e| {
-                format!("error converting supplied value for supports_extended_agent_card: {e}")
-            });
-            self
-        }
-        pub fn url<T>(mut self, value: T) -> Self
-        where
-            T: ::std::convert::TryInto<::std::option::Option<::std::string::String>>,
-            T::Error: ::std::fmt::Display,
-        {
-            self.url = value
-                .try_into()
-                .map_err(|e| format!("error converting supplied value for url: {e}"));
-            self
-        }
         pub fn version<T>(mut self, value: T) -> Self
         where
             T: ::std::convert::TryInto<::std::string::String>,
@@ -1731,7 +1673,6 @@ pub mod builder {
             value: AgentCard,
         ) -> ::std::result::Result<Self, super::error::ConversionError> {
             Ok(Self {
-                additional_interfaces: value.additional_interfaces?,
                 capabilities: value.capabilities?,
                 default_input_modes: value.default_input_modes?,
                 default_output_modes: value.default_output_modes?,
@@ -1739,16 +1680,12 @@ pub mod builder {
                 documentation_url: value.documentation_url?,
                 icon_url: value.icon_url?,
                 name: value.name?,
-                preferred_transport: value.preferred_transport?,
-                protocol_version: value.protocol_version?,
                 provider: value.provider?,
-                security: value.security?,
+                security_requirements: value.security_requirements?,
                 security_schemes: value.security_schemes?,
                 signatures: value.signatures?,
                 skills: value.skills?,
                 supported_interfaces: value.supported_interfaces?,
-                supports_extended_agent_card: value.supports_extended_agent_card?,
-                url: value.url?,
                 version: value.version?,
             })
         }
@@ -1756,7 +1693,6 @@ pub mod builder {
     impl ::std::convert::From<super::AgentCard> for AgentCard {
         fn from(value: super::AgentCard) -> Self {
             Self {
-                additional_interfaces: Ok(value.additional_interfaces),
                 capabilities: Ok(value.capabilities),
                 default_input_modes: Ok(value.default_input_modes),
                 default_output_modes: Ok(value.default_output_modes),
@@ -1764,16 +1700,12 @@ pub mod builder {
                 documentation_url: Ok(value.documentation_url),
                 icon_url: Ok(value.icon_url),
                 name: Ok(value.name),
-                preferred_transport: Ok(value.preferred_transport),
-                protocol_version: Ok(value.protocol_version),
                 provider: Ok(value.provider),
-                security: Ok(value.security),
+                security_requirements: Ok(value.security_requirements),
                 security_schemes: Ok(value.security_schemes),
                 signatures: Ok(value.signatures),
                 skills: Ok(value.skills),
                 supported_interfaces: Ok(value.supported_interfaces),
-                supports_extended_agent_card: Ok(value.supports_extended_agent_card),
-                url: Ok(value.url),
                 version: Ok(value.version),
             }
         }
@@ -1937,6 +1869,7 @@ pub mod builder {
     #[derive(Clone, Debug)]
     pub struct AgentInterface {
         protocol_binding: ::std::result::Result<::std::string::String, ::std::string::String>,
+        protocol_version: ::std::result::Result<::std::string::String, ::std::string::String>,
         tenant: ::std::result::Result<
             ::std::option::Option<::std::string::String>,
             ::std::string::String,
@@ -1947,6 +1880,7 @@ pub mod builder {
         fn default() -> Self {
             Self {
                 protocol_binding: Err("no value supplied for protocol_binding".to_string()),
+                protocol_version: Err("no value supplied for protocol_version".to_string()),
                 tenant: Ok(Default::default()),
                 url: Err("no value supplied for url".to_string()),
             }
@@ -1961,6 +1895,16 @@ pub mod builder {
             self.protocol_binding = value
                 .try_into()
                 .map_err(|e| format!("error converting supplied value for protocol_binding: {e}"));
+            self
+        }
+        pub fn protocol_version<T>(mut self, value: T) -> Self
+        where
+            T: ::std::convert::TryInto<::std::string::String>,
+            T::Error: ::std::fmt::Display,
+        {
+            self.protocol_version = value
+                .try_into()
+                .map_err(|e| format!("error converting supplied value for protocol_version: {e}"));
             self
         }
         pub fn tenant<T>(mut self, value: T) -> Self
@@ -1991,6 +1935,7 @@ pub mod builder {
         ) -> ::std::result::Result<Self, super::error::ConversionError> {
             Ok(Self {
                 protocol_binding: value.protocol_binding?,
+                protocol_version: value.protocol_version?,
                 tenant: value.tenant?,
                 url: value.url?,
             })
@@ -2000,6 +1945,7 @@ pub mod builder {
         fn from(value: super::AgentInterface) -> Self {
             Self {
                 protocol_binding: Ok(value.protocol_binding),
+                protocol_version: Ok(value.protocol_version),
                 tenant: Ok(value.tenant),
                 url: Ok(value.url),
             }
@@ -2070,7 +2016,10 @@ pub mod builder {
         name: ::std::result::Result<::std::string::String, ::std::string::String>,
         output_modes:
             ::std::result::Result<::std::vec::Vec<::std::string::String>, ::std::string::String>,
-        security: ::std::result::Result<::std::vec::Vec<super::Security>, ::std::string::String>,
+        security_requirements: ::std::result::Result<
+            ::std::vec::Vec<super::SecurityRequirement>,
+            ::std::string::String,
+        >,
         tags: ::std::result::Result<::std::vec::Vec<::std::string::String>, ::std::string::String>,
     }
     impl ::std::default::Default for AgentSkill {
@@ -2082,7 +2031,7 @@ pub mod builder {
                 input_modes: Ok(Default::default()),
                 name: Err("no value supplied for name".to_string()),
                 output_modes: Ok(Default::default()),
-                security: Ok(Default::default()),
+                security_requirements: Ok(Default::default()),
                 tags: Err("no value supplied for tags".to_string()),
             }
         }
@@ -2148,14 +2097,14 @@ pub mod builder {
                 .map_err(|e| format!("error converting supplied value for output_modes: {e}"));
             self
         }
-        pub fn security<T>(mut self, value: T) -> Self
+        pub fn security_requirements<T>(mut self, value: T) -> Self
         where
-            T: ::std::convert::TryInto<::std::vec::Vec<super::Security>>,
+            T: ::std::convert::TryInto<::std::vec::Vec<super::SecurityRequirement>>,
             T::Error: ::std::fmt::Display,
         {
-            self.security = value
-                .try_into()
-                .map_err(|e| format!("error converting supplied value for security: {e}"));
+            self.security_requirements = value.try_into().map_err(|e| {
+                format!("error converting supplied value for security_requirements: {e}")
+            });
             self
         }
         pub fn tags<T>(mut self, value: T) -> Self
@@ -2181,7 +2130,7 @@ pub mod builder {
                 input_modes: value.input_modes?,
                 name: value.name?,
                 output_modes: value.output_modes?,
-                security: value.security?,
+                security_requirements: value.security_requirements?,
                 tags: value.tags?,
             })
         }
@@ -2195,7 +2144,7 @@ pub mod builder {
                 input_modes: Ok(value.input_modes),
                 name: Ok(value.name),
                 output_modes: Ok(value.output_modes),
-                security: Ok(value.security),
+                security_requirements: Ok(value.security_requirements),
                 tags: Ok(value.tags),
             }
         }
@@ -2393,14 +2342,13 @@ pub mod builder {
             ::std::option::Option<::std::string::String>,
             ::std::string::String,
         >,
-        schemes:
-            ::std::result::Result<::std::vec::Vec<::std::string::String>, ::std::string::String>,
+        scheme: ::std::result::Result<::std::string::String, ::std::string::String>,
     }
     impl ::std::default::Default for AuthenticationInfo {
         fn default() -> Self {
             Self {
                 credentials: Ok(Default::default()),
-                schemes: Err("no value supplied for schemes".to_string()),
+                scheme: Err("no value supplied for scheme".to_string()),
             }
         }
     }
@@ -2415,14 +2363,14 @@ pub mod builder {
                 .map_err(|e| format!("error converting supplied value for credentials: {e}"));
             self
         }
-        pub fn schemes<T>(mut self, value: T) -> Self
+        pub fn scheme<T>(mut self, value: T) -> Self
         where
-            T: ::std::convert::TryInto<::std::vec::Vec<::std::string::String>>,
+            T: ::std::convert::TryInto<::std::string::String>,
             T::Error: ::std::fmt::Display,
         {
-            self.schemes = value
+            self.scheme = value
                 .try_into()
-                .map_err(|e| format!("error converting supplied value for schemes: {e}"));
+                .map_err(|e| format!("error converting supplied value for scheme: {e}"));
             self
         }
     }
@@ -2433,7 +2381,7 @@ pub mod builder {
         ) -> ::std::result::Result<Self, super::error::ConversionError> {
             Ok(Self {
                 credentials: value.credentials?,
-                schemes: value.schemes?,
+                scheme: value.scheme?,
             })
         }
     }
@@ -2441,13 +2389,14 @@ pub mod builder {
         fn from(value: super::AuthenticationInfo) -> Self {
             Self {
                 credentials: Ok(value.credentials),
-                schemes: Ok(value.schemes),
+                scheme: Ok(value.scheme),
             }
         }
     }
     #[derive(Clone, Debug)]
     pub struct AuthorizationCodeOAuthFlow {
         authorization_url: ::std::result::Result<::std::string::String, ::std::string::String>,
+        pkce_required: ::std::result::Result<::std::option::Option<bool>, ::std::string::String>,
         refresh_url: ::std::result::Result<
             ::std::option::Option<::std::string::String>,
             ::std::string::String,
@@ -2462,6 +2411,7 @@ pub mod builder {
         fn default() -> Self {
             Self {
                 authorization_url: Err("no value supplied for authorization_url".to_string()),
+                pkce_required: Ok(Default::default()),
                 refresh_url: Ok(Default::default()),
                 scopes: Err("no value supplied for scopes".to_string()),
                 token_url: Err("no value supplied for token_url".to_string()),
@@ -2477,6 +2427,16 @@ pub mod builder {
             self.authorization_url = value
                 .try_into()
                 .map_err(|e| format!("error converting supplied value for authorization_url: {e}"));
+            self
+        }
+        pub fn pkce_required<T>(mut self, value: T) -> Self
+        where
+            T: ::std::convert::TryInto<::std::option::Option<bool>>,
+            T::Error: ::std::fmt::Display,
+        {
+            self.pkce_required = value
+                .try_into()
+                .map_err(|e| format!("error converting supplied value for pkce_required: {e}"));
             self
         }
         pub fn refresh_url<T>(mut self, value: T) -> Self
@@ -2519,6 +2479,7 @@ pub mod builder {
         ) -> ::std::result::Result<Self, super::error::ConversionError> {
             Ok(Self {
                 authorization_url: value.authorization_url?,
+                pkce_required: value.pkce_required?,
                 refresh_url: value.refresh_url?,
                 scopes: value.scopes?,
                 token_url: value.token_url?,
@@ -2529,6 +2490,7 @@ pub mod builder {
         fn from(value: super::AuthorizationCodeOAuthFlow) -> Self {
             Self {
                 authorization_url: Ok(value.authorization_url),
+                pkce_required: Ok(value.pkce_required),
                 refresh_url: Ok(value.refresh_url),
                 scopes: Ok(value.scopes),
                 token_url: Ok(value.token_url),
@@ -2537,10 +2499,9 @@ pub mod builder {
     }
     #[derive(Clone, Debug)]
     pub struct CancelTaskRequest {
-        name: ::std::result::Result<
-            ::std::option::Option<::std::string::String>,
-            ::std::string::String,
-        >,
+        id: ::std::result::Result<::std::string::String, ::std::string::String>,
+        metadata:
+            ::std::result::Result<::std::option::Option<super::Struct>, ::std::string::String>,
         tenant: ::std::result::Result<
             ::std::option::Option<::std::string::String>,
             ::std::string::String,
@@ -2549,20 +2510,31 @@ pub mod builder {
     impl ::std::default::Default for CancelTaskRequest {
         fn default() -> Self {
             Self {
-                name: Ok(Default::default()),
+                id: Err("no value supplied for id".to_string()),
+                metadata: Ok(Default::default()),
                 tenant: Ok(Default::default()),
             }
         }
     }
     impl CancelTaskRequest {
-        pub fn name<T>(mut self, value: T) -> Self
+        pub fn id<T>(mut self, value: T) -> Self
         where
-            T: ::std::convert::TryInto<::std::option::Option<::std::string::String>>,
+            T: ::std::convert::TryInto<::std::string::String>,
             T::Error: ::std::fmt::Display,
         {
-            self.name = value
+            self.id = value
                 .try_into()
-                .map_err(|e| format!("error converting supplied value for name: {e}"));
+                .map_err(|e| format!("error converting supplied value for id: {e}"));
+            self
+        }
+        pub fn metadata<T>(mut self, value: T) -> Self
+        where
+            T: ::std::convert::TryInto<::std::option::Option<super::Struct>>,
+            T::Error: ::std::fmt::Display,
+        {
+            self.metadata = value
+                .try_into()
+                .map_err(|e| format!("error converting supplied value for metadata: {e}"));
             self
         }
         pub fn tenant<T>(mut self, value: T) -> Self
@@ -2582,7 +2554,8 @@ pub mod builder {
             value: CancelTaskRequest,
         ) -> ::std::result::Result<Self, super::error::ConversionError> {
             Ok(Self {
-                name: value.name?,
+                id: value.id?,
+                metadata: value.metadata?,
                 tenant: value.tenant?,
             })
         }
@@ -2590,7 +2563,8 @@ pub mod builder {
     impl ::std::convert::From<super::CancelTaskRequest> for CancelTaskRequest {
         fn from(value: super::CancelTaskRequest) -> Self {
             Self {
-                name: Ok(value.name),
+                id: Ok(value.id),
+                metadata: Ok(value.metadata),
                 tenant: Ok(value.tenant),
             }
         }
@@ -2672,47 +2646,9 @@ pub mod builder {
         }
     }
     #[derive(Clone, Debug)]
-    pub struct DataPart {
-        data: ::std::result::Result<super::Struct, ::std::string::String>,
-    }
-    impl ::std::default::Default for DataPart {
-        fn default() -> Self {
-            Self {
-                data: Err("no value supplied for data".to_string()),
-            }
-        }
-    }
-    impl DataPart {
-        pub fn data<T>(mut self, value: T) -> Self
-        where
-            T: ::std::convert::TryInto<super::Struct>,
-            T::Error: ::std::fmt::Display,
-        {
-            self.data = value
-                .try_into()
-                .map_err(|e| format!("error converting supplied value for data: {e}"));
-            self
-        }
-    }
-    impl ::std::convert::TryFrom<DataPart> for super::DataPart {
-        type Error = super::error::ConversionError;
-        fn try_from(value: DataPart) -> ::std::result::Result<Self, super::error::ConversionError> {
-            Ok(Self { data: value.data? })
-        }
-    }
-    impl ::std::convert::From<super::DataPart> for DataPart {
-        fn from(value: super::DataPart) -> Self {
-            Self {
-                data: Ok(value.data),
-            }
-        }
-    }
-    #[derive(Clone, Debug)]
     pub struct DeleteTaskPushNotificationConfigRequest {
-        name: ::std::result::Result<
-            ::std::option::Option<::std::string::String>,
-            ::std::string::String,
-        >,
+        id: ::std::result::Result<::std::string::String, ::std::string::String>,
+        task_id: ::std::result::Result<::std::string::String, ::std::string::String>,
         tenant: ::std::result::Result<
             ::std::option::Option<::std::string::String>,
             ::std::string::String,
@@ -2721,20 +2657,31 @@ pub mod builder {
     impl ::std::default::Default for DeleteTaskPushNotificationConfigRequest {
         fn default() -> Self {
             Self {
-                name: Ok(Default::default()),
+                id: Err("no value supplied for id".to_string()),
+                task_id: Err("no value supplied for task_id".to_string()),
                 tenant: Ok(Default::default()),
             }
         }
     }
     impl DeleteTaskPushNotificationConfigRequest {
-        pub fn name<T>(mut self, value: T) -> Self
+        pub fn id<T>(mut self, value: T) -> Self
         where
-            T: ::std::convert::TryInto<::std::option::Option<::std::string::String>>,
+            T: ::std::convert::TryInto<::std::string::String>,
             T::Error: ::std::fmt::Display,
         {
-            self.name = value
+            self.id = value
                 .try_into()
-                .map_err(|e| format!("error converting supplied value for name: {e}"));
+                .map_err(|e| format!("error converting supplied value for id: {e}"));
+            self
+        }
+        pub fn task_id<T>(mut self, value: T) -> Self
+        where
+            T: ::std::convert::TryInto<::std::string::String>,
+            T::Error: ::std::fmt::Display,
+        {
+            self.task_id = value
+                .try_into()
+                .map_err(|e| format!("error converting supplied value for task_id: {e}"));
             self
         }
         pub fn tenant<T>(mut self, value: T) -> Self
@@ -2756,7 +2703,8 @@ pub mod builder {
             value: DeleteTaskPushNotificationConfigRequest,
         ) -> ::std::result::Result<Self, super::error::ConversionError> {
             Ok(Self {
-                name: value.name?,
+                id: value.id?,
+                task_id: value.task_id?,
                 tenant: value.tenant?,
             })
         }
@@ -2766,100 +2714,102 @@ pub mod builder {
     {
         fn from(value: super::DeleteTaskPushNotificationConfigRequest) -> Self {
             Self {
-                name: Ok(value.name),
+                id: Ok(value.id),
+                task_id: Ok(value.task_id),
                 tenant: Ok(value.tenant),
             }
         }
     }
     #[derive(Clone, Debug)]
-    pub struct FilePart {
-        file_with_bytes: ::std::result::Result<
-            ::std::option::Option<super::FilePartFileWithBytes>,
-            ::std::string::String,
-        >,
-        file_with_uri: ::std::result::Result<
+    pub struct DeviceCodeOAuthFlow {
+        device_authorization_url:
+            ::std::result::Result<::std::string::String, ::std::string::String>,
+        refresh_url: ::std::result::Result<
             ::std::option::Option<::std::string::String>,
             ::std::string::String,
         >,
-        media_type: ::std::result::Result<
-            ::std::option::Option<::std::string::String>,
+        scopes: ::std::result::Result<
+            ::std::collections::HashMap<::std::string::String, ::std::string::String>,
             ::std::string::String,
         >,
-        name: ::std::result::Result<
-            ::std::option::Option<::std::string::String>,
-            ::std::string::String,
-        >,
+        token_url: ::std::result::Result<::std::string::String, ::std::string::String>,
     }
-    impl ::std::default::Default for FilePart {
+    impl ::std::default::Default for DeviceCodeOAuthFlow {
         fn default() -> Self {
             Self {
-                file_with_bytes: Ok(Default::default()),
-                file_with_uri: Ok(Default::default()),
-                media_type: Ok(Default::default()),
-                name: Ok(Default::default()),
+                device_authorization_url: Err(
+                    "no value supplied for device_authorization_url".to_string()
+                ),
+                refresh_url: Ok(Default::default()),
+                scopes: Err("no value supplied for scopes".to_string()),
+                token_url: Err("no value supplied for token_url".to_string()),
             }
         }
     }
-    impl FilePart {
-        pub fn file_with_bytes<T>(mut self, value: T) -> Self
+    impl DeviceCodeOAuthFlow {
+        pub fn device_authorization_url<T>(mut self, value: T) -> Self
         where
-            T: ::std::convert::TryInto<::std::option::Option<super::FilePartFileWithBytes>>,
+            T: ::std::convert::TryInto<::std::string::String>,
             T::Error: ::std::fmt::Display,
         {
-            self.file_with_bytes = value
-                .try_into()
-                .map_err(|e| format!("error converting supplied value for file_with_bytes: {e}"));
+            self.device_authorization_url = value.try_into().map_err(|e| {
+                format!("error converting supplied value for device_authorization_url: {e}")
+            });
             self
         }
-        pub fn file_with_uri<T>(mut self, value: T) -> Self
+        pub fn refresh_url<T>(mut self, value: T) -> Self
         where
             T: ::std::convert::TryInto<::std::option::Option<::std::string::String>>,
             T::Error: ::std::fmt::Display,
         {
-            self.file_with_uri = value
+            self.refresh_url = value
                 .try_into()
-                .map_err(|e| format!("error converting supplied value for file_with_uri: {e}"));
+                .map_err(|e| format!("error converting supplied value for refresh_url: {e}"));
             self
         }
-        pub fn media_type<T>(mut self, value: T) -> Self
+        pub fn scopes<T>(mut self, value: T) -> Self
         where
-            T: ::std::convert::TryInto<::std::option::Option<::std::string::String>>,
+            T: ::std::convert::TryInto<
+                    ::std::collections::HashMap<::std::string::String, ::std::string::String>,
+                >,
             T::Error: ::std::fmt::Display,
         {
-            self.media_type = value
+            self.scopes = value
                 .try_into()
-                .map_err(|e| format!("error converting supplied value for media_type: {e}"));
+                .map_err(|e| format!("error converting supplied value for scopes: {e}"));
             self
         }
-        pub fn name<T>(mut self, value: T) -> Self
+        pub fn token_url<T>(mut self, value: T) -> Self
         where
-            T: ::std::convert::TryInto<::std::option::Option<::std::string::String>>,
+            T: ::std::convert::TryInto<::std::string::String>,
             T::Error: ::std::fmt::Display,
         {
-            self.name = value
+            self.token_url = value
                 .try_into()
-                .map_err(|e| format!("error converting supplied value for name: {e}"));
+                .map_err(|e| format!("error converting supplied value for token_url: {e}"));
             self
         }
     }
-    impl ::std::convert::TryFrom<FilePart> for super::FilePart {
+    impl ::std::convert::TryFrom<DeviceCodeOAuthFlow> for super::DeviceCodeOAuthFlow {
         type Error = super::error::ConversionError;
-        fn try_from(value: FilePart) -> ::std::result::Result<Self, super::error::ConversionError> {
+        fn try_from(
+            value: DeviceCodeOAuthFlow,
+        ) -> ::std::result::Result<Self, super::error::ConversionError> {
             Ok(Self {
-                file_with_bytes: value.file_with_bytes?,
-                file_with_uri: value.file_with_uri?,
-                media_type: value.media_type?,
-                name: value.name?,
+                device_authorization_url: value.device_authorization_url?,
+                refresh_url: value.refresh_url?,
+                scopes: value.scopes?,
+                token_url: value.token_url?,
             })
         }
     }
-    impl ::std::convert::From<super::FilePart> for FilePart {
-        fn from(value: super::FilePart) -> Self {
+    impl ::std::convert::From<super::DeviceCodeOAuthFlow> for DeviceCodeOAuthFlow {
+        fn from(value: super::DeviceCodeOAuthFlow) -> Self {
             Self {
-                file_with_bytes: Ok(value.file_with_bytes),
-                file_with_uri: Ok(value.file_with_uri),
-                media_type: Ok(value.media_type),
-                name: Ok(value.name),
+                device_authorization_url: Ok(value.device_authorization_url),
+                refresh_url: Ok(value.refresh_url),
+                scopes: Ok(value.scopes),
+                token_url: Ok(value.token_url),
             }
         }
     }
@@ -2908,10 +2858,8 @@ pub mod builder {
     }
     #[derive(Clone, Debug)]
     pub struct GetTaskPushNotificationConfigRequest {
-        name: ::std::result::Result<
-            ::std::option::Option<::std::string::String>,
-            ::std::string::String,
-        >,
+        id: ::std::result::Result<::std::string::String, ::std::string::String>,
+        task_id: ::std::result::Result<::std::string::String, ::std::string::String>,
         tenant: ::std::result::Result<
             ::std::option::Option<::std::string::String>,
             ::std::string::String,
@@ -2920,20 +2868,31 @@ pub mod builder {
     impl ::std::default::Default for GetTaskPushNotificationConfigRequest {
         fn default() -> Self {
             Self {
-                name: Ok(Default::default()),
+                id: Err("no value supplied for id".to_string()),
+                task_id: Err("no value supplied for task_id".to_string()),
                 tenant: Ok(Default::default()),
             }
         }
     }
     impl GetTaskPushNotificationConfigRequest {
-        pub fn name<T>(mut self, value: T) -> Self
+        pub fn id<T>(mut self, value: T) -> Self
         where
-            T: ::std::convert::TryInto<::std::option::Option<::std::string::String>>,
+            T: ::std::convert::TryInto<::std::string::String>,
             T::Error: ::std::fmt::Display,
         {
-            self.name = value
+            self.id = value
                 .try_into()
-                .map_err(|e| format!("error converting supplied value for name: {e}"));
+                .map_err(|e| format!("error converting supplied value for id: {e}"));
+            self
+        }
+        pub fn task_id<T>(mut self, value: T) -> Self
+        where
+            T: ::std::convert::TryInto<::std::string::String>,
+            T::Error: ::std::fmt::Display,
+        {
+            self.task_id = value
+                .try_into()
+                .map_err(|e| format!("error converting supplied value for task_id: {e}"));
             self
         }
         pub fn tenant<T>(mut self, value: T) -> Self
@@ -2955,7 +2914,8 @@ pub mod builder {
             value: GetTaskPushNotificationConfigRequest,
         ) -> ::std::result::Result<Self, super::error::ConversionError> {
             Ok(Self {
-                name: value.name?,
+                id: value.id?,
+                task_id: value.task_id?,
                 tenant: value.tenant?,
             })
         }
@@ -2965,7 +2925,8 @@ pub mod builder {
     {
         fn from(value: super::GetTaskPushNotificationConfigRequest) -> Self {
             Self {
-                name: Ok(value.name),
+                id: Ok(value.id),
+                task_id: Ok(value.task_id),
                 tenant: Ok(value.tenant),
             }
         }
@@ -2973,7 +2934,7 @@ pub mod builder {
     #[derive(Clone, Debug)]
     pub struct GetTaskRequest {
         history_length: ::std::result::Result<::std::option::Option<i32>, ::std::string::String>,
-        name: ::std::result::Result<::std::string::String, ::std::string::String>,
+        id: ::std::result::Result<::std::string::String, ::std::string::String>,
         tenant: ::std::result::Result<
             ::std::option::Option<::std::string::String>,
             ::std::string::String,
@@ -2983,7 +2944,7 @@ pub mod builder {
         fn default() -> Self {
             Self {
                 history_length: Ok(Default::default()),
-                name: Err("no value supplied for name".to_string()),
+                id: Err("no value supplied for id".to_string()),
                 tenant: Ok(Default::default()),
             }
         }
@@ -2999,14 +2960,14 @@ pub mod builder {
                 .map_err(|e| format!("error converting supplied value for history_length: {e}"));
             self
         }
-        pub fn name<T>(mut self, value: T) -> Self
+        pub fn id<T>(mut self, value: T) -> Self
         where
             T: ::std::convert::TryInto<::std::string::String>,
             T::Error: ::std::fmt::Display,
         {
-            self.name = value
+            self.id = value
                 .try_into()
-                .map_err(|e| format!("error converting supplied value for name: {e}"));
+                .map_err(|e| format!("error converting supplied value for id: {e}"));
             self
         }
         pub fn tenant<T>(mut self, value: T) -> Self
@@ -3027,7 +2988,7 @@ pub mod builder {
         ) -> ::std::result::Result<Self, super::error::ConversionError> {
             Ok(Self {
                 history_length: value.history_length?,
-                name: value.name?,
+                id: value.id?,
                 tenant: value.tenant?,
             })
         }
@@ -3036,7 +2997,7 @@ pub mod builder {
         fn from(value: super::GetTaskRequest) -> Self {
             Self {
                 history_length: Ok(value.history_length),
-                name: Ok(value.name),
+                id: Ok(value.id),
                 tenant: Ok(value.tenant),
             }
         }
@@ -3117,7 +3078,10 @@ pub mod builder {
     }
     #[derive(Clone, Debug)]
     pub struct ImplicitOAuthFlow {
-        authorization_url: ::std::result::Result<::std::string::String, ::std::string::String>,
+        authorization_url: ::std::result::Result<
+            ::std::option::Option<::std::string::String>,
+            ::std::string::String,
+        >,
         refresh_url: ::std::result::Result<
             ::std::option::Option<::std::string::String>,
             ::std::string::String,
@@ -3130,16 +3094,16 @@ pub mod builder {
     impl ::std::default::Default for ImplicitOAuthFlow {
         fn default() -> Self {
             Self {
-                authorization_url: Err("no value supplied for authorization_url".to_string()),
+                authorization_url: Ok(Default::default()),
                 refresh_url: Ok(Default::default()),
-                scopes: Err("no value supplied for scopes".to_string()),
+                scopes: Ok(Default::default()),
             }
         }
     }
     impl ImplicitOAuthFlow {
         pub fn authorization_url<T>(mut self, value: T) -> Self
         where
-            T: ::std::convert::TryInto<::std::string::String>,
+            T: ::std::convert::TryInto<::std::option::Option<::std::string::String>>,
             T::Error: ::std::fmt::Display,
         {
             self.authorization_url = value
@@ -3192,32 +3156,29 @@ pub mod builder {
         }
     }
     #[derive(Clone, Debug)]
-    pub struct ListTaskPushNotificationConfigRequest {
+    pub struct ListTaskPushNotificationConfigsRequest {
         page_size: ::std::result::Result<::std::option::Option<i32>, ::std::string::String>,
         page_token: ::std::result::Result<
             ::std::option::Option<::std::string::String>,
             ::std::string::String,
         >,
-        parent: ::std::result::Result<
-            ::std::option::Option<::std::string::String>,
-            ::std::string::String,
-        >,
+        task_id: ::std::result::Result<::std::string::String, ::std::string::String>,
         tenant: ::std::result::Result<
             ::std::option::Option<::std::string::String>,
             ::std::string::String,
         >,
     }
-    impl ::std::default::Default for ListTaskPushNotificationConfigRequest {
+    impl ::std::default::Default for ListTaskPushNotificationConfigsRequest {
         fn default() -> Self {
             Self {
                 page_size: Ok(Default::default()),
                 page_token: Ok(Default::default()),
-                parent: Ok(Default::default()),
+                task_id: Err("no value supplied for task_id".to_string()),
                 tenant: Ok(Default::default()),
             }
         }
     }
-    impl ListTaskPushNotificationConfigRequest {
+    impl ListTaskPushNotificationConfigsRequest {
         pub fn page_size<T>(mut self, value: T) -> Self
         where
             T: ::std::convert::TryInto<::std::option::Option<i32>>,
@@ -3238,14 +3199,14 @@ pub mod builder {
                 .map_err(|e| format!("error converting supplied value for page_token: {e}"));
             self
         }
-        pub fn parent<T>(mut self, value: T) -> Self
+        pub fn task_id<T>(mut self, value: T) -> Self
         where
-            T: ::std::convert::TryInto<::std::option::Option<::std::string::String>>,
+            T: ::std::convert::TryInto<::std::string::String>,
             T::Error: ::std::fmt::Display,
         {
-            self.parent = value
+            self.task_id = value
                 .try_into()
-                .map_err(|e| format!("error converting supplied value for parent: {e}"));
+                .map_err(|e| format!("error converting supplied value for task_id: {e}"));
             self
         }
         pub fn tenant<T>(mut self, value: T) -> Self
@@ -3259,35 +3220,35 @@ pub mod builder {
             self
         }
     }
-    impl ::std::convert::TryFrom<ListTaskPushNotificationConfigRequest>
-        for super::ListTaskPushNotificationConfigRequest
+    impl ::std::convert::TryFrom<ListTaskPushNotificationConfigsRequest>
+        for super::ListTaskPushNotificationConfigsRequest
     {
         type Error = super::error::ConversionError;
         fn try_from(
-            value: ListTaskPushNotificationConfigRequest,
+            value: ListTaskPushNotificationConfigsRequest,
         ) -> ::std::result::Result<Self, super::error::ConversionError> {
             Ok(Self {
                 page_size: value.page_size?,
                 page_token: value.page_token?,
-                parent: value.parent?,
+                task_id: value.task_id?,
                 tenant: value.tenant?,
             })
         }
     }
-    impl ::std::convert::From<super::ListTaskPushNotificationConfigRequest>
-        for ListTaskPushNotificationConfigRequest
+    impl ::std::convert::From<super::ListTaskPushNotificationConfigsRequest>
+        for ListTaskPushNotificationConfigsRequest
     {
-        fn from(value: super::ListTaskPushNotificationConfigRequest) -> Self {
+        fn from(value: super::ListTaskPushNotificationConfigsRequest) -> Self {
             Self {
                 page_size: Ok(value.page_size),
                 page_token: Ok(value.page_token),
-                parent: Ok(value.parent),
+                task_id: Ok(value.task_id),
                 tenant: Ok(value.tenant),
             }
         }
     }
     #[derive(Clone, Debug)]
-    pub struct ListTaskPushNotificationConfigResponse {
+    pub struct ListTaskPushNotificationConfigsResponse {
         configs: ::std::result::Result<
             ::std::vec::Vec<super::TaskPushNotificationConfig>,
             ::std::string::String,
@@ -3297,7 +3258,7 @@ pub mod builder {
             ::std::string::String,
         >,
     }
-    impl ::std::default::Default for ListTaskPushNotificationConfigResponse {
+    impl ::std::default::Default for ListTaskPushNotificationConfigsResponse {
         fn default() -> Self {
             Self {
                 configs: Ok(Default::default()),
@@ -3305,7 +3266,7 @@ pub mod builder {
             }
         }
     }
-    impl ListTaskPushNotificationConfigResponse {
+    impl ListTaskPushNotificationConfigsResponse {
         pub fn configs<T>(mut self, value: T) -> Self
         where
             T: ::std::convert::TryInto<::std::vec::Vec<super::TaskPushNotificationConfig>>,
@@ -3327,12 +3288,12 @@ pub mod builder {
             self
         }
     }
-    impl ::std::convert::TryFrom<ListTaskPushNotificationConfigResponse>
-        for super::ListTaskPushNotificationConfigResponse
+    impl ::std::convert::TryFrom<ListTaskPushNotificationConfigsResponse>
+        for super::ListTaskPushNotificationConfigsResponse
     {
         type Error = super::error::ConversionError;
         fn try_from(
-            value: ListTaskPushNotificationConfigResponse,
+            value: ListTaskPushNotificationConfigsResponse,
         ) -> ::std::result::Result<Self, super::error::ConversionError> {
             Ok(Self {
                 configs: value.configs?,
@@ -3340,10 +3301,10 @@ pub mod builder {
             })
         }
     }
-    impl ::std::convert::From<super::ListTaskPushNotificationConfigResponse>
-        for ListTaskPushNotificationConfigResponse
+    impl ::std::convert::From<super::ListTaskPushNotificationConfigsResponse>
+        for ListTaskPushNotificationConfigsResponse
     {
-        fn from(value: super::ListTaskPushNotificationConfigResponse) -> Self {
+        fn from(value: super::ListTaskPushNotificationConfigsResponse) -> Self {
             Self {
                 configs: Ok(value.configs),
                 next_page_token: Ok(value.next_page_token),
@@ -3359,8 +3320,6 @@ pub mod builder {
         history_length: ::std::result::Result<::std::option::Option<i32>, ::std::string::String>,
         include_artifacts:
             ::std::result::Result<::std::option::Option<bool>, ::std::string::String>,
-        last_updated_after:
-            ::std::result::Result<::std::option::Option<i64>, ::std::string::String>,
         page_size: ::std::result::Result<::std::option::Option<i32>, ::std::string::String>,
         page_token: ::std::result::Result<
             ::std::option::Option<::std::string::String>,
@@ -3368,6 +3327,8 @@ pub mod builder {
         >,
         status:
             ::std::result::Result<::std::option::Option<super::TaskState>, ::std::string::String>,
+        status_timestamp_after:
+            ::std::result::Result<::std::option::Option<super::Timestamp>, ::std::string::String>,
         tenant: ::std::result::Result<
             ::std::option::Option<::std::string::String>,
             ::std::string::String,
@@ -3379,10 +3340,10 @@ pub mod builder {
                 context_id: Ok(Default::default()),
                 history_length: Ok(Default::default()),
                 include_artifacts: Ok(Default::default()),
-                last_updated_after: Ok(Default::default()),
                 page_size: Ok(Default::default()),
                 page_token: Ok(Default::default()),
                 status: Ok(Default::default()),
+                status_timestamp_after: Ok(Default::default()),
                 tenant: Ok(Default::default()),
             }
         }
@@ -3418,16 +3379,6 @@ pub mod builder {
                 .map_err(|e| format!("error converting supplied value for include_artifacts: {e}"));
             self
         }
-        pub fn last_updated_after<T>(mut self, value: T) -> Self
-        where
-            T: ::std::convert::TryInto<::std::option::Option<i64>>,
-            T::Error: ::std::fmt::Display,
-        {
-            self.last_updated_after = value.try_into().map_err(|e| {
-                format!("error converting supplied value for last_updated_after: {e}")
-            });
-            self
-        }
         pub fn page_size<T>(mut self, value: T) -> Self
         where
             T: ::std::convert::TryInto<::std::option::Option<i32>>,
@@ -3458,6 +3409,16 @@ pub mod builder {
                 .map_err(|e| format!("error converting supplied value for status: {e}"));
             self
         }
+        pub fn status_timestamp_after<T>(mut self, value: T) -> Self
+        where
+            T: ::std::convert::TryInto<::std::option::Option<super::Timestamp>>,
+            T::Error: ::std::fmt::Display,
+        {
+            self.status_timestamp_after = value.try_into().map_err(|e| {
+                format!("error converting supplied value for status_timestamp_after: {e}")
+            });
+            self
+        }
         pub fn tenant<T>(mut self, value: T) -> Self
         where
             T: ::std::convert::TryInto<::std::option::Option<::std::string::String>>,
@@ -3478,10 +3439,10 @@ pub mod builder {
                 context_id: value.context_id?,
                 history_length: value.history_length?,
                 include_artifacts: value.include_artifacts?,
-                last_updated_after: value.last_updated_after?,
                 page_size: value.page_size?,
                 page_token: value.page_token?,
                 status: value.status?,
+                status_timestamp_after: value.status_timestamp_after?,
                 tenant: value.tenant?,
             })
         }
@@ -3492,10 +3453,10 @@ pub mod builder {
                 context_id: Ok(value.context_id),
                 history_length: Ok(value.history_length),
                 include_artifacts: Ok(value.include_artifacts),
-                last_updated_after: Ok(value.last_updated_after),
                 page_size: Ok(value.page_size),
                 page_token: Ok(value.page_token),
                 status: Ok(value.status),
+                status_timestamp_after: Ok(value.status_timestamp_after),
                 tenant: Ok(value.tenant),
             }
         }
@@ -3854,6 +3815,10 @@ pub mod builder {
             ::std::option::Option<super::ClientCredentialsOAuthFlow>,
             ::std::string::String,
         >,
+        device_code: ::std::result::Result<
+            ::std::option::Option<super::DeviceCodeOAuthFlow>,
+            ::std::string::String,
+        >,
         implicit: ::std::result::Result<
             ::std::option::Option<super::ImplicitOAuthFlow>,
             ::std::string::String,
@@ -3868,6 +3833,7 @@ pub mod builder {
             Self {
                 authorization_code: Ok(Default::default()),
                 client_credentials: Ok(Default::default()),
+                device_code: Ok(Default::default()),
                 implicit: Ok(Default::default()),
                 password: Ok(Default::default()),
             }
@@ -3892,6 +3858,16 @@ pub mod builder {
             self.client_credentials = value.try_into().map_err(|e| {
                 format!("error converting supplied value for client_credentials: {e}")
             });
+            self
+        }
+        pub fn device_code<T>(mut self, value: T) -> Self
+        where
+            T: ::std::convert::TryInto<::std::option::Option<super::DeviceCodeOAuthFlow>>,
+            T::Error: ::std::fmt::Display,
+        {
+            self.device_code = value
+                .try_into()
+                .map_err(|e| format!("error converting supplied value for device_code: {e}"));
             self
         }
         pub fn implicit<T>(mut self, value: T) -> Self
@@ -3923,6 +3899,7 @@ pub mod builder {
             Ok(Self {
                 authorization_code: value.authorization_code?,
                 client_credentials: value.client_credentials?,
+                device_code: value.device_code?,
                 implicit: value.implicit?,
                 password: value.password?,
             })
@@ -3933,6 +3910,7 @@ pub mod builder {
             Self {
                 authorization_code: Ok(value.authorization_code),
                 client_credentials: Ok(value.client_credentials),
+                device_code: Ok(value.device_code),
                 implicit: Ok(value.implicit),
                 password: Ok(value.password),
             }
@@ -3997,11 +3975,23 @@ pub mod builder {
     }
     #[derive(Clone, Debug)]
     pub struct Part {
-        data: ::std::result::Result<::std::option::Option<super::DataPart>, ::std::string::String>,
-        file: ::std::result::Result<::std::option::Option<super::FilePart>, ::std::string::String>,
+        data: ::std::result::Result<::std::option::Option<super::Value>, ::std::string::String>,
+        filename: ::std::result::Result<
+            ::std::option::Option<::std::string::String>,
+            ::std::string::String,
+        >,
+        media_type: ::std::result::Result<
+            ::std::option::Option<::std::string::String>,
+            ::std::string::String,
+        >,
         metadata:
             ::std::result::Result<::std::option::Option<super::Struct>, ::std::string::String>,
+        raw: ::std::result::Result<::std::option::Option<super::PartRaw>, ::std::string::String>,
         text: ::std::result::Result<
+            ::std::option::Option<::std::string::String>,
+            ::std::string::String,
+        >,
+        url: ::std::result::Result<
             ::std::option::Option<::std::string::String>,
             ::std::string::String,
         >,
@@ -4010,16 +4000,19 @@ pub mod builder {
         fn default() -> Self {
             Self {
                 data: Ok(Default::default()),
-                file: Ok(Default::default()),
+                filename: Ok(Default::default()),
+                media_type: Ok(Default::default()),
                 metadata: Ok(Default::default()),
+                raw: Ok(Default::default()),
                 text: Ok(Default::default()),
+                url: Ok(Default::default()),
             }
         }
     }
     impl Part {
         pub fn data<T>(mut self, value: T) -> Self
         where
-            T: ::std::convert::TryInto<::std::option::Option<super::DataPart>>,
+            T: ::std::convert::TryInto<::std::option::Option<super::Value>>,
             T::Error: ::std::fmt::Display,
         {
             self.data = value
@@ -4027,14 +4020,24 @@ pub mod builder {
                 .map_err(|e| format!("error converting supplied value for data: {e}"));
             self
         }
-        pub fn file<T>(mut self, value: T) -> Self
+        pub fn filename<T>(mut self, value: T) -> Self
         where
-            T: ::std::convert::TryInto<::std::option::Option<super::FilePart>>,
+            T: ::std::convert::TryInto<::std::option::Option<::std::string::String>>,
             T::Error: ::std::fmt::Display,
         {
-            self.file = value
+            self.filename = value
                 .try_into()
-                .map_err(|e| format!("error converting supplied value for file: {e}"));
+                .map_err(|e| format!("error converting supplied value for filename: {e}"));
+            self
+        }
+        pub fn media_type<T>(mut self, value: T) -> Self
+        where
+            T: ::std::convert::TryInto<::std::option::Option<::std::string::String>>,
+            T::Error: ::std::fmt::Display,
+        {
+            self.media_type = value
+                .try_into()
+                .map_err(|e| format!("error converting supplied value for media_type: {e}"));
             self
         }
         pub fn metadata<T>(mut self, value: T) -> Self
@@ -4047,6 +4050,16 @@ pub mod builder {
                 .map_err(|e| format!("error converting supplied value for metadata: {e}"));
             self
         }
+        pub fn raw<T>(mut self, value: T) -> Self
+        where
+            T: ::std::convert::TryInto<::std::option::Option<super::PartRaw>>,
+            T::Error: ::std::fmt::Display,
+        {
+            self.raw = value
+                .try_into()
+                .map_err(|e| format!("error converting supplied value for raw: {e}"));
+            self
+        }
         pub fn text<T>(mut self, value: T) -> Self
         where
             T: ::std::convert::TryInto<::std::option::Option<::std::string::String>>,
@@ -4057,15 +4070,28 @@ pub mod builder {
                 .map_err(|e| format!("error converting supplied value for text: {e}"));
             self
         }
+        pub fn url<T>(mut self, value: T) -> Self
+        where
+            T: ::std::convert::TryInto<::std::option::Option<::std::string::String>>,
+            T::Error: ::std::fmt::Display,
+        {
+            self.url = value
+                .try_into()
+                .map_err(|e| format!("error converting supplied value for url: {e}"));
+            self
+        }
     }
     impl ::std::convert::TryFrom<Part> for super::Part {
         type Error = super::error::ConversionError;
         fn try_from(value: Part) -> ::std::result::Result<Self, super::error::ConversionError> {
             Ok(Self {
                 data: value.data?,
-                file: value.file?,
+                filename: value.filename?,
+                media_type: value.media_type?,
                 metadata: value.metadata?,
+                raw: value.raw?,
                 text: value.text?,
+                url: value.url?,
             })
         }
     }
@@ -4073,9 +4099,12 @@ pub mod builder {
         fn from(value: super::Part) -> Self {
             Self {
                 data: Ok(value.data),
-                file: Ok(value.file),
+                filename: Ok(value.filename),
+                media_type: Ok(value.media_type),
                 metadata: Ok(value.metadata),
+                raw: Ok(value.raw),
                 text: Ok(value.text),
+                url: Ok(value.url),
             }
         }
     }
@@ -4089,14 +4118,17 @@ pub mod builder {
             ::std::collections::HashMap<::std::string::String, ::std::string::String>,
             ::std::string::String,
         >,
-        token_url: ::std::result::Result<::std::string::String, ::std::string::String>,
+        token_url: ::std::result::Result<
+            ::std::option::Option<::std::string::String>,
+            ::std::string::String,
+        >,
     }
     impl ::std::default::Default for PasswordOAuthFlow {
         fn default() -> Self {
             Self {
                 refresh_url: Ok(Default::default()),
-                scopes: Err("no value supplied for scopes".to_string()),
-                token_url: Err("no value supplied for token_url".to_string()),
+                scopes: Ok(Default::default()),
+                token_url: Ok(Default::default()),
             }
         }
     }
@@ -4125,7 +4157,7 @@ pub mod builder {
         }
         pub fn token_url<T>(mut self, value: T) -> Self
         where
-            T: ::std::convert::TryInto<::std::string::String>,
+            T: ::std::convert::TryInto<::std::option::Option<::std::string::String>>,
             T::Error: ::std::fmt::Display,
         {
             self.token_url = value
@@ -4156,111 +4188,20 @@ pub mod builder {
         }
     }
     #[derive(Clone, Debug)]
-    pub struct PushNotificationConfig {
-        authentication: ::std::result::Result<
-            ::std::option::Option<super::AuthenticationInfo>,
-            ::std::string::String,
-        >,
-        id: ::std::result::Result<
-            ::std::option::Option<::std::string::String>,
-            ::std::string::String,
-        >,
-        token: ::std::result::Result<
-            ::std::option::Option<::std::string::String>,
-            ::std::string::String,
-        >,
-        url: ::std::result::Result<::std::string::String, ::std::string::String>,
-    }
-    impl ::std::default::Default for PushNotificationConfig {
-        fn default() -> Self {
-            Self {
-                authentication: Ok(Default::default()),
-                id: Ok(Default::default()),
-                token: Ok(Default::default()),
-                url: Err("no value supplied for url".to_string()),
-            }
-        }
-    }
-    impl PushNotificationConfig {
-        pub fn authentication<T>(mut self, value: T) -> Self
-        where
-            T: ::std::convert::TryInto<::std::option::Option<super::AuthenticationInfo>>,
-            T::Error: ::std::fmt::Display,
-        {
-            self.authentication = value
-                .try_into()
-                .map_err(|e| format!("error converting supplied value for authentication: {e}"));
-            self
-        }
-        pub fn id<T>(mut self, value: T) -> Self
-        where
-            T: ::std::convert::TryInto<::std::option::Option<::std::string::String>>,
-            T::Error: ::std::fmt::Display,
-        {
-            self.id = value
-                .try_into()
-                .map_err(|e| format!("error converting supplied value for id: {e}"));
-            self
-        }
-        pub fn token<T>(mut self, value: T) -> Self
-        where
-            T: ::std::convert::TryInto<::std::option::Option<::std::string::String>>,
-            T::Error: ::std::fmt::Display,
-        {
-            self.token = value
-                .try_into()
-                .map_err(|e| format!("error converting supplied value for token: {e}"));
-            self
-        }
-        pub fn url<T>(mut self, value: T) -> Self
-        where
-            T: ::std::convert::TryInto<::std::string::String>,
-            T::Error: ::std::fmt::Display,
-        {
-            self.url = value
-                .try_into()
-                .map_err(|e| format!("error converting supplied value for url: {e}"));
-            self
-        }
-    }
-    impl ::std::convert::TryFrom<PushNotificationConfig> for super::PushNotificationConfig {
-        type Error = super::error::ConversionError;
-        fn try_from(
-            value: PushNotificationConfig,
-        ) -> ::std::result::Result<Self, super::error::ConversionError> {
-            Ok(Self {
-                authentication: value.authentication?,
-                id: value.id?,
-                token: value.token?,
-                url: value.url?,
-            })
-        }
-    }
-    impl ::std::convert::From<super::PushNotificationConfig> for PushNotificationConfig {
-        fn from(value: super::PushNotificationConfig) -> Self {
-            Self {
-                authentication: Ok(value.authentication),
-                id: Ok(value.id),
-                token: Ok(value.token),
-                url: Ok(value.url),
-            }
-        }
-    }
-    #[derive(Clone, Debug)]
-    pub struct Security {
+    pub struct SecurityRequirement {
         schemes: ::std::result::Result<
             ::std::collections::HashMap<::std::string::String, super::StringList>,
             ::std::string::String,
         >,
     }
-    impl ::std::default::Default for Security {
+    impl ::std::default::Default for SecurityRequirement {
         fn default() -> Self {
             Self {
                 schemes: Ok(Default::default()),
             }
         }
     }
-    impl Security {
+    impl SecurityRequirement {
         pub fn schemes<T>(mut self, value: T) -> Self
         where
             T: ::std::convert::TryInto<
@@ -4274,16 +4215,18 @@ pub mod builder {
             self
         }
     }
-    impl ::std::convert::TryFrom<Security> for super::Security {
+    impl ::std::convert::TryFrom<SecurityRequirement> for super::SecurityRequirement {
         type Error = super::error::ConversionError;
-        fn try_from(value: Security) -> ::std::result::Result<Self, super::error::ConversionError> {
+        fn try_from(
+            value: SecurityRequirement,
+        ) -> ::std::result::Result<Self, super::error::ConversionError> {
             Ok(Self {
                 schemes: value.schemes?,
             })
         }
     }
-    impl ::std::convert::From<super::Security> for Security {
-        fn from(value: super::Security) -> Self {
+    impl ::std::convert::From<super::SecurityRequirement> for SecurityRequirement {
+        fn from(value: super::SecurityRequirement) -> Self {
             Self {
                 schemes: Ok(value.schemes),
             }
@@ -4404,10 +4347,11 @@ pub mod builder {
     pub struct SendMessageConfiguration {
         accepted_output_modes:
             ::std::result::Result<::std::vec::Vec<::std::string::String>, ::std::string::String>,
-        blocking: ::std::result::Result<::std::option::Option<bool>, ::std::string::String>,
         history_length: ::std::result::Result<::std::option::Option<i32>, ::std::string::String>,
-        push_notification_config: ::std::result::Result<
-            ::std::option::Option<super::PushNotificationConfig>,
+        return_immediately:
+            ::std::result::Result<::std::option::Option<bool>, ::std::string::String>,
+        task_push_notification_config: ::std::result::Result<
+            ::std::option::Option<super::TaskPushNotificationConfig>,
             ::std::string::String,
         >,
     }
@@ -4415,9 +4359,9 @@ pub mod builder {
         fn default() -> Self {
             Self {
                 accepted_output_modes: Ok(Default::default()),
-                blocking: Ok(Default::default()),
                 history_length: Ok(Default::default()),
-                push_notification_config: Ok(Default::default()),
+                return_immediately: Ok(Default::default()),
+                task_push_notification_config: Ok(Default::default()),
             }
         }
     }
@@ -4432,16 +4376,6 @@ pub mod builder {
             });
             self
         }
-        pub fn blocking<T>(mut self, value: T) -> Self
-        where
-            T: ::std::convert::TryInto<::std::option::Option<bool>>,
-            T::Error: ::std::fmt::Display,
-        {
-            self.blocking = value
-                .try_into()
-                .map_err(|e| format!("error converting supplied value for blocking: {e}"));
-            self
-        }
         pub fn history_length<T>(mut self, value: T) -> Self
         where
             T: ::std::convert::TryInto<::std::option::Option<i32>>,
@@ -4452,13 +4386,23 @@ pub mod builder {
                 .map_err(|e| format!("error converting supplied value for history_length: {e}"));
             self
         }
-        pub fn push_notification_config<T>(mut self, value: T) -> Self
+        pub fn return_immediately<T>(mut self, value: T) -> Self
         where
-            T: ::std::convert::TryInto<::std::option::Option<super::PushNotificationConfig>>,
+            T: ::std::convert::TryInto<::std::option::Option<bool>>,
             T::Error: ::std::fmt::Display,
         {
-            self.push_notification_config = value.try_into().map_err(|e| {
-                format!("error converting supplied value for push_notification_config: {e}")
+            self.return_immediately = value.try_into().map_err(|e| {
+                format!("error converting supplied value for return_immediately: {e}")
+            });
+            self
+        }
+        pub fn task_push_notification_config<T>(mut self, value: T) -> Self
+        where
+            T: ::std::convert::TryInto<::std::option::Option<super::TaskPushNotificationConfig>>,
+            T::Error: ::std::fmt::Display,
+        {
+            self.task_push_notification_config = value.try_into().map_err(|e| {
+                format!("error converting supplied value for task_push_notification_config: {e}")
             });
             self
         }
@@ -4470,9 +4414,9 @@ pub mod builder {
         ) -> ::std::result::Result<Self, super::error::ConversionError> {
             Ok(Self {
                 accepted_output_modes: value.accepted_output_modes?,
-                blocking: value.blocking?,
                 history_length: value.history_length?,
-                push_notification_config: value.push_notification_config?,
+                return_immediately: value.return_immediately?,
+                task_push_notification_config: value.task_push_notification_config?,
             })
         }
     }
@@ -4480,9 +4424,9 @@ pub mod builder {
         fn from(value: super::SendMessageConfiguration) -> Self {
             Self {
                 accepted_output_modes: Ok(value.accepted_output_modes),
-                blocking: Ok(value.blocking),
                 history_length: Ok(value.history_length),
-                push_notification_config: Ok(value.push_notification_config),
+                return_immediately: Ok(value.return_immediately),
+                task_push_notification_config: Ok(value.task_push_notification_config),
             }
         }
     }
@@ -4631,95 +4575,6 @@ pub mod builder {
         }
     }
     #[derive(Clone, Debug)]
-    pub struct SetTaskPushNotificationConfigRequest {
-        config: ::std::result::Result<super::TaskPushNotificationConfig, ::std::string::String>,
-        config_id: ::std::result::Result<::std::string::String, ::std::string::String>,
-        parent: ::std::result::Result<::std::string::String, ::std::string::String>,
-        tenant: ::std::result::Result<
-            ::std::option::Option<::std::string::String>,
-            ::std::string::String,
-        >,
-    }
-    impl ::std::default::Default for SetTaskPushNotificationConfigRequest {
-        fn default() -> Self {
-            Self {
-                config: Err("no value supplied for config".to_string()),
-                config_id: Err("no value supplied for config_id".to_string()),
-                parent: Err("no value supplied for parent".to_string()),
-                tenant: Ok(Default::default()),
-            }
-        }
-    }
-    impl SetTaskPushNotificationConfigRequest {
-        pub fn config<T>(mut self, value: T) -> Self
-        where
-            T: ::std::convert::TryInto<super::TaskPushNotificationConfig>,
-            T::Error: ::std::fmt::Display,
-        {
-            self.config = value
-                .try_into()
-                .map_err(|e| format!("error converting supplied value for config: {e}"));
-            self
-        }
-        pub fn config_id<T>(mut self, value: T) -> Self
-        where
-            T: ::std::convert::TryInto<::std::string::String>,
-            T::Error: ::std::fmt::Display,
-        {
-            self.config_id = value
-                .try_into()
-                .map_err(|e| format!("error converting supplied value for config_id: {e}"));
-            self
-        }
-        pub fn parent<T>(mut self, value: T) -> Self
-        where
-            T: ::std::convert::TryInto<::std::string::String>,
-            T::Error: ::std::fmt::Display,
-        {
-            self.parent = value
-                .try_into()
-                .map_err(|e| format!("error converting supplied value for parent: {e}"));
-            self
-        }
-        pub fn tenant<T>(mut self, value: T) -> Self
-        where
-            T: ::std::convert::TryInto<::std::option::Option<::std::string::String>>,
-            T::Error: ::std::fmt::Display,
-        {
-            self.tenant = value
-                .try_into()
-                .map_err(|e| format!("error converting supplied value for tenant: {e}"));
-            self
-        }
-    }
-    impl ::std::convert::TryFrom<SetTaskPushNotificationConfigRequest>
-        for super::SetTaskPushNotificationConfigRequest
-    {
-        type Error = super::error::ConversionError;
-        fn try_from(
-            value: SetTaskPushNotificationConfigRequest,
-        ) -> ::std::result::Result<Self, super::error::ConversionError> {
-            Ok(Self {
-                config: value.config?,
-                config_id: value.config_id?,
-                parent: value.parent?,
-                tenant: value.tenant?,
-            })
-        }
-    }
-    impl ::std::convert::From<super::SetTaskPushNotificationConfigRequest>
-        for SetTaskPushNotificationConfigRequest
-    {
-        fn from(value: super::SetTaskPushNotificationConfigRequest) -> Self {
-            Self {
-                config: Ok(value.config),
-                config_id: Ok(value.config_id),
-                parent: Ok(value.parent),
-                tenant: Ok(value.tenant),
-            }
-        }
-    }
-    #[derive(Clone, Debug)]
     pub struct StreamResponse {
         artifact_update: ::std::result::Result<
             ::std::option::Option<super::TaskArtifactUpdateEvent>,
@@ -4848,10 +4703,7 @@ pub mod builder {
     }
     #[derive(Clone, Debug)]
     pub struct SubscribeToTaskRequest {
-        name: ::std::result::Result<
-            ::std::option::Option<::std::string::String>,
-            ::std::string::String,
-        >,
+        id: ::std::result::Result<::std::string::String, ::std::string::String>,
         tenant: ::std::result::Result<
             ::std::option::Option<::std::string::String>,
             ::std::string::String,
@@ -4860,20 +4712,20 @@ pub mod builder {
     impl ::std::default::Default for SubscribeToTaskRequest {
         fn default() -> Self {
             Self {
-                name: Ok(Default::default()),
+                id: Err("no value supplied for id".to_string()),
                 tenant: Ok(Default::default()),
             }
         }
     }
     impl SubscribeToTaskRequest {
-        pub fn name<T>(mut self, value: T) -> Self
+        pub fn id<T>(mut self, value: T) -> Self
         where
-            T: ::std::convert::TryInto<::std::option::Option<::std::string::String>>,
+            T: ::std::convert::TryInto<::std::string::String>,
             T::Error: ::std::fmt::Display,
         {
-            self.name = value
+            self.id = value
                 .try_into()
-                .map_err(|e| format!("error converting supplied value for name: {e}"));
+                .map_err(|e| format!("error converting supplied value for id: {e}"));
             self
         }
         pub fn tenant<T>(mut self, value: T) -> Self
@@ -4893,7 +4745,7 @@ pub mod builder {
             value: SubscribeToTaskRequest,
         ) -> ::std::result::Result<Self, super::error::ConversionError> {
             Ok(Self {
-                name: value.name?,
+                id: value.id?,
                 tenant: value.tenant?,
             })
         }
@@ -4901,7 +4753,7 @@ pub mod builder {
     impl ::std::convert::From<super::SubscribeToTaskRequest> for SubscribeToTaskRequest {
         fn from(value: super::SubscribeToTaskRequest) -> Self {
             Self {
-                name: Ok(value.name),
+                id: Ok(value.id),
                 tenant: Ok(value.tenant),
             }
         }
@@ -4909,7 +4761,10 @@ pub mod builder {
     #[derive(Clone, Debug)]
     pub struct Task {
         artifacts: ::std::result::Result<::std::vec::Vec<super::Artifact>, ::std::string::String>,
-        context_id: ::std::result::Result<::std::string::String, ::std::string::String>,
+        context_id: ::std::result::Result<
+            ::std::option::Option<::std::string::String>,
+            ::std::string::String,
+        >,
         history: ::std::result::Result<::std::vec::Vec<super::Message>, ::std::string::String>,
         id: ::std::result::Result<::std::string::String, ::std::string::String>,
         metadata:
@@ -4920,7 +4775,7 @@ pub mod builder {
         fn default() -> Self {
             Self {
                 artifacts: Ok(Default::default()),
-                context_id: Err("no value supplied for context_id".to_string()),
+                context_id: Ok(Default::default()),
                 history: Ok(Default::default()),
                 id: Err("no value supplied for id".to_string()),
                 metadata: Ok(Default::default()),
@@ -4941,7 +4796,7 @@ pub mod builder {
         }
         pub fn context_id<T>(mut self, value: T) -> Self
         where
-            T: ::std::convert::TryInto<::std::string::String>,
+            T: ::std::convert::TryInto<::std::option::Option<::std::string::String>>,
             T::Error: ::std::fmt::Display,
         {
             self.context_id = value
@@ -5128,39 +4983,99 @@ pub mod builder {
     }
     #[derive(Clone, Debug)]
     pub struct TaskPushNotificationConfig {
-        name: ::std::result::Result<::std::string::String, ::std::string::String>,
-        push_notification_config:
-            ::std::result::Result<super::PushNotificationConfig, ::std::string::String>,
+        authentication: ::std::result::Result<
+            ::std::option::Option<super::AuthenticationInfo>,
+            ::std::string::String,
+        >,
+        id: ::std::result::Result<
+            ::std::option::Option<::std::string::String>,
+            ::std::string::String,
+        >,
+        task_id: ::std::result::Result<
+            ::std::option::Option<::std::string::String>,
+            ::std::string::String,
+        >,
+        tenant: ::std::result::Result<
+            ::std::option::Option<::std::string::String>,
+            ::std::string::String,
+        >,
+        token: ::std::result::Result<
+            ::std::option::Option<::std::string::String>,
+            ::std::string::String,
+        >,
+        url: ::std::result::Result<::std::string::String, ::std::string::String>,
     }
     impl ::std::default::Default for TaskPushNotificationConfig {
         fn default() -> Self {
             Self {
-                name: Err("no value supplied for name".to_string()),
-                push_notification_config: Err(
-                    "no value supplied for push_notification_config".to_string()
-                ),
+                authentication: Ok(Default::default()),
+                id: Ok(Default::default()),
+                task_id: Ok(Default::default()),
+                tenant: Ok(Default::default()),
+                token: Ok(Default::default()),
+                url: Err("no value supplied for url".to_string()),
             }
         }
     }
     impl TaskPushNotificationConfig {
-        pub fn name<T>(mut self, value: T) -> Self
+        pub fn authentication<T>(mut self, value: T) -> Self
+        where
+            T: ::std::convert::TryInto<::std::option::Option<super::AuthenticationInfo>>,
+            T::Error: ::std::fmt::Display,
+        {
+            self.authentication = value
+                .try_into()
+                .map_err(|e| format!("error converting supplied value for authentication: {e}"));
+            self
+        }
+        pub fn id<T>(mut self, value: T) -> Self
+        where
+            T: ::std::convert::TryInto<::std::option::Option<::std::string::String>>,
+            T::Error: ::std::fmt::Display,
+        {
+            self.id = value
+                .try_into()
+                .map_err(|e| format!("error converting supplied value for id: {e}"));
+            self
+        }
+        pub fn task_id<T>(mut self, value: T) -> Self
+        where
+            T: ::std::convert::TryInto<::std::option::Option<::std::string::String>>,
+            T::Error: ::std::fmt::Display,
+        {
+            self.task_id = value
+                .try_into()
+                .map_err(|e| format!("error converting supplied value for task_id: {e}"));
+            self
+        }
+        pub fn tenant<T>(mut self, value: T) -> Self
+        where
+            T: ::std::convert::TryInto<::std::option::Option<::std::string::String>>,
+            T::Error: ::std::fmt::Display,
+        {
+            self.tenant = value
+                .try_into()
+                .map_err(|e| format!("error converting supplied value for tenant: {e}"));
+            self
+        }
+        pub fn token<T>(mut self, value: T) -> Self
+        where
+            T: ::std::convert::TryInto<::std::option::Option<::std::string::String>>,
+            T::Error: ::std::fmt::Display,
+        {
+            self.token = value
+                .try_into()
+                .map_err(|e| format!("error converting supplied value for token: {e}"));
+            self
+        }
+        pub fn url<T>(mut self, value: T) -> Self
         where
             T: ::std::convert::TryInto<::std::string::String>,
             T::Error: ::std::fmt::Display,
         {
-            self.name = value
+            self.url = value
                 .try_into()
-                .map_err(|e| format!("error converting supplied value for name: {e}"));
-            self
-        }
-        pub fn push_notification_config<T>(mut self, value: T) -> Self
-        where
-            T: ::std::convert::TryInto<super::PushNotificationConfig>,
-            T::Error: ::std::fmt::Display,
-        {
-            self.push_notification_config = value.try_into().map_err(|e| {
-                format!("error converting supplied value for push_notification_config: {e}")
-            });
+                .map_err(|e| format!("error converting supplied value for url: {e}"));
             self
         }
     }
@@ -5170,16 +5085,24 @@ pub mod builder {
             value: TaskPushNotificationConfig,
         ) -> ::std::result::Result<Self, super::error::ConversionError> {
             Ok(Self {
-                name: value.name?,
-                push_notification_config: value.push_notification_config?,
+                authentication: value.authentication?,
+                id: value.id?,
+                task_id: value.task_id?,
+                tenant: value.tenant?,
+                token: value.token?,
+                url: value.url?,
             })
         }
     }
     impl ::std::convert::From<super::TaskPushNotificationConfig> for TaskPushNotificationConfig {
         fn from(value: super::TaskPushNotificationConfig) -> Self {
             Self {
-                name: Ok(value.name),
-                push_notification_config: Ok(value.push_notification_config),
+                authentication: Ok(value.authentication),
+                id: Ok(value.id),
+                task_id: Ok(value.task_id),
+                tenant: Ok(value.tenant),
+                token: Ok(value.token),
+                url: Ok(value.url),
             }
         }
     }
@@ -5256,7 +5179,6 @@ pub mod builder {
     #[derive(Clone, Debug)]
     pub struct TaskStatusUpdateEvent {
         context_id: ::std::result::Result<::std::string::String, ::std::string::String>,
-        final_: ::std::result::Result<bool, ::std::string::String>,
         metadata:
             ::std::result::Result<::std::option::Option<super::Struct>, ::std::string::String>,
         status: ::std::result::Result<super::TaskStatus, ::std::string::String>,
@@ -5266,7 +5188,6 @@ pub mod builder {
         fn default() -> Self {
             Self {
                 context_id: Err("no value supplied for context_id".to_string()),
-                final_: Err("no value supplied for final_".to_string()),
                 metadata: Ok(Default::default()),
                 status: Err("no value supplied for status".to_string()),
                 task_id: Err("no value supplied for task_id".to_string()),
@@ -5282,16 +5203,6 @@ pub mod builder {
             self.context_id = value
                 .try_into()
                 .map_err(|e| format!("error converting supplied value for context_id: {e}"));
-            self
-        }
-        pub fn final_<T>(mut self, value: T) -> Self
-        where
-            T: ::std::convert::TryInto<bool>,
-            T::Error: ::std::fmt::Display,
-        {
-            self.final_ = value
-                .try_into()
-                .map_err(|e| format!("error converting supplied value for final_: {e}"));
             self
         }
         pub fn metadata<T>(mut self, value: T) -> Self
@@ -5332,7 +5243,6 @@ pub mod builder {
         ) -> ::std::result::Result<Self, super::error::ConversionError> {
             Ok(Self {
                 context_id: value.context_id?,
-                final_: value.final_?,
                 metadata: value.metadata?,
                 status: value.status?,
                 task_id: value.task_id?,
@@ -5343,7 +5253,6 @@ pub mod builder {
         fn from(value: super::TaskStatusUpdateEvent) -> Self {
             Self {
                 context_id: Ok(value.context_id),
-                final_: Ok(value.final_),
                 metadata: Ok(value.metadata),
                 status: Ok(value.status),
                 task_id: Ok(value.task_id),

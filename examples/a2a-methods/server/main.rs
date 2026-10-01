@@ -36,15 +36,13 @@ fn echo_text(message: &Option<Message>) -> String {
 
 fn build_agent_message(task: &Task, text: &str) -> Message {
     Message {
-        context_id: Some(task.context_id.clone()),
+        context_id: task.context_id.clone(),
         extensions: vec![],
         message_id: uuid::Uuid::new_v4().to_string(),
         metadata: None,
         parts: vec![Part {
-            data: None,
-            file: None,
-            metadata: None,
             text: Some(text.to_string()),
+            ..Default::default()
         }],
         reference_task_ids: vec![],
         role: Role::RoleAgent,
@@ -95,10 +93,9 @@ impl StreamableTaskHandler for EchoStreamHandler {
         emitter
             .emit_status(
                 &task.id,
-                &task.context_id,
+                task.context_id_str(),
                 TaskState::TaskStateWorking,
                 None,
-                false,
             )
             .await?;
 
@@ -106,7 +103,7 @@ impl StreamableTaskHandler for EchoStreamHandler {
         tokio::time::sleep(Duration::from_millis(400)).await;
         let reply_text = echo_text(&message);
         emitter
-            .emit_text_artifact(&task.id, &task.context_id, reply_text.clone(), true)
+            .emit_text_artifact(&task.id, task.context_id_str(), reply_text.clone(), true)
             .await?;
 
         // 3) Final status: Completed (final = true)
@@ -114,10 +111,9 @@ impl StreamableTaskHandler for EchoStreamHandler {
         emitter
             .emit_status(
                 &task.id,
-                &task.context_id,
+                task.context_id_str(),
                 TaskState::TaskStateCompleted,
                 Some(reply_message),
-                true,
             )
             .await
     }
@@ -133,17 +129,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "name": "A2A Methods Example Agent",
         "description": "Reference server used by the per-method A2A client examples",
         "version": "0.1.0",
-        "protocolVersion": "0.2.6",
-        "url": format!("http://localhost:{port}/a2a"),
-        "preferredTransport": "JSONRPC",
+        "supportedInterfaces": [{"url": format!("http://localhost:{port}/a2a"), "protocolBinding": "JSONRPC", "protocolVersion": "1.0"}],
         "capabilities": {
             "streaming": true,
             "pushNotifications": true,
-            "stateTransitionHistory": false
+            "extendedAgentCard": true
         },
-        // Opt the example in to `agent/getAuthenticatedExtendedCard` so the
-        // dedicated client example returns a card instead of METHOD_NOT_FOUND.
-        "supportsExtendedAgentCard": true,
         "defaultInputModes": ["text/plain"],
         "defaultOutputModes": ["text/plain"],
         "skills": [

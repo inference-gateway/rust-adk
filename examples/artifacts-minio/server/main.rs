@@ -41,23 +41,22 @@ impl StreamableTaskHandler for ReportHandler {
         emitter
             .emit_status(
                 &task.id,
-                &task.context_id,
+                task.context_id_str(),
                 TaskState::TaskStateWorking,
                 None,
-                false,
             )
             .await?;
 
         let report = format!(
             "# Generated Report\n\nTask id: {}\nContext id: {}\nGenerated at: {}\nBackend: MinIO\n",
             task.id,
-            task.context_id,
+            task.context_id_str(),
             chrono::Utc::now().to_rfc3339(),
         );
         emitter
             .emit_file_artifact(
                 &task.id,
-                &task.context_id,
+                task.context_id_str(),
                 "report.txt",
                 report.into_bytes(),
                 Some("text/plain"),
@@ -68,10 +67,9 @@ impl StreamableTaskHandler for ReportHandler {
         emitter
             .emit_status(
                 &task.id,
-                &task.context_id,
+                task.context_id_str(),
                 TaskState::TaskStateCompleted,
                 None,
-                true,
             )
             .await
     }
