@@ -53,13 +53,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "name": "TLS-Gated Rust A2A Agent",
         "description": "Example showing TlsConfig + (optional) mTLS enforcement",
         "version": "0.1.0",
-        "protocolVersion": "0.2.6",
-        "url": format!("https://localhost:{port}/a2a"),
-        "preferredTransport": "JSONRPC",
+        "supportedInterfaces": [{"url": format!("https://localhost:{port}/a2a"), "protocolBinding": "JSONRPC", "protocolVersion": "1.0"}],
         "capabilities": {
             "streaming": true,
-            "pushNotifications": false,
-            "stateTransitionHistory": false
+            "pushNotifications": false
         },
         "defaultInputModes": ["text/plain"],
         "defaultOutputModes": ["text/plain"],

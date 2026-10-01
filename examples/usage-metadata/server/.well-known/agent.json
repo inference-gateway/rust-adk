@@ -2,13 +2,10 @@
   "name": "Rust A2A Usage-Metadata Server",
   "description": "A2A server that attaches token usage + execution stats to terminal tasks, built with the Rust ADK",
   "version": "0.1.0",
-  "protocolVersion": "0.2.6",
-  "url": "http://localhost:8080",
-  "preferredTransport": "JSONRPC",
+  "supportedInterfaces": [{"url": "http://localhost:8080", "protocolBinding": "JSONRPC", "protocolVersion": "1.0"}],
   "capabilities": {
     "streaming": true,
-    "pushNotifications": false,
-    "stateTransitionHistory": false
+    "pushNotifications": false
   },
   "provider": {
     "organization": "Inference Gateway",

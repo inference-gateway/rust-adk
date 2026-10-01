@@ -30,10 +30,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 message_id: Uuid::new_v4().to_string(),
                 metadata: None,
                 parts: vec![Part {
-                    data: None,
-                    file: None,
-                    metadata: None,
                     text: Some("seed for tasks/get".to_string()),
+                    ..Default::default()
                 }],
                 reference_task_ids: vec![],
                 role: Role::RoleUser,
@@ -49,7 +47,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let fetched = client
         .get_task(GetTaskRequest {
             history_length: None,
-            name: format!("tasks/{}", seeded_task.id),
+            id: seeded_task.id.clone(),
             tenant: Some("example".to_string()),
         })
         .await?;

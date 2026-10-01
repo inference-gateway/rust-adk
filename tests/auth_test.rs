@@ -74,20 +74,17 @@ fn agent_card(addr: SocketAddr, supports_extended: bool) -> a2a_types::AgentCard
         "name": "Auth Test Agent",
         "description": "agent/getAuthenticatedExtendedCard auth tests",
         "version": "1.0.0",
-        "protocolVersion": "0.2.6",
-        "url": format!("http://{addr}/a2a"),
-        "preferredTransport": "JSONRPC",
+        "supportedInterfaces": [{"url": format!("http://{addr}/a2a"), "protocolBinding": "JSONRPC", "protocolVersion": "1.0"}],
         "capabilities": {
             "streaming": true,
             "pushNotifications": false,
-            "stateTransitionHistory": false
+            "extendedAgentCard": supports_extended
         },
         "defaultInputModes": ["text/plain"],
         "defaultOutputModes": ["text/plain"],
         "skills": [
             {"id": "x", "name": "x", "description": "x", "tags": ["x"]}
-        ],
-        "supportsExtendedAgentCard": supports_extended
+        ]
     });
     serde_json::from_value(value).expect("agent card parses")
 }

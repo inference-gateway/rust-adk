@@ -2,13 +2,10 @@
   "name": "Queue Storage Demo",
   "description": "Demonstrates queue-driven message/send with selectable in-memory or Redis Storage backend",
   "version": "0.1.0",
-  "protocolVersion": "0.2.6",
-  "url": "http://localhost:8083",
-  "preferredTransport": "JSONRPC",
+  "supportedInterfaces": [{"url": "http://localhost:8083", "protocolBinding": "JSONRPC", "protocolVersion": "1.0"}],
   "capabilities": {
     "streaming": true,
-    "pushNotifications": false,
-    "stateTransitionHistory": false
+    "pushNotifications": false
   },
   "provider": {
     "organization": "Inference Gateway",

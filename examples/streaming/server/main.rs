@@ -22,10 +22,9 @@ impl StreamableTaskHandler for WordByWordStreamHandler {
         emitter
             .emit_status(
                 &task.id,
-                &task.context_id,
+                task.context_id_str(),
                 TaskState::TaskStateWorking,
                 None,
-                false,
             )
             .await?;
 
@@ -39,17 +38,16 @@ impl StreamableTaskHandler for WordByWordStreamHandler {
                 format!("{word} ")
             };
             emitter
-                .emit_text_artifact(&task.id, &task.context_id, chunk, is_last)
+                .emit_text_artifact(&task.id, task.context_id_str(), chunk, is_last)
                 .await?;
         }
 
         emitter
             .emit_status(
                 &task.id,
-                &task.context_id,
+                task.context_id_str(),
                 TaskState::TaskStateCompleted,
                 None,
-                true,
             )
             .await?;
         Ok(())

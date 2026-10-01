@@ -383,12 +383,6 @@ pub struct CapabilitiesConfig {
         deserialize_with = "de::boolean::deserialize"
     )]
     pub push_notifications: bool,
-
-    #[serde(
-        rename = "capabilities_state_transition_history",
-        deserialize_with = "de::boolean::deserialize"
-    )]
-    pub state_transition_history: bool,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -848,7 +842,6 @@ impl Default for CapabilitiesConfig {
         Self {
             streaming: true,
             push_notifications: true,
-            state_transition_history: false,
         }
     }
 }

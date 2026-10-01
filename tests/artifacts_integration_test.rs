@@ -39,17 +39,16 @@ impl StreamableTaskHandler for ReportProducingHandler {
         emitter
             .emit_status(
                 &task.id,
-                &task.context_id,
+                task.context_id_str(),
                 a2a_types::TaskState::TaskStateWorking,
                 None,
-                false,
             )
             .await?;
 
         emitter
             .emit_file_artifact(
                 &task.id,
-                &task.context_id,
+                task.context_id_str(),
                 "report.txt",
                 self.payload.clone(),
                 Some("text/plain"),
@@ -60,10 +59,9 @@ impl StreamableTaskHandler for ReportProducingHandler {
         emitter
             .emit_status(
                 &task.id,
-                &task.context_id,
+                task.context_id_str(),
                 a2a_types::TaskState::TaskStateCompleted,
                 None,
-                true,
             )
             .await
     }
@@ -74,13 +72,10 @@ fn agent_card() -> AgentCard {
         "name": "Artifacts E2E Agent",
         "description": "End-to-end artifacts test",
         "version": "0.0.0",
-        "protocolVersion": "0.2.6",
-        "url": "http://localhost/a2a",
-        "preferredTransport": "JSONRPC",
+        "supportedInterfaces": [{"url": "http://localhost/a2a", "protocolBinding": "JSONRPC", "protocolVersion": "1.0"}],
         "capabilities": {
             "streaming": true,
-            "pushNotifications": false,
-            "stateTransitionHistory": false
+            "pushNotifications": false
         },
         "defaultInputModes": ["text/plain"],
         "defaultOutputModes": ["text/plain"],
@@ -163,10 +158,8 @@ async fn message_stream_emits_file_artifact_resolvable_via_artifacts_server() {
             message_id: "msg-artifacts-e2e".to_string(),
             metadata: None,
             parts: vec![Part {
-                data: None,
-                file: None,
-                metadata: None,
                 text: Some("please produce a report".to_string()),
+                ..Default::default()
             }],
             reference_task_ids: vec![],
             role: Role::RoleUser,
@@ -187,11 +180,9 @@ async fn message_stream_emits_file_artifact_resolvable_via_artifacts_server() {
         let event = item.expect("event");
         if let Some(update) = event.artifact_update.as_ref() {
             for part in &update.artifact.parts {
-                if let Some(file_part) = part.file.as_ref()
-                    && let Some(uri) = file_part.file_with_uri.as_ref()
-                {
+                if let Some(uri) = part.url.as_ref() {
                     file_uri = Some(uri.clone());
-                    filename = file_part.name.clone();
+                    filename = part.filename.clone();
                 }
             }
         }

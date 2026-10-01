@@ -8,8 +8,8 @@
 
 use inference_gateway_adk::A2AClient;
 use inference_gateway_adk::a2a_types::{
-    ListTaskPushNotificationConfigRequest, Message, Part, PushNotificationConfig, Role,
-    SendMessageRequest, SetTaskPushNotificationConfigRequest, TaskPushNotificationConfig,
+    ListTaskPushNotificationConfigsRequest, Message, Part, Role, SendMessageRequest,
+    TaskPushNotificationConfig,
 };
 use std::env;
 use tracing::info;
@@ -31,10 +31,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 message_id: Uuid::new_v4().to_string(),
                 metadata: None,
                 parts: vec![Part {
-                    data: None,
-                    file: None,
-                    metadata: None,
                     text: Some("seed for pushNotificationConfig/list".to_string()),
+                    ..Default::default()
                 }],
                 reference_task_ids: vec![],
                 role: Role::RoleUser,
@@ -45,8 +43,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         })
         .await?;
     let task = seed.task.ok_or("server did not return a task")?;
-    let parent = format!("tasks/{}", task.id);
-
     // Seed two configs so the list result is non-trivial.
     for (idx, url) in [
         "https://your-app.example/webhooks/primary",
@@ -55,31 +51,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     .iter()
     .enumerate()
     {
-        let config_id = format!("cfg-{idx}");
-        let name = format!("{parent}/pushNotificationConfigs/{config_id}");
         client
-            .set_task_push_notification_config(SetTaskPushNotificationConfigRequest {
-                parent: parent.clone(),
-                config_id: config_id.clone(),
+            .set_task_push_notification_config(TaskPushNotificationConfig {
+                authentication: None,
+                id: Some(format!("cfg-{idx}")),
+                task_id: Some(task.id.clone()),
                 tenant: Some("example".to_string()),
-                config: TaskPushNotificationConfig {
-                    name,
-                    push_notification_config: PushNotificationConfig {
-                        authentication: None,
-                        id: None,
-                        token: None,
-                        url: (*url).to_string(),
-                    },
-                },
+                token: None,
+                url: (*url).to_string(),
             })
             .await?;
     }
 
     let listed = client
-        .list_task_push_notification_configs(ListTaskPushNotificationConfigRequest {
-            parent: Some(parent.clone()),
+        .list_task_push_notification_configs(ListTaskPushNotificationConfigsRequest {
             page_size: Some(10),
             page_token: Some(String::new()),
+            task_id: task.id.clone(),
             tenant: Some("example".to_string()),
         })
         .await?;
@@ -90,7 +78,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         listed.next_page_token
     );
     for c in &listed.configs {
-        info!("  · {} → {}", c.name, c.push_notification_config.url);
+        info!("  · {:?} → {}", c.id, c.url);
     }
 
     Ok(())

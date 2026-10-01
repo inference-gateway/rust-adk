@@ -3,15 +3,15 @@ use super::errors::{
     invalid_params, invalid_params_message, json_rpc_error, json_rpc_success, jsonrpc_errors,
 };
 use super::server_core::A2AServer;
-use super::storage::{TaskFilter, parse_task_name};
+use super::storage::TaskFilter;
 use super::task_handler::StreamEmitter;
 use super::tls::PeerCert;
 use crate::a2a_types::{
     CancelTaskRequest, DeleteTaskPushNotificationConfigRequest, GetExtendedAgentCardRequest,
-    GetTaskPushNotificationConfigRequest, GetTaskRequest, ListTaskPushNotificationConfigRequest,
-    ListTaskPushNotificationConfigResponse, ListTasksRequest, ListTasksResponse,
-    SendMessageRequest, SendMessageResponse, SetTaskPushNotificationConfigRequest, StreamResponse,
-    SubscribeToTaskRequest, Task, TaskState, TaskStatus, TaskStatusUpdateEvent, Timestamp,
+    GetTaskPushNotificationConfigRequest, GetTaskRequest, ListTaskPushNotificationConfigsRequest,
+    ListTaskPushNotificationConfigsResponse, ListTasksRequest, ListTasksResponse,
+    SendMessageRequest, SendMessageResponse, StreamResponse, SubscribeToTaskRequest, Task,
+    TaskPushNotificationConfig, TaskState, TaskStatus, TaskStatusUpdateEvent, Timestamp,
 };
 use axum::{
     extract::State,
@@ -199,7 +199,7 @@ fn build_task_from_request(req: &SendMessageRequest) -> Task {
 
     Task {
         artifacts: vec![],
-        context_id,
+        context_id: Some(context_id),
         history,
         id: task_id,
         metadata: None,
@@ -360,20 +360,7 @@ async fn handle_tasks_get(state: &Arc<AppState>, id: Value, params: Value) -> Js
         Err(e) => return invalid_params(id, e),
     };
 
-    let task_id = match parse_task_name(&request.name) {
-        Some(parsed) => parsed,
-        None => {
-            return json_rpc_error(
-                id,
-                jsonrpc_errors::INVALID_PARAMS,
-                "Invalid params",
-                Some(Value::String(format!(
-                    "`name` must be of the form tasks/{{task_id}} (got {:?})",
-                    request.name
-                ))),
-            );
-        }
-    };
+    let task_id = request.id.as_str();
 
     match state.server.storage.get_task(task_id).await {
         Some(mut task) => {
@@ -398,7 +385,7 @@ async fn handle_tasks_get(state: &Arc<AppState>, id: Value, params: Value) -> Js
             id,
             jsonrpc_errors::TASK_NOT_FOUND,
             "Task not found",
-            Some(Value::String(request.name)),
+            Some(Value::String(request.id.clone())),
         ),
     }
 }
@@ -412,7 +399,7 @@ async fn handle_tasks_list(state: &Arc<AppState>, id: Value, params: Value) -> J
     let mut tasks = state.server.storage.list_tasks(TaskFilter::default()).await;
 
     if let Some(context_id) = request.context_id.filter(|c| !c.is_empty()) {
-        tasks.retain(|t| t.context_id == context_id);
+        tasks.retain(|t| t.context_id.as_deref() == Some(context_id.as_str()));
     }
     if let Some(status) = request
         .status
@@ -423,14 +410,26 @@ async fn handle_tasks_list(state: &Arc<AppState>, id: Value, params: Value) -> J
 
     let total_size = tasks.len() as i32;
     let page_size = request.page_size.unwrap_or(50).clamp(1, 100);
-    if tasks.len() > page_size as usize {
-        tasks.truncate(page_size as usize);
-    }
+    let offset = match parse_page_token(request.page_token.as_deref()) {
+        Some(offset) => offset,
+        None => return invalid_params_message(id, "invalid `pageToken`"),
+    };
+    let page: Vec<Task> = tasks
+        .into_iter()
+        .skip(offset)
+        .take(page_size as usize)
+        .collect();
+    let next = offset + page.len();
+    let next_page_token = if next < total_size as usize {
+        next.to_string()
+    } else {
+        String::new()
+    };
 
     let response = ListTasksResponse {
-        next_page_token: String::new(),
+        next_page_token,
         page_size,
-        tasks,
+        tasks: page,
         total_size,
     };
 
@@ -445,27 +444,21 @@ async fn handle_tasks_list(state: &Arc<AppState>, id: Value, params: Value) -> J
     }
 }
 
+/// The `tasks/list` page token is the offset of the page; an empty token is the first page.
+fn parse_page_token(token: Option<&str>) -> Option<usize> {
+    match token.unwrap_or_default() {
+        "" => Some(0),
+        raw => raw.parse().ok(),
+    }
+}
+
 async fn handle_tasks_cancel(state: &Arc<AppState>, id: Value, params: Value) -> Json<Value> {
     let request: CancelTaskRequest = match serde_json::from_value(params) {
         Ok(r) => r,
         Err(e) => return invalid_params(id, e),
     };
-    let name = request.name.unwrap_or_default();
-
-    let task_id = match parse_task_name(&name) {
-        Some(t) => t.to_string(),
-        None => {
-            return json_rpc_error(
-                id,
-                jsonrpc_errors::INVALID_PARAMS,
-                "Invalid params",
-                Some(Value::String(format!(
-                    "`name` must be of the form tasks/{{task_id}} (got {:?})",
-                    name
-                ))),
-            );
-        }
-    };
+    let name = request.id.clone();
+    let task_id = name.clone();
 
     let existing = match state.server.storage.get_task(&task_id).await {
         Some(t) => t,
@@ -479,13 +472,7 @@ async fn handle_tasks_cancel(state: &Arc<AppState>, id: Value, params: Value) ->
         }
     };
 
-    if matches!(
-        existing.status.state,
-        TaskState::TaskStateCompleted
-            | TaskState::TaskStateFailed
-            | TaskState::TaskStateCancelled
-            | TaskState::TaskStateRejected
-    ) {
+    if existing.status.state.is_terminal() {
         return json_rpc_error(
             id,
             jsonrpc_errors::TASK_NOT_CANCELABLE,
@@ -500,7 +487,7 @@ async fn handle_tasks_cancel(state: &Arc<AppState>, id: Value, params: Value) ->
     let mut updated = existing;
     updated.status = TaskStatus {
         message: None,
-        state: TaskState::TaskStateCancelled,
+        state: TaskState::TaskStateCanceled,
         timestamp: Some(Timestamp(chrono::Utc::now())),
     };
     if let Err(e) = state.server.storage.store_dead_letter_task(&updated).await {
@@ -524,19 +511,15 @@ async fn handle_tasks_cancel(state: &Arc<AppState>, id: Value, params: Value) ->
 }
 
 async fn handle_set_push_config(state: &Arc<AppState>, id: Value, params: Value) -> Json<Value> {
-    let request: SetTaskPushNotificationConfigRequest = match serde_json::from_value(params) {
+    let mut config: TaskPushNotificationConfig = match serde_json::from_value(params) {
         Ok(r) => r,
         Err(e) => return invalid_params(id, e),
     };
-
-    let canonical_name = format!(
-        "{}/pushNotificationConfigs/{}",
-        request.parent, request.config_id
-    );
-
-    let mut config = request.config;
-    if config.name.is_empty() {
-        config.name = canonical_name.clone();
+    if config.task_id.as_deref().unwrap_or_default().is_empty() {
+        return invalid_params_message(id, "`taskId` is required");
+    }
+    if config.id.as_deref().unwrap_or_default().is_empty() {
+        config.id = Some(uuid::Uuid::new_v4().to_string());
     }
 
     state
@@ -561,12 +544,11 @@ async fn handle_get_push_config(state: &Arc<AppState>, id: Value, params: Value)
         Ok(r) => r,
         Err(e) => return invalid_params(id, e),
     };
-    let name = request.name.unwrap_or_default();
 
     match state
         .server
         .storage
-        .get_push_notification_config(&name)
+        .get_push_notification_config(&request.task_id, &request.id)
         .await
     {
         Some(config) => match serde_json::to_value(config) {
@@ -582,13 +564,13 @@ async fn handle_get_push_config(state: &Arc<AppState>, id: Value, params: Value)
             id,
             jsonrpc_errors::TASK_NOT_FOUND,
             "Push notification config not found",
-            Some(Value::String(name)),
+            Some(Value::String(format!("{}/{}", request.task_id, request.id))),
         ),
     }
 }
 
 async fn handle_list_push_configs(state: &Arc<AppState>, id: Value, params: Value) -> Json<Value> {
-    let request: ListTaskPushNotificationConfigRequest = match serde_json::from_value(params) {
+    let request: ListTaskPushNotificationConfigsRequest = match serde_json::from_value(params) {
         Ok(r) => r,
         Err(e) => return invalid_params(id, e),
     };
@@ -596,10 +578,10 @@ async fn handle_list_push_configs(state: &Arc<AppState>, id: Value, params: Valu
     let configs = state
         .server
         .storage
-        .list_push_notification_configs(&request.parent.unwrap_or_default())
+        .list_push_notification_configs(&request.task_id)
         .await;
 
-    let response = ListTaskPushNotificationConfigResponse {
+    let response = ListTaskPushNotificationConfigsResponse {
         configs,
         next_page_token: None,
     };
@@ -621,11 +603,10 @@ async fn handle_delete_push_config(state: &Arc<AppState>, id: Value, params: Val
         Err(e) => return invalid_params(id, e),
     };
 
-    let name = request.name.unwrap_or_default();
     let removed = state
         .server
         .storage
-        .delete_push_notification_config(&name)
+        .delete_push_notification_config(&request.task_id, &request.id)
         .await;
 
     if !removed {
@@ -633,18 +614,17 @@ async fn handle_delete_push_config(state: &Arc<AppState>, id: Value, params: Val
             id,
             jsonrpc_errors::TASK_NOT_FOUND,
             "Push notification config not found",
-            Some(Value::String(name)),
+            Some(Value::String(format!("{}/{}", request.task_id, request.id))),
         );
     }
 
     json_rpc_success(id, serde_json::json!({}))
 }
 
-/// `tasks/resubscribe` - re-attach to an existing task by `tasks/{task_id}`
-/// resource name, emit the current task state, and replay subsequent
-/// state transitions as SSE events. The stream terminates with a final
-/// `TaskStatusUpdateEvent` carrying `final: true` once the task reaches
-/// a terminal state (or the task is removed from storage).
+/// `tasks/resubscribe` - re-attach to an existing task by id, emit the
+/// current task state, and replay subsequent state transitions as SSE
+/// events. The stream terminates with a `TaskStatusUpdateEvent` whose
+/// state is terminal (or when the task is removed from storage).
 ///
 /// The in-memory storage does not expose a pub/sub primitive, so the
 /// implementation polls the storage at a short interval and emits a
@@ -656,23 +636,8 @@ async fn handle_tasks_resubscribe(state: Arc<AppState>, id: Value, params: Value
         Ok(r) => r,
         Err(e) => return invalid_params(id, e).into_response(),
     };
-    let name = request.name.unwrap_or_default();
-
-    let task_id = match parse_task_name(&name) {
-        Some(parsed) => parsed.to_string(),
-        None => {
-            return json_rpc_error(
-                id,
-                jsonrpc_errors::INVALID_PARAMS,
-                "Invalid params",
-                Some(Value::String(format!(
-                    "`name` must be of the form tasks/{{task_id}} (got {:?})",
-                    name
-                ))),
-            )
-            .into_response();
-        }
-    };
+    let name = request.id.clone();
+    let task_id = name.clone();
 
     let task = match state.server.storage.get_task(&task_id).await {
         Some(t) => t,
@@ -708,16 +673,15 @@ async fn handle_tasks_resubscribe(state: Arc<AppState>, id: Value, params: Value
     }
 
     let storage = Arc::clone(&state.server.storage);
-    let context_id = task.context_id.clone();
+    let context_id = task.context_id_str().to_string();
     let initial_state = task.status.state;
     let initial_status = task.status.clone();
     let task_id_for_poll = task_id.clone();
 
     tokio::spawn(async move {
-        if is_terminal_state(initial_state) {
+        if initial_state.is_terminal() {
             let final_event = TaskStatusUpdateEvent {
                 context_id: context_id.clone(),
-                final_: true,
                 metadata: None,
                 status: initial_status,
                 task_id: task_id_for_poll,
@@ -749,10 +713,9 @@ async fn handle_tasks_resubscribe(state: Arc<AppState>, id: Value, params: Value
             if current_state == last_state {
                 continue;
             }
-            let is_final = is_terminal_state(current_state);
+            let is_final = current_state.is_terminal();
             let event = TaskStatusUpdateEvent {
-                context_id: updated.context_id.clone(),
-                final_: is_final,
+                context_id: updated.context_id_str().to_string(),
                 metadata: None,
                 status: updated.status.clone(),
                 task_id: task_id_for_poll.clone(),
@@ -827,7 +790,7 @@ async fn handle_get_authenticated_extended_card(
         );
     };
 
-    if !agent_card.supports_extended_agent_card.unwrap_or(false) {
+    if !agent_card.capabilities.extended_agent_card.unwrap_or(false) {
         return json_rpc_error(
             id,
             jsonrpc_errors::UNSUPPORTED_OPERATION,
@@ -865,16 +828,6 @@ async fn handle_get_authenticated_extended_card(
     }
 }
 
-fn is_terminal_state(state: TaskState) -> bool {
-    matches!(
-        state,
-        TaskState::TaskStateCompleted
-            | TaskState::TaskStateFailed
-            | TaskState::TaskStateCancelled
-            | TaskState::TaskStateRejected
-    )
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -907,10 +860,9 @@ mod tests {
                 emitter
                     .emit_status(
                         &task.id,
-                        &task.context_id,
+                        task.context_id_str(),
                         TaskState::TaskStateWorking,
                         None,
-                        false,
                     )
                     .await?;
                 let user_text = message
@@ -925,16 +877,15 @@ mod tests {
                     .unwrap_or_default();
                 let reply_text = format!("Echo: {user_text}");
                 emitter
-                    .emit_text_artifact(&task.id, &task.context_id, reply_text.clone(), true)
+                    .emit_text_artifact(&task.id, task.context_id_str(), reply_text.clone(), true)
                     .await?;
                 let reply_message = build_agent_text_message(&task, &reply_text);
                 emitter
                     .emit_status(
                         &task.id,
-                        &task.context_id,
+                        task.context_id_str(),
                         TaskState::TaskStateCompleted,
                         Some(reply_message),
-                        true,
                     )
                     .await
             }
@@ -944,13 +895,10 @@ mod tests {
             "name": "Test Stream Agent",
             "description": "Streaming SSE end-to-end test",
             "version": "0.0.0",
-            "protocolVersion": "0.2.6",
-            "url": "http://localhost/a2a",
-            "preferredTransport": "JSONRPC",
+            "supportedInterfaces": [{"url": "http://localhost/a2a", "protocolBinding": "JSONRPC", "protocolVersion": "1.0"}],
             "capabilities": {
                 "streaming": true,
-                "pushNotifications": false,
-                "stateTransitionHistory": false
+                "pushNotifications": false
             },
             "defaultInputModes": ["text/plain"],
             "defaultOutputModes": ["text/plain"],
@@ -991,10 +939,8 @@ mod tests {
                 message_id: "msg-1".to_string(),
                 metadata: None,
                 parts: vec![Part {
-                    data: None,
-                    file: None,
-                    metadata: None,
                     text: Some("ping".to_string()),
+                    ..Default::default()
                 }],
                 reference_task_ids: vec![],
                 role: Role::RoleUser,
@@ -1029,7 +975,7 @@ mod tests {
             .as_ref()
             .expect("second event is a status update");
         assert_eq!(working.status.state, TaskState::TaskStateWorking);
-        assert!(!working.final_);
+        assert!(!working.status.state.is_terminal());
 
         let artifact = events[2]
             .artifact_update
@@ -1048,7 +994,7 @@ mod tests {
             .as_ref()
             .expect("fourth event is a status update");
         assert_eq!(completed.status.state, TaskState::TaskStateCompleted);
-        assert!(completed.final_);
+        assert!(completed.status.state.is_terminal());
         let final_message_text = completed
             .status
             .message
@@ -1080,10 +1026,9 @@ mod tests {
                 emitter
                     .emit_status(
                         &task.id,
-                        &task.context_id,
+                        task.context_id_str(),
                         TaskState::TaskStateFailed,
                         None,
-                        true,
                     )
                     .await
             }
@@ -1093,10 +1038,8 @@ mod tests {
             "name": "Custom Handler Test",
             "description": "Verifies with_streaming_task_handler is used",
             "version": "0.0.0",
-            "protocolVersion": "0.2.6",
-            "url": "http://localhost/a2a",
-            "preferredTransport": "JSONRPC",
-            "capabilities": {"streaming": true, "pushNotifications": false, "stateTransitionHistory": false},
+            "supportedInterfaces": [{"url": "http://localhost/a2a", "protocolBinding": "JSONRPC", "protocolVersion": "1.0"}],
+            "capabilities": {"streaming": true, "pushNotifications": false},
             "defaultInputModes": ["text/plain"],
             "defaultOutputModes": ["text/plain"],
             "skills": [{"id": "x", "name": "x", "description": "x", "tags": ["x"]}]
@@ -1129,10 +1072,8 @@ mod tests {
                 message_id: "msg-2".to_string(),
                 metadata: None,
                 parts: vec![Part {
-                    data: None,
-                    file: None,
-                    metadata: None,
                     text: Some("hi".to_string()),
+                    ..Default::default()
                 }],
                 reference_task_ids: vec![],
                 role: Role::RoleUser,
@@ -1152,7 +1093,7 @@ mod tests {
         assert!(events[0].task.is_some());
         let final_update = events[1].status_update.as_ref().expect("status update");
         assert_eq!(final_update.status.state, TaskState::TaskStateFailed);
-        assert!(final_update.final_);
+        assert!(final_update.status.state.is_terminal());
     }
 
     // ----- tasks/resubscribe -------------------------------------------
@@ -1162,13 +1103,10 @@ mod tests {
             "name": "Resubscribe Test Agent",
             "description": "tasks/resubscribe E2E test",
             "version": "0.0.0",
-            "protocolVersion": "0.2.6",
-            "url": "http://localhost/a2a",
-            "preferredTransport": "JSONRPC",
+            "supportedInterfaces": [{"url": "http://localhost/a2a", "protocolBinding": "JSONRPC", "protocolVersion": "1.0"}],
             "capabilities": {
                 "streaming": true,
-                "pushNotifications": false,
-                "stateTransitionHistory": false
+                "pushNotifications": false
             },
             "defaultInputModes": ["text/plain"],
             "defaultOutputModes": ["text/plain"],
@@ -1211,7 +1149,7 @@ mod tests {
         let context_id = uuid::Uuid::new_v4().to_string();
         let terminal_task = Task {
             artifacts: vec![],
-            context_id: context_id.clone(),
+            context_id: Some(context_id.clone()),
             history: vec![],
             id: task_id.clone(),
             metadata: None,
@@ -1236,7 +1174,7 @@ mod tests {
         let mut stream = Box::pin(
             client
                 .resubscribe_task(SubscribeToTaskRequest {
-                    name: Some(format!("tasks/{task_id}")),
+                    id: task_id.to_string(),
                     tenant: Some("tests".to_string()),
                 })
                 .await
@@ -1261,7 +1199,10 @@ mod tests {
             .status_update
             .as_ref()
             .expect("second event is a status update");
-        assert!(final_update.final_, "terminal replay must set final=true");
+        assert!(
+            final_update.status.state.is_terminal(),
+            "terminal replay must set final=true"
+        );
         assert_eq!(final_update.status.state, TaskState::TaskStateCompleted);
         assert_eq!(final_update.task_id, task_id);
     }
@@ -1287,7 +1228,7 @@ mod tests {
         let context_id = uuid::Uuid::new_v4().to_string();
         let initial_task = Task {
             artifacts: vec![],
-            context_id: context_id.clone(),
+            context_id: Some(context_id.clone()),
             history: vec![],
             id: task_id.clone(),
             metadata: None,
@@ -1309,7 +1250,7 @@ mod tests {
             tokio::time::sleep(std::time::Duration::from_millis(250)).await;
             let completed = Task {
                 artifacts: vec![],
-                context_id: context_id_for_driver,
+                context_id: Some(context_id_for_driver),
                 history: vec![],
                 id: task_id_for_driver,
                 metadata: None,
@@ -1328,7 +1269,7 @@ mod tests {
         let mut stream = Box::pin(
             client
                 .resubscribe_task(SubscribeToTaskRequest {
-                    name: Some(format!("tasks/{task_id}")),
+                    id: task_id.to_string(),
                     tenant: Some("tests".to_string()),
                 })
                 .await
@@ -1353,7 +1294,10 @@ mod tests {
             .status_update
             .as_ref()
             .expect("last event is a status update");
-        assert!(final_update.final_, "stream must terminate with final=true");
+        assert!(
+            final_update.status.state.is_terminal(),
+            "stream must terminate with final=true"
+        );
         assert_eq!(final_update.status.state, TaskState::TaskStateCompleted);
     }
 
@@ -1377,7 +1321,7 @@ mod tests {
 
         let result = client
             .resubscribe_task(SubscribeToTaskRequest {
-                name: Some("tasks/does-not-exist".to_string()),
+                id: "does-not-exist".to_string(),
                 tenant: Some("tests".to_string()),
             })
             .await;
@@ -1398,20 +1342,17 @@ mod tests {
             "name": "Extended Card Agent",
             "description": "agent/getAuthenticatedExtendedCard test",
             "version": "1.2.3",
-            "protocolVersion": "0.2.6",
-            "url": "http://localhost/a2a",
-            "preferredTransport": "JSONRPC",
+            "supportedInterfaces": [{"url": "http://localhost/a2a", "protocolBinding": "JSONRPC", "protocolVersion": "1.0"}],
             "capabilities": {
                 "streaming": true,
                 "pushNotifications": false,
-                "stateTransitionHistory": false
+                "extendedAgentCard": supports
             },
             "defaultInputModes": ["text/plain"],
             "defaultOutputModes": ["text/plain"],
             "skills": [
                 {"id": "x", "name": "x", "description": "x", "tags": ["x"]}
-            ],
-            "supportsExtendedAgentCard": supports
+            ]
         }))
         .expect("agent card builds")
     }
@@ -1441,7 +1382,7 @@ mod tests {
 
         assert_eq!(card.name, "Extended Card Agent");
         assert_eq!(card.version, "1.2.3");
-        assert_eq!(card.supports_extended_agent_card, Some(true));
+        assert_eq!(card.capabilities.extended_agent_card, Some(true));
     }
 
     #[tokio::test]

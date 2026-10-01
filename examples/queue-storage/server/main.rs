@@ -71,15 +71,13 @@ impl TaskHandler for SleepEchoHandler {
         tokio::time::sleep(self.delay).await;
 
         let reply = Message {
-            context_id: Some(task.context_id.clone()),
+            context_id: task.context_id.clone(),
             extensions: vec![],
             message_id: uuid::Uuid::new_v4().to_string(),
             metadata: None,
             parts: vec![Part {
-                data: None,
-                file: None,
-                metadata: None,
                 text: Some(format!("echo: {input}")),
+                ..Default::default()
             }],
             reference_task_ids: vec![],
             role: Role::RoleAgent,

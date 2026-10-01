@@ -97,13 +97,13 @@ Clients respect `SERVER_URL` and default to `http://localhost:8085`.
   the four `pushNotificationConfig/*` methods here exercise the control plane
   (storage + retrieval) only.
 - The shared example server opts into the extended agent card by setting
-  `supportsExtendedAgentCard: true` on the static agent card it advertises;
+  `capabilities.extendedAgentCard: true` on the static agent card it advertises;
   this is what lets `a2a-methods-agent-authenticated-extended-card` succeed
   rather than receive `METHOD_NOT_FOUND`. Production agents should gate the
   flag on their own auth policy.
 - `tasks/resubscribe` lets a client re-attach to an existing
-  `tasks/{task_id}` resource and receive a snapshot of its current state
+  task id and receive a snapshot of its current state
   followed by any remaining `TaskStatusUpdateEvent` deltas. The example
   here seeds a task via `message/send` (which the echo handler completes
   immediately) so the resubscribed stream emits a snapshot and a terminal
-  `final: true` update.
+  terminal status update.

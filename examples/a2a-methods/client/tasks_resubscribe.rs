@@ -44,10 +44,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 message_id: Uuid::new_v4().to_string(),
                 metadata: None,
                 parts: vec![Part {
-                    data: None,
-                    file: None,
-                    metadata: None,
                     text: Some("seed for tasks/resubscribe".to_string()),
+                    ..Default::default()
                 }],
                 reference_task_ids: vec![],
                 role: Role::RoleUser,
@@ -58,7 +56,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         })
         .await?;
     let seeded_task = seed.task.ok_or("server did not return a task")?;
-    let task_resource = format!("tasks/{}", seeded_task.id);
 
     info!(
         "seeded task {} (state {:?}); resubscribing...",
@@ -70,7 +67,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut stream = Box::pin(
         client
             .resubscribe_task(SubscribeToTaskRequest {
-                name: Some(task_resource.clone()),
+                id: seeded_task.id.clone(),
                 tenant: Some("example".to_string()),
             })
             .await?,
@@ -89,7 +86,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         if let Some(update) = response.status_update {
-            let suffix = if update.final_ { " (final)" } else { "" };
+            let suffix = if update.status.state.is_terminal() {
+                " (final)"
+            } else {
+                ""
+            };
             info!(
                 "[{event_index}] tasks/resubscribe → status update: {:?}{suffix}",
                 update.status.state

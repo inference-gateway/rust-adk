@@ -37,7 +37,9 @@ use serde_json::Value;
 use tokio::sync::RwLock;
 use tracing::{debug, warn};
 
-use crate::a2a_types::{OpenIdConnectSecurityScheme, Security, SecurityScheme, StringList};
+use crate::a2a_types::{
+    OpenIdConnectSecurityScheme, SecurityRequirement, SecurityScheme, StringList,
+};
 use crate::config::AuthConfig;
 
 use super::protocol::AppState;
@@ -46,20 +48,22 @@ use super::protocol::AppState;
 /// `server.OIDCSecuritySchemes` helper.
 const OIDC_SCHEME_KEY: &str = "openId";
 
-/// Derive the `securitySchemes` and `security` an agent card should
+/// Derive the `securitySchemes` and `securityRequirements` an agent card should
 /// advertise from an [`AuthConfig`], mirroring Go's
 /// `server.OIDCSecuritySchemes`.
 ///
 /// Returns a single `openIdConnect` scheme keyed `"openId"` whose
 /// `openIdConnectUrl` is the issuer's discovery document
 /// (`<issuer>/.well-known/openid-configuration`, trailing slash trimmed),
-/// plus one matching [`Security`] requirement with an empty scope list.
+/// plus one matching [`SecurityRequirement`] with an empty scope list.
 /// Callers attach the result to the card before `with_agent_card(...)`.
 ///
 /// OIDC/OAuth2 schemes are deliberately excluded from the static ADL
 /// manifest schema because they are runtime concerns; this helper is how
 /// ADL-generated agents derive them at startup from `A2A_AUTH_ISSUER_URL`.
-pub fn oidc_security_schemes(cfg: &AuthConfig) -> (HashMap<String, SecurityScheme>, Vec<Security>) {
+pub fn oidc_security_schemes(
+    cfg: &AuthConfig,
+) -> (HashMap<String, SecurityScheme>, Vec<SecurityRequirement>) {
     let issuer = cfg.issuer_url.trim_end_matches('/');
     let scheme = SecurityScheme {
         open_id_connect_security_scheme: Some(OpenIdConnectSecurityScheme {
@@ -69,7 +73,7 @@ pub fn oidc_security_schemes(cfg: &AuthConfig) -> (HashMap<String, SecuritySchem
         ..SecurityScheme::default()
     };
     let schemes = HashMap::from([(OIDC_SCHEME_KEY.to_string(), scheme)]);
-    let security = vec![Security {
+    let security = vec![SecurityRequirement {
         schemes: HashMap::from([(OIDC_SCHEME_KEY.to_string(), StringList::default())]),
     }];
     (schemes, security)

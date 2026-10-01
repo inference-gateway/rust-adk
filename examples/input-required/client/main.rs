@@ -19,7 +19,7 @@ async fn poll_until_settled(
         let task = client
             .get_task(GetTaskRequest {
                 history_length: None,
-                name: format!("tasks/{task_id}"),
+                id: task_id.to_string(),
                 tenant: Some("input-required".to_string()),
             })
             .await?;
@@ -27,7 +27,7 @@ async fn poll_until_settled(
             task.status.state,
             TaskState::TaskStateCompleted
                 | TaskState::TaskStateFailed
-                | TaskState::TaskStateCancelled
+                | TaskState::TaskStateCanceled
                 | TaskState::TaskStateRejected
                 | TaskState::TaskStateInputRequired
         ) {
@@ -47,10 +47,8 @@ fn user_message(text: &str) -> SendMessageRequest {
             message_id: Uuid::new_v4().to_string(),
             metadata: None,
             parts: vec![Part {
-                data: None,
-                file: None,
-                metadata: None,
                 text: Some(text.to_string()),
+                ..Default::default()
             }],
             reference_task_ids: vec![],
             role: Role::RoleUser,

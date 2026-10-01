@@ -64,7 +64,7 @@ from the repo root.
   `message/stream` and `tasks/resubscribe` return SSE.
 - Streaming handlers push events through `StreamEmitter`
   (`src/server/task_handler.rs`), which also keeps `Storage` in sync; terminal
-  events **must** carry `final: true`.
+  a terminal `status.state` ends the stream (A2A v1.0 has no `final` flag).
 - `DefaultTaskManager` runs only when a background `TaskHandler` is set: one
   worker per `with_workers(n)` slot, each blocking on `Storage::dequeue_task`,
   driving the handler, then routing terminal tasks to the dead-letter store

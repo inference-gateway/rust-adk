@@ -3,7 +3,7 @@ use super::artifact_service::ArtifactService;
 use super::storage::Storage;
 use super::usage_tracker::UsageTracker;
 use crate::a2a_types::{
-    Artifact, FilePart, Message as A2AMessage, Part, Role, StreamResponse, Struct, Task,
+    Artifact, Message as A2AMessage, Part, Role, StreamResponse, Struct, Task,
     TaskArtifactUpdateEvent, TaskState, TaskStatus, TaskStatusUpdateEvent, Timestamp,
 };
 use anyhow::{Result, anyhow};
@@ -110,7 +110,6 @@ impl StreamEmitter {
         context_id: &str,
         state: TaskState,
         message: Option<A2AMessage>,
-        final_: bool,
     ) -> Result<()> {
         let now = Timestamp(chrono::Utc::now());
         let new_status = TaskStatus {
@@ -129,7 +128,6 @@ impl StreamEmitter {
 
         let event = TaskStatusUpdateEvent {
             context_id: context_id.to_string(),
-            final_,
             metadata: None,
             status: new_status,
             task_id: task_id.to_string(),
@@ -162,10 +160,8 @@ impl StreamEmitter {
             metadata: None,
             name: None,
             parts: vec![Part {
-                data: None,
-                file: None,
-                metadata: None,
                 text: Some(text),
+                ..Default::default()
             }],
         };
 
@@ -193,13 +189,11 @@ impl StreamEmitter {
     }
 
     /// Persist `data` through the configured [`ArtifactService`] and
-    /// emit a [`TaskArtifactUpdateEvent`] whose [`FilePart`] carries a
-    /// URI rather than inline bytes.
+    /// emit a [`TaskArtifactUpdateEvent`] whose file part carries a
+    /// `url` rather than inline bytes.
     ///
-    /// Falls back to a [`FilePart`] with `fileWithBytes` when no
+    /// Falls back to a file part with inline `raw` bytes when no
     /// [`ArtifactService`] is configured.
-    ///
-    /// [`FilePart`]: crate::a2a_types::FilePart
     pub async fn emit_file_artifact(
         &self,
         task_id: &str,
@@ -317,15 +311,13 @@ fn merge_usage_metadata(task: &mut Task, usage: Map<String, Value>) {
 
 pub(super) fn build_agent_text_message(task: &Task, text: &str) -> A2AMessage {
     A2AMessage {
-        context_id: Some(task.context_id.clone()),
+        context_id: task.context_id.clone(),
         extensions: vec![],
         message_id: uuid::Uuid::new_v4().to_string(),
         metadata: None,
         parts: vec![Part {
-            data: None,
-            file: None,
-            metadata: None,
             text: Some(text.to_string()),
+            ..Default::default()
         }],
         reference_task_ids: vec![],
         role: Role::RoleAgent,
@@ -340,18 +332,18 @@ fn message_content_to_string(content: &MessageContent) -> String {
     }
 }
 
-/// Turn an image `FilePart` into an OpenAI-compatible `image_url` value:
-/// `fileWithBytes` becomes a `data:` URL, `fileWithUri` is passed through
-/// unchanged. Non-image media types yield `None`.
-fn image_url_from_file_part(file: &FilePart) -> Option<String> {
-    let media_type = file.media_type.as_deref()?;
+/// Turn an image file part into an OpenAI-compatible `image_url` value:
+/// `raw` becomes a `data:` URL, `url` is passed through unchanged.
+/// Non-image media types yield `None`.
+fn image_url_from_file_part(part: &Part) -> Option<String> {
+    let media_type = part.media_type.as_deref()?;
     if !media_type.starts_with("image/") {
         return None;
     }
-    if let Some(bytes) = file.file_with_bytes.as_ref() {
+    if let Some(bytes) = part.raw.as_ref() {
         return Some(format!("data:{};base64,{}", media_type, bytes.as_str()));
     }
-    file.file_with_uri.clone()
+    part.url.clone()
 }
 
 /// Build the SDK content for one A2A message. Text-only messages keep plain
@@ -372,7 +364,7 @@ fn build_message_content(msg: &A2AMessage, role: MessageRole) -> Option<MessageC
         if role == MessageRole::Assistant {
             continue;
         }
-        if let Some(url) = part.file.as_ref().and_then(image_url_from_file_part) {
+        if let Some(url) = image_url_from_file_part(part) {
             has_image = true;
             parts.push(ContentPart::ImageContentPart(ImageContentPart {
                 image_url: ImageUrl {
@@ -734,10 +726,9 @@ impl StreamableTaskHandler for DefaultStreamingTaskHandler {
         emitter
             .emit_status(
                 &task.id,
-                &task.context_id,
+                task.context_id_str(),
                 TaskState::TaskStateWorking,
                 None,
-                false,
             )
             .await?;
 
@@ -746,7 +737,7 @@ impl StreamableTaskHandler for DefaultStreamingTaskHandler {
             Some(agent) => stream_agent_deltas(agent, &task, &emitter, &tracker).await?,
             None => {
                 emitter
-                    .emit_text_artifact(&task.id, &task.context_id, NO_AGENT_REPLY, true)
+                    .emit_text_artifact(&task.id, task.context_id_str(), NO_AGENT_REPLY, true)
                     .await?;
                 NO_AGENT_REPLY.to_string()
             }
@@ -760,10 +751,9 @@ impl StreamableTaskHandler for DefaultStreamingTaskHandler {
         emitter
             .emit_status(
                 &task.id,
-                &task.context_id,
+                task.context_id_str(),
                 TaskState::TaskStateCompleted,
                 Some(reply_message),
-                true,
             )
             .await
     }
@@ -795,7 +785,7 @@ async fn stream_agent_deltas(
                            final answer."
                     .to_string();
                 emitter
-                    .emit_text_artifact(&task.id, &task.context_id, &msg, true)
+                    .emit_text_artifact(&task.id, task.context_id_str(), &msg, true)
                     .await?;
                 return Ok(msg);
             }
@@ -808,7 +798,12 @@ async fn stream_agent_deltas(
                         .unwrap_or(true)
                 {
                     emitter
-                        .emit_text_artifact(&task.id, &task.context_id, &outcome.final_text, true)
+                        .emit_text_artifact(
+                            &task.id,
+                            task.context_id_str(),
+                            &outcome.final_text,
+                            true,
+                        )
                         .await?;
                     return Ok(outcome.final_text);
                 }
@@ -818,7 +813,7 @@ async fn stream_agent_deltas(
                 warn!("default streaming handler: tool loop failed: {e}");
                 let msg = format!("Agent stream failed: {e}");
                 emitter
-                    .emit_text_artifact(&task.id, &task.context_id, &msg, true)
+                    .emit_text_artifact(&task.id, task.context_id_str(), &msg, true)
                     .await?;
                 return Ok(msg);
             }
@@ -845,7 +840,7 @@ async fn stream_agent_deltas(
                 warn!("default streaming handler: gateway error: {e}");
                 let msg = format!("Agent stream failed: {e}");
                 emitter
-                    .emit_text_artifact(&task.id, &task.context_id, &msg, true)
+                    .emit_text_artifact(&task.id, task.context_id_str(), &msg, true)
                     .await?;
                 return Ok(msg);
             }
@@ -894,13 +889,11 @@ async fn stream_agent_deltas(
                 metadata: None,
                 name: None,
                 parts: vec![Part {
-                    data: None,
-                    file: None,
-                    metadata: None,
                     text: Some(text.to_string()),
+                    ..Default::default()
                 }],
             },
-            context_id: task.context_id.clone(),
+            context_id: task.context_id_str().to_string(),
             last_chunk: Some(false),
             metadata: None,
             task_id: task.id.clone(),
@@ -925,7 +918,7 @@ async fn stream_agent_deltas(
             name: None,
             parts: vec![],
         },
-        context_id: task.context_id.clone(),
+        context_id: task.context_id_str().to_string(),
         last_chunk: Some(true),
         metadata: None,
         task_id: task.id.clone(),
@@ -963,13 +956,10 @@ mod tests {
             "name": "Validation Agent",
             "description": "Builder validation tests",
             "version": "0.0.0",
-            "protocolVersion": "0.2.6",
-            "url": "http://localhost/a2a",
-            "preferredTransport": "JSONRPC",
+            "supportedInterfaces": [{"url": "http://localhost/a2a", "protocolBinding": "JSONRPC", "protocolVersion": "1.0"}],
             "capabilities": {
                 "streaming": streaming,
-                "pushNotifications": false,
-                "stateTransitionHistory": false
+                "pushNotifications": false
             },
             "defaultInputModes": ["text/plain"],
             "defaultOutputModes": ["text/plain"],
@@ -1062,10 +1052,8 @@ mod tests {
                 message_id: "msg-default-stream".to_string(),
                 metadata: None,
                 parts: vec![Part {
-                    data: None,
-                    file: None,
-                    metadata: None,
                     text: Some("hi".to_string()),
+                    ..Default::default()
                 }],
                 reference_task_ids: vec![],
                 role: Role::RoleUser,
@@ -1095,7 +1083,7 @@ mod tests {
             .as_ref()
             .expect("second event is status update");
         assert_eq!(working.status.state, TaskState::TaskStateWorking);
-        assert!(!working.final_);
+        assert!(!working.status.state.is_terminal());
 
         let mut artifact_ids = std::collections::HashSet::new();
         let chunks: Vec<String> = (2..=4)
@@ -1141,7 +1129,7 @@ mod tests {
             .as_ref()
             .expect("event[6] should be the Completed status");
         assert_eq!(completed.status.state, TaskState::TaskStateCompleted);
-        assert!(completed.final_);
+        assert!(completed.status.state.is_terminal());
         let assembled = completed
             .status
             .message
@@ -1351,10 +1339,8 @@ mod tests {
                     message_id: "msg-bg-tool".to_string(),
                     metadata: None,
                     parts: vec![Part {
-                        data: None,
-                        file: None,
-                        metadata: None,
                         text: Some("ask".to_string()),
+                        ..Default::default()
                     }],
                     reference_task_ids: vec![],
                     role: Role::RoleUser,
@@ -1407,18 +1393,12 @@ mod tests {
             let fetched = client
                 .get_task(crate::a2a_types::GetTaskRequest {
                     history_length: None,
-                    name: format!("tasks/{task_id}"),
+                    id: task_id.to_string(),
                     tenant: Some("tests".to_string()),
                 })
                 .await
                 .expect("tasks/get");
-            if matches!(
-                fetched.status.state,
-                TaskState::TaskStateCompleted
-                    | TaskState::TaskStateFailed
-                    | TaskState::TaskStateCancelled
-                    | TaskState::TaskStateRejected
-            ) {
+            if fetched.status.state.is_terminal() {
                 return fetched;
             }
             tokio::time::sleep(std::time::Duration::from_millis(20)).await;
@@ -1472,10 +1452,8 @@ mod tests {
                 message_id: "msg-stream-tool".to_string(),
                 metadata: None,
                 parts: vec![Part {
-                    data: None,
-                    file: None,
-                    metadata: None,
                     text: Some("ask".to_string()),
+                    ..Default::default()
                 }],
                 reference_task_ids: vec![],
                 role: Role::RoleUser,
@@ -1533,7 +1511,7 @@ mod tests {
             .as_ref()
             .expect("last event is a status update");
         assert_eq!(last_status.status.state, TaskState::TaskStateCompleted);
-        assert!(last_status.final_);
+        assert!(last_status.status.state.is_terminal());
     }
 
     // ----- usage-metadata coverage ------------------------------------------
@@ -1541,17 +1519,15 @@ mod tests {
     fn submitted_usage_task(text: &str) -> Task {
         Task {
             artifacts: vec![],
-            context_id: "ctx-usage".to_string(),
+            context_id: Some("ctx-usage".to_string()),
             history: vec![A2AMessage {
                 context_id: Some("ctx-usage".to_string()),
                 extensions: vec![],
                 message_id: "u-usage".to_string(),
                 metadata: None,
                 parts: vec![Part {
-                    data: None,
-                    file: None,
-                    metadata: None,
                     text: Some(text.to_string()),
+                    ..Default::default()
                 }],
                 reference_task_ids: vec![],
                 role: Role::RoleUser,
@@ -1775,24 +1751,18 @@ mod tests {
 
     fn text_part(text: &str) -> Part {
         Part {
-            data: None,
-            file: None,
-            metadata: None,
             text: Some(text.to_string()),
+            ..Default::default()
         }
     }
 
     fn file_part(media_type: &str, bytes: Option<&str>, uri: Option<&str>) -> Part {
         Part {
-            data: None,
-            file: Some(FilePart {
-                file_with_bytes: bytes.map(|b| b.parse().expect("valid base64")),
-                file_with_uri: uri.map(str::to_string),
-                media_type: Some(media_type.to_string()),
-                name: Some("image".to_string()),
-            }),
-            metadata: None,
-            text: None,
+            filename: Some("image".to_string()),
+            media_type: Some(media_type.to_string()),
+            raw: bytes.map(|b| b.parse().expect("valid base64")),
+            url: uri.map(str::to_string),
+            ..Default::default()
         }
     }
 
@@ -1809,7 +1779,7 @@ mod tests {
         }
     }
 
-    /// Image `FilePart`s on user messages become OpenAI-compatible `image_url`
+    /// Image file parts on user messages become OpenAI-compatible `image_url`
     /// content parts, in A2A part order; everything else keeps plain string
     /// content (or is dropped) exactly as before.
     #[test]

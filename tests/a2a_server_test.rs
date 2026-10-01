@@ -61,13 +61,10 @@ fn ensure_suite() -> &'static Suite {
                         "name": "Test A2A Agent",
                         "description": "A test agent for validating A2A server functionality",
                         "version": "1.0.0",
-                        "protocolVersion": "0.2.6",
-                        "url": format!("http://{server_addr_clone}/a2a"),
-                        "preferredTransport": "JSONRPC",
+                        "supportedInterfaces": [{"url": format!("http://{server_addr_clone}/a2a"), "protocolBinding": "JSONRPC", "protocolVersion": "1.0"}],
                         "capabilities": {
                             "streaming": true,
-                            "pushNotifications": false,
-                            "stateTransitionHistory": false
+                            "pushNotifications": false
                         },
                         "defaultInputModes": ["text/plain"],
                         "defaultOutputModes": ["text/plain"],
@@ -281,10 +278,8 @@ async fn message_stream_emits_sse_state_transitions() {
             message_id: "msg-stream-001".to_string(),
             metadata: None,
             parts: vec![a2a_types::Part {
-                data: None,
-                file: None,
-                metadata: None,
                 text: Some("Hello via message/stream".to_string()),
+                ..Default::default()
             }],
             reference_task_ids: vec![],
             role: a2a_types::Role::RoleUser,
@@ -307,7 +302,7 @@ async fn message_stream_emits_sse_state_transitions() {
         if let Some(update) = event.status_update {
             match update.status.state {
                 a2a_types::TaskState::TaskStateWorking => saw_working = true,
-                a2a_types::TaskState::TaskStateCompleted if update.final_ => {
+                a2a_types::TaskState::TaskStateCompleted if update.status.state.is_terminal() => {
                     saw_completed_final = true;
                 }
                 _ => {}
@@ -332,7 +327,7 @@ async fn tasks_get_returns_stored_task() {
         "id": "test-tasks-get-001",
         "method": "tasks/get",
         "params": {
-            "name": format!("tasks/{}", task.id),
+            "id": task.id,
         },
     });
     let response = post_jsonrpc(suite, request).await;
@@ -355,7 +350,6 @@ async fn tasks_list_returns_paged_response() {
         "method": "tasks/list",
         "params": {
             "contextId": "",
-            "lastUpdatedAfter": 0,
             "pageToken": "",
             "status": "TASK_STATE_UNSPECIFIED",
             "tenant": "test",
@@ -384,7 +378,7 @@ async fn tasks_cancel_marks_task_cancelled() {
         "id": "test-tasks-cancel-001",
         "method": "tasks/cancel",
         "params": {
-            "name": format!("tasks/{}", task.id),
+            "id": task.id,
             "tenant": "test",
         },
     });
@@ -397,7 +391,7 @@ async fn tasks_cancel_marks_task_cancelled() {
     let cancelled: a2a_types::Task = serde_json::from_value(result.clone()).expect("Task parses");
     assert_eq!(
         cancelled.status.state,
-        a2a_types::TaskState::TaskStateCancelled
+        a2a_types::TaskState::TaskStateCanceled
     );
 }
 
@@ -405,9 +399,7 @@ async fn tasks_cancel_marks_task_cancelled() {
 async fn push_notification_config_round_trip() {
     let suite = ensure_suite();
     let task = create_task(suite, "push config scenario").await;
-    let parent = format!("tasks/{}", task.id);
     let config_id = "cfg-001";
-    let config_name = format!("{parent}/pushNotificationConfigs/{config_id}");
 
     // set
     let set_request = json!({
@@ -415,15 +407,10 @@ async fn push_notification_config_round_trip() {
         "id": "test-push-config-set-001",
         "method": "tasks/pushNotificationConfig/set",
         "params": {
-            "parent": parent,
-            "configId": config_id,
-            "config": {
-                "name": config_name,
-                "pushNotificationConfig": {
-                    "url": "http://localhost:9999/webhook",
-                    "token": "test-token-123"
-                }
-            }
+            "taskId": task.id,
+            "id": config_id,
+            "url": "http://localhost:9999/webhook",
+            "token": "test-token-123"
         },
     });
     let set_response = post_jsonrpc(suite, set_request).await;
@@ -434,7 +421,8 @@ async fn push_notification_config_round_trip() {
     let set_result = set_response.get("result").expect("result present");
     let set_typed: a2a_types::TaskPushNotificationConfig =
         serde_json::from_value(set_result.clone()).expect("config parses");
-    assert_eq!(set_typed.name, config_name);
+    assert_eq!(set_typed.id.as_deref(), Some(config_id));
+    assert_eq!(set_typed.task_id.as_deref(), Some(task.id.as_str()));
 
     // get
     let get_request = json!({
@@ -442,7 +430,8 @@ async fn push_notification_config_round_trip() {
         "id": "test-push-config-get-001",
         "method": "tasks/pushNotificationConfig/get",
         "params": {
-            "name": config_name,
+            "taskId": task.id,
+            "id": config_id,
             "tenant": "test",
         },
     });
@@ -454,10 +443,7 @@ async fn push_notification_config_round_trip() {
     let get_result = get_response.get("result").expect("result present");
     let get_typed: a2a_types::TaskPushNotificationConfig =
         serde_json::from_value(get_result.clone()).expect("config parses");
-    assert_eq!(
-        get_typed.push_notification_config.url,
-        "http://localhost:9999/webhook"
-    );
+    assert_eq!(get_typed.url, "http://localhost:9999/webhook");
 
     // list
     let list_request = json!({
@@ -465,7 +451,7 @@ async fn push_notification_config_round_trip() {
         "id": "test-push-config-list-001",
         "method": "tasks/pushNotificationConfig/list",
         "params": {
-            "parent": parent,
+            "taskId": task.id,
             "pageSize": 10,
             "pageToken": "",
             "tenant": "test",
@@ -477,9 +463,14 @@ async fn push_notification_config_round_trip() {
         "list push configs failed: {list_response}"
     );
     let list_result = list_response.get("result").expect("result present");
-    let list_typed: a2a_types::ListTaskPushNotificationConfigResponse =
+    let list_typed: a2a_types::ListTaskPushNotificationConfigsResponse =
         serde_json::from_value(list_result.clone()).expect("list parses");
-    assert!(list_typed.configs.iter().any(|c| c.name == config_name));
+    assert!(
+        list_typed
+            .configs
+            .iter()
+            .any(|c| c.id.as_deref() == Some(config_id))
+    );
 
     // delete
     let delete_request = json!({
@@ -487,7 +478,8 @@ async fn push_notification_config_round_trip() {
         "id": "test-push-config-delete-001",
         "method": "tasks/pushNotificationConfig/delete",
         "params": {
-            "name": config_name,
+            "taskId": task.id,
+            "id": config_id,
             "tenant": "test",
         },
     });
@@ -505,7 +497,7 @@ async fn push_notification_config_round_trip() {
             "jsonrpc": "2.0",
             "id": "test-push-config-get-after-delete",
             "method": "tasks/pushNotificationConfig/get",
-            "params": { "name": config_name, "tenant": "test" },
+            "params": { "taskId": task.id, "id": config_id, "tenant": "test" },
         }),
     )
     .await;
@@ -573,10 +565,8 @@ async fn client_typed_helpers_round_trip_send_and_list() {
             message_id: uuid::Uuid::new_v4().to_string(),
             metadata: None,
             parts: vec![a2a_types::Part {
-                data: None,
-                file: None,
-                metadata: None,
                 text: Some("typed-client roundtrip".to_string()),
+                ..Default::default()
             }],
             reference_task_ids: vec![],
             role: a2a_types::Role::RoleUser,
@@ -595,7 +585,7 @@ async fn client_typed_helpers_round_trip_send_and_list() {
     let fetched = client
         .get_task(a2a_types::GetTaskRequest {
             history_length: None,
-            name: format!("tasks/{}", task.id),
+            id: task.id.clone(),
             tenant: Some("test".to_string()),
         })
         .await
@@ -607,10 +597,10 @@ async fn client_typed_helpers_round_trip_send_and_list() {
             context_id: Some(String::new()),
             history_length: None,
             include_artifacts: None,
-            last_updated_after: Some(0),
             page_size: Some(50),
             page_token: Some(String::new()),
             status: Some(a2a_types::TaskState::TaskStateUnspecified),
+            status_timestamp_after: None,
             tenant: Some("test".to_string()),
         })
         .await
@@ -629,7 +619,7 @@ async fn tasks_resubscribe_returns_snapshot_and_final_event() {
     let mut stream = Box::pin(
         client
             .resubscribe_task(a2a_types::SubscribeToTaskRequest {
-                name: Some(format!("tasks/{}", task.id)),
+                id: task.id.clone(),
                 tenant: Some("test".to_string()),
             })
             .await
@@ -655,7 +645,7 @@ async fn tasks_resubscribe_unknown_task_returns_task_not_found() {
         "id": "test-resubscribe-not-found",
         "method": "tasks/resubscribe",
         "params": {
-            "name": "tasks/does-not-exist",
+            "id": "does-not-exist",
             "tenant": "test"
         }
     });

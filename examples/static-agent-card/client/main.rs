@@ -16,17 +16,11 @@ async fn poll_until_terminal(
         let task = client
             .get_task(GetTaskRequest {
                 history_length: None,
-                name: format!("tasks/{task_id}"),
+                id: task_id.to_string(),
                 tenant: Some("static-agent-card".to_string()),
             })
             .await?;
-        if matches!(
-            task.status.state,
-            TaskState::TaskStateCompleted
-                | TaskState::TaskStateFailed
-                | TaskState::TaskStateCancelled
-                | TaskState::TaskStateRejected
-        ) {
+        if task.status.state.is_terminal() {
             return Ok(task);
         }
         sleep(Duration::from_millis(200)).await;
@@ -60,10 +54,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Ok(agent_card) => {
             info!("Agent card retrieved successfully");
             info!("Agent: {} - {}", agent_card.name, agent_card.description);
-            info!(
-                "Protocol version: {}, Transport: {:?}",
-                agent_card.protocol_version, agent_card.preferred_transport
-            );
+            for interface in &agent_card.supported_interfaces {
+                info!(
+                    "Interface: {} ({} v{})",
+                    interface.url, interface.protocol_binding, interface.protocol_version
+                );
+            }
         }
         Err(e) => {
             error!("Failed to get agent card: {}", e);

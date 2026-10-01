@@ -36,15 +36,13 @@ fn extract_city(text: &str) -> Option<String> {
 
 fn agent_text(task: &Task, text: &str) -> Message {
     Message {
-        context_id: Some(task.context_id.clone()),
+        context_id: task.context_id.clone(),
         extensions: vec![],
         message_id: uuid::Uuid::new_v4().to_string(),
         metadata: None,
         parts: vec![Part {
-            data: None,
-            file: None,
-            metadata: None,
             text: Some(text.to_string()),
+            ..Default::default()
         }],
         reference_task_ids: vec![],
         role: Role::RoleAgent,

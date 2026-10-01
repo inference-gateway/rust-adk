@@ -116,7 +116,7 @@ Notes per scenario:
 - **`artifacts-filesystem/`** runs two HTTP servers in the same process
   (A2A on `8087`, artifacts on `8088`). Compose sets
   `ARTIFACTS_STORAGE_BASE_URL=http://server:8088` so the URIs baked into
-  `FilePart.fileWithUri` resolve from the client container; the
+  the file part `url` resolve from the client container; the
   artifacts server is also published on host `:8088` for debugging.
   Produced files are bind-mounted to `server/artifacts-data/`. No
   provider keys required.
@@ -125,7 +125,7 @@ Notes per scenario:
   anonymous-download policy. The server is built with
   `CARGO_FEATURES=minio` so the `minio` crate is compiled in, and
   `ARTIFACTS_STORAGE_BASE_URL=http://minio:9000` makes
-  `FilePart.fileWithUri` point at MinIO directly — the client downloads
+  the file part `url` point at MinIO directly — the client downloads
   bypass the artifacts HTTP server entirely. No provider keys
   required.
 

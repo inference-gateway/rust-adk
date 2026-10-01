@@ -20,10 +20,8 @@ fn user_message(text: &str) -> SendMessageRequest {
             message_id: Uuid::new_v4().to_string(),
             metadata: None,
             parts: vec![Part {
-                data: None,
-                file: None,
-                metadata: None,
                 text: Some(text.to_string()),
+                ..Default::default()
             }],
             reference_task_ids: vec![],
             role: Role::RoleUser,
@@ -57,17 +55,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     info!("task {} created (state {:?})", task.id, task.status.state);
                 }
                 if let Some(update) = event.status_update {
-                    let suffix = if update.final_ { " (final)" } else { "" };
+                    let suffix = if update.status.state.is_terminal() {
+                        " (final)"
+                    } else {
+                        ""
+                    };
                     info!("status: {:?}{suffix}", update.status.state);
                 }
                 if let Some(update) = event.artifact_update {
                     for part in &update.artifact.parts {
-                        if let Some(file_part) = part.file.as_ref() {
-                            artifact_uri = file_part.file_with_uri.clone();
-                            artifact_name = file_part.name.clone();
+                        if part.url.is_some() {
+                            artifact_uri = part.url.clone();
+                            artifact_name = part.filename.clone();
                             info!(
                                 "received file artifact `{:?}` (mime={:?}) at {:?}",
-                                file_part.name, file_part.media_type, artifact_uri,
+                                part.filename, part.media_type, artifact_uri,
                             );
                         }
                     }

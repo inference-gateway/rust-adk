@@ -5,7 +5,7 @@ MinIO storage provider, talking to a local on-premises MinIO server.
 
 - `server/` runs an `A2AServer` plus the standalone artifacts HTTP
   server. A `StreamableTaskHandler` produces a small text report and
-  emits it as a `FilePart` whose `fileWithUri` points **directly at
+  emits it as a file part whose `url` points **directly at
   MinIO** (the example bucket has anonymous-read enabled).
 - `client/` opens `message/stream`, collects the file artifact URI,
   then downloads the artifact straight from MinIO via HTTP and prints
@@ -30,7 +30,7 @@ artifacts-minio/
 ## Topology
 
 ```
-                   message/stream            FilePart.fileWithUri → http://minio:9000/artifacts/<id>/<file>
+                   message/stream            file part `url` → http://minio:9000/artifacts/<id>/<file>
    client ────────────────────────► A2A :8089                ┌─────────► MinIO :9000  (anonymous read)
                                     (server uploads to minio:9000)
 ```
@@ -90,7 +90,7 @@ open http://localhost:9001   # login minioadmin / minioadmin
 ```
 
 The full URI is printed by the client log line that begins `received
-file artifact`. Note the URI inside the FilePart is
+file artifact`. Note the URI inside the file part is
 `http://minio:9000/...` — that's the Docker service name, only
 resolvable from inside the compose network. Replace `minio` with
 `localhost` to fetch from your host shell.
@@ -138,7 +138,7 @@ this example). The client honours `SERVER_URL` (default
 | `ARTIFACTS_STORAGE_ACCESS_KEY` | `minioadmin` | Static access key. |
 | `ARTIFACTS_STORAGE_SECRET_KEY` | `minioadmin` | Static secret key. |
 | `ARTIFACTS_STORAGE_BUCKET_NAME` | `artifacts` | Target bucket. Created on startup if missing. |
-| `ARTIFACTS_STORAGE_BASE_URL` | `http://localhost:9000` | Public URL prefix baked into `FilePart.fileWithUri`. |
+| `ARTIFACTS_STORAGE_BASE_URL` | `http://localhost:9000` | Public URL prefix baked into the file part `url`. |
 
 The full `ARTIFACTS_*` env-var surface from
 `examples/artifacts-filesystem/README.md` also applies (retention,

@@ -161,13 +161,10 @@ fn agent_card(addr: SocketAddr) -> a2a_types::AgentCard {
         "name": "TLS Test Agent",
         "description": "Used by tls_test.rs",
         "version": "1.0.0",
-        "protocolVersion": "0.2.6",
-        "url": format!("https://{addr}/a2a"),
-        "preferredTransport": "JSONRPC",
+        "supportedInterfaces": [{"url": format!("https://{addr}/a2a"), "protocolBinding": "JSONRPC", "protocolVersion": "1.0"}],
         "capabilities": {
             "streaming": false,
-            "pushNotifications": false,
-            "stateTransitionHistory": false
+            "pushNotifications": false
         },
         "defaultInputModes": ["text/plain"],
         "defaultOutputModes": ["text/plain"],

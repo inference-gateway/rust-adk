@@ -16,7 +16,7 @@
 //! [`A2AServerBuilder`]: super::server_builder::A2AServerBuilder
 
 use super::artifact_storage::ArtifactStorage;
-use crate::a2a_types::{Artifact, DataPart, FilePart, Part, Struct, Task};
+use crate::a2a_types::{Artifact, Part, PartRaw, Task, Value};
 use anyhow::Result;
 use async_trait::async_trait;
 use std::sync::Arc;
@@ -32,7 +32,7 @@ pub trait ArtifactService: Send + Sync + std::fmt::Debug {
     fn create_text_artifact(&self, name: &str, description: &str, text: &str) -> Artifact;
 
     /// Persist `data` via the configured [`ArtifactStorage`] and build
-    /// an [`Artifact`] whose single [`FilePart`] carries the resulting
+    /// an [`Artifact`] whose single file part carries the resulting
     /// URL. If no storage is configured, the bytes are inlined as
     /// base64 via `file_with_bytes`.
     async fn create_file_artifact(
@@ -44,7 +44,7 @@ pub trait ArtifactService: Send + Sync + std::fmt::Debug {
         mime: Option<&str>,
     ) -> Result<Artifact>;
 
-    /// Build a [`FilePart`]-backed artifact whose `fileWithUri` field is
+    /// Build a file-part artifact whose `url` field is
     /// pre-resolved (e.g. produced by a remote service). No storage I/O.
     fn create_file_artifact_from_uri(
         &self,
@@ -55,10 +55,9 @@ pub trait ArtifactService: Send + Sync + std::fmt::Debug {
         mime: Option<&str>,
     ) -> Artifact;
 
-    /// Build a [`DataPart`]-style artifact carrying a structured JSON
+    /// Build a data-part artifact carrying a structured JSON
     /// payload.
     ///
-    /// [`DataPart`]: crate::a2a_types::DataPart
     fn create_data_artifact(
         &self,
         name: &str,
@@ -123,10 +122,8 @@ impl ArtifactService for DefaultArtifactService {
             metadata: None,
             name: Some(name.to_string()),
             parts: vec![Part {
-                data: None,
-                file: None,
-                metadata: None,
                 text: Some(text.to_string()),
+                ..Default::default()
             }],
         }
     }
@@ -155,33 +152,21 @@ impl ArtifactService for DefaultArtifactService {
                     "persisted file artifact via storage backend",
                 );
                 Part {
-                    data: None,
-                    file: Some(FilePart {
-                        file_with_bytes: None,
-                        file_with_uri: Some(uri),
-                        media_type,
-                        name: Some(filename.to_string()),
-                    }),
-                    metadata: None,
-                    text: None,
+                    filename: Some(filename.to_string()),
+                    media_type,
+                    url: Some(uri),
+                    ..Default::default()
                 }
             }
             None => {
-                use crate::a2a_types::FilePartFileWithBytes;
-                let encoded = base64_encode_std(&data);
-                let file_with_bytes = FilePartFileWithBytes::try_from(encoded).map_err(|e| {
+                let raw = PartRaw::try_from(base64_encode_std(&data)).map_err(|e| {
                     anyhow::anyhow!("failed to encode artifact bytes as base64: {e}")
                 })?;
                 Part {
-                    data: None,
-                    file: Some(FilePart {
-                        file_with_bytes: Some(file_with_bytes),
-                        file_with_uri: None,
-                        media_type,
-                        name: Some(filename.to_string()),
-                    }),
-                    metadata: None,
-                    text: None,
+                    filename: Some(filename.to_string()),
+                    media_type,
+                    raw: Some(raw),
+                    ..Default::default()
                 }
             }
         };
@@ -215,15 +200,10 @@ impl ArtifactService for DefaultArtifactService {
             metadata: None,
             name: Some(name.to_string()),
             parts: vec![Part {
-                data: None,
-                file: Some(FilePart {
-                    file_with_bytes: None,
-                    file_with_uri: Some(uri.to_string()),
-                    media_type,
-                    name: Some(filename.to_string()),
-                }),
-                metadata: None,
-                text: None,
+                filename: Some(filename.to_string()),
+                media_type,
+                url: Some(uri.to_string()),
+                ..Default::default()
             }],
         }
     }
@@ -234,16 +214,6 @@ impl ArtifactService for DefaultArtifactService {
         description: &str,
         data: serde_json::Value,
     ) -> Artifact {
-        // `DataPart.data` is a `Struct` (a JSON object), so a non-object
-        // payload is wrapped under a `value` key rather than dropped.
-        let data_struct = match data {
-            serde_json::Value::Object(map) => Struct(map),
-            other => {
-                let mut wrapper = serde_json::Map::new();
-                wrapper.insert("value".to_string(), other);
-                Struct(wrapper)
-            }
-        };
         Artifact {
             artifact_id: uuid::Uuid::new_v4().to_string(),
             description: Some(description.to_string()),
@@ -251,10 +221,8 @@ impl ArtifactService for DefaultArtifactService {
             metadata: None,
             name: Some(name.to_string()),
             parts: vec![Part {
-                data: Some(DataPart { data: data_struct }),
-                file: None,
-                metadata: None,
-                text: None,
+                data: Some(Value(data)),
+                ..Default::default()
             }],
         }
     }
@@ -429,7 +397,7 @@ mod tests {
         assert_eq!(art.description.as_deref(), Some("desc"));
         assert_eq!(art.parts.len(), 1);
         assert_eq!(art.parts[0].text.as_deref(), Some("hello"));
-        assert!(art.parts[0].file.is_none());
+        assert!(art.parts[0].url.is_none() && art.parts[0].raw.is_none());
     }
 
     #[tokio::test]
@@ -450,13 +418,13 @@ mod tests {
             )
             .await
             .expect("create_file_artifact");
-        let file_part = art.parts[0].file.as_ref().expect("file part");
+        let file_part = &art.parts[0];
         assert_eq!(file_part.media_type.as_deref(), Some("application/pdf"));
-        assert_eq!(file_part.name.as_deref(), Some("report.pdf"));
-        let uri = file_part.file_with_uri.as_ref().expect("uri");
+        assert_eq!(file_part.filename.as_deref(), Some("report.pdf"));
+        let uri = file_part.url.as_ref().expect("url");
         assert!(uri.contains("/artifacts/"));
         assert!(uri.ends_with("/report.pdf"));
-        assert!(file_part.file_with_bytes.is_none());
+        assert!(file_part.raw.is_none());
         let _ = std::fs::remove_dir_all(&root);
     }
 
@@ -467,15 +435,15 @@ mod tests {
             .create_file_artifact("name", "desc", "report.pdf", b"abc".to_vec(), None)
             .await
             .expect("create_file_artifact");
-        let file_part = art.parts[0].file.as_ref().expect("file part");
-        assert!(file_part.file_with_uri.is_none());
-        let bytes = file_part.file_with_bytes.as_ref().expect("bytes");
+        let file_part = &art.parts[0];
+        assert!(file_part.url.is_none());
+        let bytes = file_part.raw.as_ref().expect("raw bytes");
         let encoded: &str = bytes;
         assert_eq!(encoded, "YWJj");
     }
 
     #[test]
-    fn create_file_artifact_from_uri_emits_file_with_uri() {
+    fn create_file_artifact_from_uri_emits_url() {
         let svc = DefaultArtifactService::without_storage();
         let art = svc.create_file_artifact_from_uri(
             "image",
@@ -484,9 +452,9 @@ mod tests {
             "https://cdn.example.com/pic.png",
             Some("image/png"),
         );
-        let file_part = art.parts[0].file.as_ref().expect("file part");
+        let file_part = &art.parts[0];
         assert_eq!(
-            file_part.file_with_uri.as_deref(),
+            file_part.url.as_deref(),
             Some("https://cdn.example.com/pic.png")
         );
         assert_eq!(file_part.media_type.as_deref(), Some("image/png"));
@@ -499,26 +467,22 @@ mod tests {
             svc.create_data_artifact("stats", "summary", serde_json::json!({"a": 1, "b": "two"}));
         assert!(
             art.metadata.is_none(),
-            "structured payload belongs in the DataPart, not artifact metadata"
+            "structured payload belongs in the data part, not artifact metadata"
         );
         assert_eq!(art.parts.len(), 1);
         let part = &art.parts[0];
         assert!(part.text.is_none());
-        assert!(part.file.is_none());
-        let data_part = part.data.as_ref().expect("data part");
-        assert_eq!(data_part.data.0.get("a").and_then(|v| v.as_i64()), Some(1));
-        assert_eq!(
-            data_part.data.0.get("b").and_then(|v| v.as_str()),
-            Some("two")
-        );
+        assert!(part.url.is_none() && part.raw.is_none());
+        let data = part.data.as_ref().expect("data part");
+        assert_eq!(data.get("a").and_then(|v| v.as_i64()), Some(1));
+        assert_eq!(data.get("b").and_then(|v| v.as_str()), Some("two"));
     }
 
     #[test]
-    fn create_data_artifact_wraps_non_object_payload() {
+    fn create_data_artifact_keeps_non_object_payload() {
         let svc = DefaultArtifactService::without_storage();
         let art = svc.create_data_artifact("nums", "list", serde_json::json!([1, 2, 3]));
-        let data_part = art.parts[0].data.as_ref().expect("data part");
-        let value = data_part.data.0.get("value").expect("wrapped value");
-        assert!(value.is_array());
+        let data = art.parts[0].data.as_ref().expect("data part");
+        assert!(data.is_array());
     }
 }

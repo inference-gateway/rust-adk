@@ -124,13 +124,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "name": "Minimal Rust A2A Agent",
         "description": "A minimal A2A server built with the Rust ADK",
         "version": "0.1.0",
-        "protocolVersion": "0.2.6",
-        "url": "http://localhost:8080",
-        "preferredTransport": "JSONRPC",
+        "supportedInterfaces": [{"url": "http://localhost:8080", "protocolBinding": "JSONRPC", "protocolVersion": "1.0"}],
         "capabilities": {
             "streaming": true,
-            "pushNotifications": false,
-            "stateTransitionHistory": false
+            "pushNotifications": false
         },
         "defaultInputModes": ["text/plain"],
         "defaultOutputModes": ["text/plain"],
@@ -303,7 +300,7 @@ suggested learning path.
 - **[A2A Methods](./examples/a2a-methods/)** - One client binary per JSON-RPC method exposed by the A2A spec
 - **[Auth](./examples/auth/)** - Bearer-token authentication on `POST /a2a` with public `/health` and `/.well-known/agent.json`
 - **[TLS / mTLS](./examples/tls/)** - TLS termination via `axum-server` + `rustls`, optional mTLS with client-cert subject as principal
-- **[Artifacts (filesystem)](./examples/artifacts-filesystem/)** - Streaming handler emits a `FilePart` whose URI is served by the standalone artifacts HTTP server, backed by an on-disk store
+- **[Artifacts (filesystem)](./examples/artifacts-filesystem/)** - Streaming handler emits a file part whose `url` is served by the standalone artifacts HTTP server, backed by an on-disk store
 - **[Health Check Example](#health-check-example)** - Monitor agent health status
 
 ## Key Features
@@ -470,9 +467,9 @@ binary per method.
 | `tasks/list`                                  | `list_tasks`                                | `ListTasksRequest`                            | `ListTasksResponse`                      |
 | `tasks/cancel`                                | `cancel_task`                               | `CancelTaskRequest`                           | `Task`                                   |
 | `tasks/resubscribe`                           | `resubscribe_task`                          | `SubscribeToTaskRequest`                      | `Stream<StreamResponse>` (SSE)           |
-| `tasks/pushNotificationConfig/set`            | `set_task_push_notification_config`         | `SetTaskPushNotificationConfigRequest`        | `TaskPushNotificationConfig`             |
+| `tasks/pushNotificationConfig/set`            | `set_task_push_notification_config`         | `TaskPushNotificationConfig`                  | `TaskPushNotificationConfig`             |
 | `tasks/pushNotificationConfig/get`            | `get_task_push_notification_config`         | `GetTaskPushNotificationConfigRequest`        | `TaskPushNotificationConfig`             |
-| `tasks/pushNotificationConfig/list`           | `list_task_push_notification_configs`       | `ListTaskPushNotificationConfigRequest`       | `ListTaskPushNotificationConfigResponse` |
+| `tasks/pushNotificationConfig/list`           | `list_task_push_notification_configs`       | `ListTaskPushNotificationConfigsRequest`      | `ListTaskPushNotificationConfigsResponse` |
 | `tasks/pushNotificationConfig/delete`         | `delete_task_push_notification_config`      | `DeleteTaskPushNotificationConfigRequest`     | `serde_json::Value`                      |
 | `agent/getAuthenticatedExtendedCard`          | `get_authenticated_extended_card`           | `GetExtendedAgentCardRequest`                 | `AgentCard`                              |
 
@@ -514,7 +511,7 @@ server-sent events stream and yields a `Result<StreamResponse>` per event as
 it arrives - the first event typically carries the freshly created `Task` in
 `Submitted`, later events are `TaskStatusUpdateEvent` /
 `TaskArtifactUpdateEvent` deltas, and the stream ends after the server emits
-an event with `final: true`.
+a status update whose state is terminal.
 
 ```rust
 use futures::StreamExt;
@@ -543,7 +540,7 @@ use inference_gateway_adk::a2a_types::GetTaskRequest;
 let task = client
     .get_task(GetTaskRequest {
         history_length: None,
-        name: format!("tasks/{task_id}"),
+        id: task_id.to_string(),
         tenant: Some("example".to_string()),
     })
     .await?;
@@ -559,10 +556,10 @@ let page = client
         context_id: Some(String::new()),
         history_length: None,
         include_artifacts: None,
-        last_updated_after: Some(0),
         page_size: Some(50),
         page_token: Some(String::new()),
         status: None,
+        status_timestamp_after: None,
         tenant: Some("example".to_string()),
     })
     .await?;
@@ -575,7 +572,7 @@ use inference_gateway_adk::a2a_types::CancelTaskRequest;
 
 let cancelled = client
     .cancel_task(CancelTaskRequest {
-        name: Some(format!("tasks/{task_id}")),
+        id: task_id.to_string(),
         tenant: Some("example".to_string()),
     })
     .await?;
@@ -586,7 +583,7 @@ let cancelled = client
 Re-attach to an already-running task and stream subsequent state
 transitions over SSE. The first event carries a snapshot of the task at
 the current status; later events are `TaskStatusUpdateEvent` deltas. The
-stream terminates after the server emits an event with `final: true`.
+stream terminates after the server emits a status update whose state is terminal.
 
 ```rust
 use futures::StreamExt;
@@ -595,7 +592,7 @@ use inference_gateway_adk::a2a_types::SubscribeToTaskRequest;
 let mut stream = Box::pin(
     client
         .resubscribe_task(SubscribeToTaskRequest {
-            name: Some(format!("tasks/{task_id}")),
+            id: task_id.to_string(),
             tenant: Some("example".to_string()),
         })
         .await?,
@@ -605,7 +602,7 @@ while let Some(event) = stream.next().await {
     let event = event?;
     if let Some(update) = event.status_update.as_ref() {
         println!("task is now {:?}", update.status.state);
-        if update.final_ {
+        if update.status.state.is_terminal() {
             break;
         }
     }
@@ -615,27 +612,16 @@ while let Some(event) = stream.next().await {
 ###### `tasks/pushNotificationConfig/set`
 
 ```rust
-use inference_gateway_adk::a2a_types::{
-    PushNotificationConfig, SetTaskPushNotificationConfigRequest, TaskPushNotificationConfig,
-};
-
-let parent = format!("tasks/{task_id}");
-let name = format!("{parent}/pushNotificationConfigs/primary");
+use inference_gateway_adk::a2a_types::TaskPushNotificationConfig;
 
 client
-    .set_task_push_notification_config(SetTaskPushNotificationConfigRequest {
-        parent: parent.clone(),
-        config_id: "primary".to_string(),
+    .set_task_push_notification_config(TaskPushNotificationConfig {
+        authentication: None,
+        id: Some("primary".to_string()),
+        task_id: Some(task_id.clone()),
         tenant: Some("example".to_string()),
-        config: TaskPushNotificationConfig {
-            name: name.clone(),
-            push_notification_config: PushNotificationConfig {
-                authentication: None,
-                id: None,
-                token: Some("shared-secret".to_string()),
-                url: "https://your-app.example/webhooks/a2a".to_string(),
-            },
-        },
+        token: Some("shared-secret".to_string()),
+        url: "https://your-app.example/webhooks/a2a".to_string(),
     })
     .await?;
 ```
@@ -647,7 +633,8 @@ use inference_gateway_adk::a2a_types::GetTaskPushNotificationConfigRequest;
 
 let cfg = client
     .get_task_push_notification_config(GetTaskPushNotificationConfigRequest {
-        name: Some(name.clone()),
+        id: "primary".to_string(),
+        task_id: task_id.clone(),
         tenant: Some("example".to_string()),
     })
     .await?;
@@ -656,13 +643,13 @@ let cfg = client
 ###### `tasks/pushNotificationConfig/list`
 
 ```rust
-use inference_gateway_adk::a2a_types::ListTaskPushNotificationConfigRequest;
+use inference_gateway_adk::a2a_types::ListTaskPushNotificationConfigsRequest;
 
 let listed = client
-    .list_task_push_notification_configs(ListTaskPushNotificationConfigRequest {
-        parent: Some(parent.clone()),
+    .list_task_push_notification_configs(ListTaskPushNotificationConfigsRequest {
         page_size: Some(10),
         page_token: Some(String::new()),
+        task_id: task_id.clone(),
         tenant: Some("example".to_string()),
     })
     .await?;
@@ -675,7 +662,8 @@ use inference_gateway_adk::a2a_types::DeleteTaskPushNotificationConfigRequest;
 
 client
     .delete_task_push_notification_config(DeleteTaskPushNotificationConfigRequest {
-        name: Some(name.clone()),
+        id: "primary".to_string(),
+        task_id: task_id.clone(),
         tenant: Some("example".to_string()),
     })
     .await?;
@@ -686,14 +674,14 @@ client
 Fetch the authenticated extended [`AgentCard`] for the calling tenant. The
 handler has three outcomes:
 
-- The public card does not advertise `supportsExtendedAgentCard: true` -
+- The public card does not advertise `capabilities.extendedAgentCard: true` -
   JSON-RPC `-32004 UnsupportedOperation`, so the client can fall back to the
   unauthenticated card.
 - The flag is set but no extended card was registered - JSON-RPC `-32007`
   ("Authenticated extended card not configured").
 - Otherwise the card passed to
   `A2AServerBuilder::with_extended_agent_card(...)` is returned. Registering
-  it also forces `supportsExtendedAgentCard: true` on the public card served
+  it also forces `capabilities.extendedAgentCard: true` on the public card served
   at `/.well-known/agent.json`.
 
 ```rust
@@ -1081,30 +1069,20 @@ dedicated example under
 
 ```rust
 use inference_gateway_adk::A2AClient;
-use inference_gateway_adk::a2a_types::{
-    PushNotificationConfig, SetTaskPushNotificationConfigRequest, TaskPushNotificationConfig,
-};
+use inference_gateway_adk::a2a_types::TaskPushNotificationConfig;
 
 let client = A2AClient::new("http://localhost:8080")?;
 
-let parent = format!("tasks/{}", task_id);
 let config_id = "primary";
-let name = format!("{parent}/pushNotificationConfigs/{config_id}");
 
 client
-    .set_task_push_notification_config(SetTaskPushNotificationConfigRequest {
-        parent: parent.clone(),
-        config_id: config_id.to_string(),
+    .set_task_push_notification_config(TaskPushNotificationConfig {
+        authentication: None,
+        id: Some(config_id.to_string()),
+        task_id: Some(task_id.clone()),
         tenant: Some("example".to_string()),
-        config: TaskPushNotificationConfig {
-            name: name.clone(),
-            push_notification_config: PushNotificationConfig {
-                authentication: None,
-                id: None,
-                token: Some("shared-secret".to_string()),
-                url: "https://your-app.example/webhooks/a2a".to_string(),
-            },
-        },
+        token: Some("shared-secret".to_string()),
+        url: "https://your-app.example/webhooks/a2a".to_string(),
     })
     .await?;
 ```
@@ -1114,23 +1092,24 @@ client
 ```rust
 use inference_gateway_adk::a2a_types::{
     DeleteTaskPushNotificationConfigRequest, GetTaskPushNotificationConfigRequest,
-    ListTaskPushNotificationConfigRequest,
+    ListTaskPushNotificationConfigsRequest,
 };
 
 // get
 let cfg = client
     .get_task_push_notification_config(GetTaskPushNotificationConfigRequest {
-        name: Some(name.clone()),
+        id: config_id.to_string(),
+        task_id: task_id.clone(),
         tenant: Some("example".to_string()),
     })
     .await?;
 
 // list (paged)
 let page = client
-    .list_task_push_notification_configs(ListTaskPushNotificationConfigRequest {
-        parent: Some(parent.clone()),
+    .list_task_push_notification_configs(ListTaskPushNotificationConfigsRequest {
         page_size: Some(10),
         page_token: Some(String::new()),
+        task_id: task_id.clone(),
         tenant: Some("example".to_string()),
     })
     .await?;
@@ -1138,7 +1117,8 @@ let page = client
 // delete
 client
     .delete_task_push_notification_config(DeleteTaskPushNotificationConfigRequest {
-        name: Some(name),
+        id: config_id.to_string(),
+        task_id: task_id.clone(),
         tenant: Some("example".to_string()),
     })
     .await?;
@@ -1242,10 +1222,10 @@ is a future no-op behind a feature flag rather than a breaking change.
 so `POST /a2a` is reachable without a credential and
 `agent/getAuthenticatedExtendedCard` behaves exactly as it does with auth on:
 it returns JSON-RPC `-32004 UnsupportedOperation` unless the public card
-advertises `supportsExtendedAgentCard: true`, `-32007` when the flag is set
+advertises `capabilities.extendedAgentCard: true`, `-32007` when the flag is set
 but no extended card is configured, and otherwise the card registered with
 `A2AServerBuilder::with_extended_agent_card(...)`. Registering that card
-forces `supportsExtendedAgentCard: true` on the public card, so the simplest
+forces `capabilities.extendedAgentCard: true` on the public card, so the simplest
 way to make the method hard-fail is to not register one (`-32007`) or to leave
 the flag unset (`-32004`).
 
@@ -1340,11 +1320,11 @@ via `StreamEmitter::emit_data_artifact(...)`. Both attach the resulting
 SSE stream, but they differ in what ends up in the artifact:
 
 - `emit_file_artifact` writes the bytes to artifact storage through the
-  `ArtifactService` and emits a `FilePart` with `fileWithUri` set -
+  `ArtifactService` and emits a file part with `url` set -
   clients then download the file directly from the artifacts server. When
-  no `ArtifactService` is configured it falls back to a `FilePart` with
-  inline `fileWithBytes`.
-- `emit_data_artifact` builds an **inline** `DataPart` artifact and writes
+  no `ArtifactService` is configured it falls back to a file part with
+  inline `raw` bytes.
+- `emit_data_artifact` builds an **inline** data part artifact and writes
   nothing to artifact storage - the JSON payload travels inside the event
   itself, so there is no URI to download.
 
