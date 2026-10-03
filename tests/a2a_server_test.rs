@@ -64,7 +64,7 @@ fn ensure_suite() -> &'static Suite {
                         "supportedInterfaces": [{"url": format!("http://{server_addr_clone}/a2a"), "protocolBinding": "JSONRPC", "protocolVersion": "1.0"}],
                         "capabilities": {
                             "streaming": true,
-                            "pushNotifications": false
+                            "pushNotifications": true
                         },
                         "defaultInputModes": ["text/plain"],
                         "defaultOutputModes": ["text/plain"],
