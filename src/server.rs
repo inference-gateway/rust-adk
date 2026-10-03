@@ -12,6 +12,7 @@ mod auth;
 mod errors;
 mod mcp;
 mod protocol;
+mod push;
 mod server_builder;
 mod server_core;
 mod storage;

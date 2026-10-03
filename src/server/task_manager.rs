@@ -18,6 +18,7 @@
 //!     runner.shutdown().await;
 //! ```
 
+use super::push;
 use super::storage::Storage;
 use super::task_handler::TaskHandler;
 use crate::a2a_types::{TaskState, TaskStatus, Timestamp};
@@ -173,6 +174,10 @@ async fn run_worker(
                         "store_dead_letter_task failed after handler error");
                 }
             }
+        }
+
+        if let Some(stored) = storage.get_task(&task_id).await {
+            push::notify(&storage, &stored).await;
         }
     }
 }

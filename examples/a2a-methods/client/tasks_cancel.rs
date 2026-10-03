@@ -1,7 +1,7 @@
 //! `CancelTask` - cancel a stored task.
 //!
-//! `SendMessage` (non-blocking) leaves the task in SUBMITTED, so the cancel
-//! transitions it to CANCELLED.
+//! `SendMessage` with `returnImmediately` leaves the task in SUBMITTED, so the
+//! cancel transitions it to CANCELLED.
 //!
 //! ```bash
 //! cargo run -p a2a-methods-server
@@ -10,7 +10,7 @@
 
 use inference_gateway_adk::A2AClient;
 use inference_gateway_adk::a2a_types::{
-    CancelTaskRequest, Message, Part, Role, SendMessageRequest,
+    CancelTaskRequest, Message, Part, Role, SendMessageConfiguration, SendMessageRequest,
 };
 use std::env;
 use tracing::info;
@@ -25,7 +25,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let seed = client
         .send_message(SendMessageRequest {
-            configuration: None,
+            configuration: Some(SendMessageConfiguration {
+                accepted_output_modes: vec![],
+                history_length: None,
+                return_immediately: Some(true),
+                task_push_notification_config: None,
+            }),
             message: Message {
                 context_id: None,
                 extensions: vec![],
