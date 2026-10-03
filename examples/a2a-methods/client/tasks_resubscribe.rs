@@ -19,7 +19,7 @@
 use futures::StreamExt;
 use inference_gateway_adk::A2AClient;
 use inference_gateway_adk::a2a_types::{
-    Message, Part, Role, SendMessageRequest, SubscribeToTaskRequest,
+    Message, Part, Role, SendMessageConfiguration, SendMessageRequest, SubscribeToTaskRequest,
 };
 use std::env;
 use tracing::info;
@@ -32,12 +32,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let server_url = env::var("SERVER_URL").unwrap_or_else(|_| "http://localhost:8085".to_string());
     let client = A2AClient::new(&server_url)?;
 
-    // 1. Seed a task we can later resubscribe to. The example server's
-    //    EchoBackgroundTaskHandler completes the task after a short delay,
-    //    so the resubscribe below follows it through to `Completed`.
+    // 1. Seed a task we can later resubscribe to. `returnImmediately` keeps
+    //    SendMessage from waiting for the task to finish - a terminal task has
+    //    nothing left to stream, so SubscribeToTask would reject it.
     let seed = client
         .send_message(SendMessageRequest {
-            configuration: None,
+            configuration: Some(SendMessageConfiguration {
+                accepted_output_modes: vec![],
+                history_length: None,
+                return_immediately: Some(true),
+                task_push_notification_config: None,
+            }),
             message: Message {
                 context_id: None,
                 extensions: vec![],

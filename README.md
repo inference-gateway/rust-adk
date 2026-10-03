@@ -377,7 +377,7 @@ Build A2A servers with custom configurations using a fluent interface. See
 | --- | --- |
 | `with_config(Config)` | Apply a fully-loaded `Config` (port, TLS, auth, queue, telemetry). |
 | `with_agent(Agent)` | Attach an LLM-backed agent built via `AgentBuilder`. |
-| `with_agent_card(AgentCard)` / `with_agent_card_from_file(path, overrides)` | Configure the card served at `/.well-known/agent-card.json`. |
+| `with_agent_card(AgentCard)` / `with_agent_card_from_file(path, overrides)` | Configure the card served at `/.well-known/agent-card.json` (with `Cache-Control`, `ETag` and `Last-Modified`; conditional requests get `304`). |
 | `with_storage(Arc<dyn Storage>)` | Swap the task store (`InMemoryStorage` default, `RedisStorage` behind the `redis` feature). |
 | `with_background_task_handler(h)` | Custom `SendMessage` handler. |
 | `with_streaming_task_handler(h)` | Custom `SendStreamingMessage` handler. |
@@ -503,6 +503,16 @@ let response = client
 
 let task = response.task.expect("server returned a task");
 ```
+
+`SendMessage` blocks until the task reaches a terminal (`Completed`, `Failed`,
+`Canceled`, `Rejected`) or interrupted (`InputRequired`, `AuthRequired`) state,
+per A2A spec 3.2.2. `configuration` tunes that: `returnImmediately: true`
+answers with the freshly submitted task, `historyLength` caps the history in
+the response, and `taskPushNotificationConfig` registers a webhook for the task
+inline. Setting `message.taskId` to an existing task continues that task -
+that is how a client answers an `InputRequired` task - instead of creating a
+new one. A handler can also reply with a bare `Message` instead of a task; see
+[Custom Task Handlers](#custom-task-handlers).
 
 ###### `SendStreamingMessage`
 
@@ -1043,6 +1053,17 @@ impl TaskHandler for EchoHandler {
         Ok(task)
     }
 }
+```
+
+`TaskHandler` also has an optional `handle_message` hook. Returning
+`Some(message)` answers the `SendMessage` with that `Message` and creates no
+task at all (A2A spec 3.2.2); the default returns `None`, which keeps the
+task-based flow above:
+
+```rust
+async fn handle_message(&self, message: &Message) -> anyhow::Result<Option<Message>> {
+    Ok(None)
+}
 
 // `build()` requires an agent card. A background-only handler needs a card
 // with `capabilities.streaming: false`; a streaming-enabled card additionally
@@ -1071,6 +1092,12 @@ Each call uses the typed structs from
 [`inference_gateway_adk::a2a_types`](src/a2a_types.rs) and is exercised by a
 dedicated example under
 [`examples/a2a-methods/`](examples/a2a-methods/README.md).
+
+On every task update the server POSTs the task to each configured webhook as a
+`StreamResponse` body, sending `Authorization: <scheme> <credentials>` when the
+config carries `authentication` and `X-A2A-Notification-Token` when it carries a
+`token`. Delivery is best-effort and at most once: failures are logged, not
+retried.
 
 #### Storing a webhook configuration
 

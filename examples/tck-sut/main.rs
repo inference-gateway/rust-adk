@@ -28,6 +28,22 @@ impl TaskHandler for TckHandler {
     async fn handle_task(&self, task: Task, message: Option<Message>) -> anyhow::Result<Task> {
         run_core_scenario(task, &message_id(&message))
     }
+
+    async fn handle_message(&self, message: &Message) -> anyhow::Result<Option<Message>> {
+        if !message.message_id.starts_with("tck-message-response") {
+            return Ok(None);
+        }
+        Ok(Some(Message {
+            context_id: message.context_id.clone(),
+            extensions: vec![],
+            message_id: uuid::Uuid::new_v4().to_string(),
+            metadata: None,
+            parts: vec![text_part("Direct message response")],
+            reference_task_ids: vec![],
+            role: Role::RoleAgent,
+            task_id: None,
+        }))
+    }
 }
 
 #[async_trait::async_trait]

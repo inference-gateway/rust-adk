@@ -26,6 +26,12 @@ use tracing::{Instrument, debug, warn};
 #[async_trait::async_trait]
 pub trait TaskHandler: Send + Sync + std::fmt::Debug {
     async fn handle_task(&self, task: Task, message: Option<A2AMessage>) -> Result<Task>;
+
+    /// Answer a `SendMessage` with a direct `Message` instead of a task
+    /// (A2A spec 3.2.2). The default `None` keeps the task-based flow.
+    async fn handle_message(&self, _message: &A2AMessage) -> Result<Option<A2AMessage>> {
+        Ok(None)
+    }
 }
 
 /// Handler invoked by the server for `SendStreamingMessage` requests.
@@ -123,7 +129,8 @@ impl StreamEmitter {
             if let Some(ref msg) = message {
                 task.history.push(msg.clone());
             }
-            self.storage.put_task(task).await;
+            self.storage.put_task(task.clone()).await;
+            super::push::notify(&self.storage, &task).await;
         }
 
         let event = TaskStatusUpdateEvent {
@@ -1352,10 +1359,14 @@ mod tests {
             .await
             .expect("SendMessage");
 
-        let submitted = response.task.expect("task in response");
-        assert_eq!(submitted.status.state, TaskState::TaskStateSubmitted);
+        let settled = response.task.expect("task in response");
+        assert_eq!(
+            settled.status.state,
+            TaskState::TaskStateCompleted,
+            "SendMessage waits for the task to settle (A2A spec 3.2.2)",
+        );
 
-        let final_task = poll_until_terminal(&client, &submitted.id).await;
+        let final_task = poll_until_terminal(&client, &settled.id).await;
         assert_eq!(final_task.status.state, TaskState::TaskStateCompleted);
         let final_text = final_task
             .status

@@ -319,18 +319,155 @@ async fn health_handler(
     Ok(Json(health))
 }
 
+/// `max-age` advertised on the agent card (A2A spec 8.6).
+const AGENT_CARD_MAX_AGE_SECS: u64 = 300;
+
+/// The card is fixed for the life of the process, so its `Last-Modified` is the
+/// moment this process started serving it.
+static AGENT_CARD_LAST_MODIFIED: std::sync::LazyLock<String> =
+    std::sync::LazyLock::new(|| http_date(chrono::Utc::now()));
+
+fn http_date(at: chrono::DateTime<chrono::Utc>) -> String {
+    at.format("%a, %d %b %Y %H:%M:%S GMT").to_string()
+}
+
+fn agent_card_etag(body: &str) -> String {
+    use std::hash::{DefaultHasher, Hash, Hasher};
+    let mut hasher = DefaultHasher::new();
+    body.hash(&mut hasher);
+    format!("\"{:x}\"", hasher.finish())
+}
+
+/// Serve the public agent card with the caching headers of A2A spec 8.6, answering
+/// conditional requests with 304.
+// ponytail: `If-Modified-Since` is compared verbatim against our own `Last-Modified`
+// rather than parsed as a date; parse it once a client sends a different format.
 async fn agent_card_handler(
     State(state): State<Arc<AppState>>,
-) -> Result<Json<AgentCard>, StatusCode> {
+    headers: axum::http::HeaderMap,
+) -> Result<axum::response::Response, StatusCode> {
     debug!("Agent card requested");
 
-    if let Some(ref agent_card) = state.server.agent_card {
-        debug!("Returning configured agent card");
-        return Ok(Json(agent_card.clone()));
+    let Some(ref agent_card) = state.server.agent_card else {
+        error!("No agent card configured - server should not have started without one");
+        return Err(StatusCode::INTERNAL_SERVER_ERROR);
+    };
+
+    let body = serde_json::to_string(agent_card).map_err(|e| {
+        error!("Failed to serialize the agent card: {e}");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    let etag = agent_card_etag(&body);
+    let last_modified = AGENT_CARD_LAST_MODIFIED.as_str();
+
+    let header = |name: axum::http::header::HeaderName| {
+        headers
+            .get(name)
+            .and_then(|v| v.to_str().ok())
+            .map(str::trim)
+    };
+    let not_modified = header(axum::http::header::IF_NONE_MATCH) == Some(etag.as_str())
+        || header(axum::http::header::IF_MODIFIED_SINCE) == Some(last_modified);
+
+    let mut response = axum::response::Response::builder()
+        .header(axum::http::header::CONTENT_TYPE, "application/json")
+        .header(
+            axum::http::header::CACHE_CONTROL,
+            format!("public, max-age={AGENT_CARD_MAX_AGE_SECS}"),
+        )
+        .header(axum::http::header::ETAG, &etag)
+        .header(axum::http::header::LAST_MODIFIED, last_modified);
+    if not_modified {
+        response = response.status(StatusCode::NOT_MODIFIED);
+        return response
+            .body(axum::body::Body::empty())
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR);
     }
 
-    error!("No agent card configured - server should not have started without one");
-    Err(StatusCode::INTERNAL_SERVER_ERROR)
+    response
+        .body(axum::body::Body::from(body))
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+}
+
+#[cfg(test)]
+mod agent_card_tests {
+    use super::*;
+    use crate::server::server_builder::A2AServerBuilder;
+    use tower::ServiceExt;
+
+    async fn agent_card_app() -> Router {
+        let server = A2AServerBuilder::new()
+            .with_agent_card(
+                serde_json::from_value(serde_json::json!({
+                    "name": "Caching Agent",
+                    "description": "Agent card caching test",
+                    "version": "1.0.0",
+                    "supportedInterfaces": [{"url": "http://localhost/a2a", "protocolBinding": "JSONRPC", "protocolVersion": "1.0"}],
+                    "capabilities": {"streaming": true, "pushNotifications": false},
+                    "defaultInputModes": ["text/plain"],
+                    "defaultOutputModes": ["text/plain"],
+                    "skills": [{"id": "x", "name": "x", "description": "x", "tags": ["x"]}]
+                }))
+                .expect("agent card builds"),
+            )
+            .with_default_streaming_task_handler()
+            .build()
+            .await
+            .expect("server builds");
+
+        Router::new()
+            .route("/.well-known/agent-card.json", get(agent_card_handler))
+            .with_state(Arc::new(AppState::new(server)))
+    }
+
+    fn get_card(if_none_match: Option<&str>) -> axum::http::Request<axum::body::Body> {
+        let mut request = axum::http::Request::builder().uri("/.well-known/agent-card.json");
+        if let Some(etag) = if_none_match {
+            request = request.header(axum::http::header::IF_NONE_MATCH, etag);
+        }
+        request
+            .body(axum::body::Body::empty())
+            .expect("request builds")
+    }
+
+    #[tokio::test]
+    async fn agent_card_sends_caching_headers_and_answers_conditional_requests() {
+        let app = agent_card_app().await;
+
+        let response = app
+            .clone()
+            .oneshot(get_card(None))
+            .await
+            .expect("card response");
+        assert_eq!(response.status(), StatusCode::OK);
+        let headers = response.headers().clone();
+        let header = |name: axum::http::header::HeaderName| {
+            headers
+                .get(name)
+                .and_then(|v| v.to_str().ok())
+                .expect("header present")
+                .to_string()
+        };
+        assert!(
+            header(axum::http::header::CACHE_CONTROL).contains("max-age"),
+            "Cache-Control must carry max-age",
+        );
+        let etag = header(axum::http::header::ETAG);
+        header(axum::http::header::LAST_MODIFIED);
+
+        let conditional = app
+            .oneshot(get_card(Some(&etag)))
+            .await
+            .expect("conditional response");
+        assert_eq!(conditional.status(), StatusCode::NOT_MODIFIED);
+        assert_eq!(
+            conditional
+                .headers()
+                .get(axum::http::header::ETAG)
+                .and_then(|v| v.to_str().ok()),
+            Some(etag.as_str()),
+        );
+    }
 }
 
 #[cfg(all(test, feature = "telemetry"))]

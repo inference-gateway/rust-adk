@@ -1,6 +1,6 @@
 use inference_gateway_adk::A2AClient;
 use inference_gateway_adk::a2a_types::{
-    GetTaskRequest, Message, Part, Role, SendMessageRequest, Task,
+    GetTaskRequest, Message, Part, Role, SendMessageConfiguration, SendMessageRequest, Task,
 };
 use std::env;
 use std::time::{Duration, Instant};
@@ -8,9 +8,16 @@ use tokio::time::sleep;
 use tracing::{error, info};
 use uuid::Uuid;
 
+/// `returnImmediately` keeps the enqueue loop from blocking on each task in turn -
+/// the point of this example is watching the workers drain the queue.
 fn make_user_message(text: &str) -> SendMessageRequest {
     SendMessageRequest {
-        configuration: None,
+        configuration: Some(SendMessageConfiguration {
+            accepted_output_modes: vec![],
+            history_length: None,
+            return_immediately: Some(true),
+            task_push_notification_config: None,
+        }),
         message: Message {
             context_id: None,
             extensions: vec![],

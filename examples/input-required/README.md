@@ -35,24 +35,23 @@ Expected client log:
 
 ```
 → [with-city] sending: What's the weather in London right now?
-  [with-city] task <id> accepted in state TaskStateSubmitted
+  [with-city] task <id> accepted in state TaskStateCompleted
   [with-city] task <id> settled in state TaskStateCompleted
   [with-city] agent says: Weather in london: 18°C, partly cloudy.
 → [no-city] sending: What's the weather?
-  [no-city] task <id> accepted in state TaskStateSubmitted
+  [no-city] task <id> accepted in state TaskStateInputRequired
   [no-city] task <id> settled in state TaskStateInputRequired
   [no-city] agent says: Which city would you like the weather for? …
 ```
 
-## Note on the resume path
+`SendMessage` waits for the task to settle, so the state it returns is
+already the final one; the client's poll loop confirms it.
 
-In the current rust-adk, `SendMessage` always creates a new task,
-even when the request carries an existing `task_id`. That means the
-"second send resumes the paused task" flow demonstrated by some other
-A2A implementations is not yet wired here - the `TaskStateInputRequired`
-state surfaces, but the protocol-level resume is a separate library
-improvement. This example sticks to demonstrating the state itself
-until that path lands.
+## Resuming the paused task
+
+Answering an `TaskStateInputRequired` task is a `SendMessage` whose
+`message.taskId` is the paused task's id: the server appends the answer to
+that task's history and re-runs the handler instead of creating a new task.
 
 ## Running with Docker Compose
 
