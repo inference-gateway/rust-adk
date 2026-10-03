@@ -669,6 +669,10 @@ client
     .await?;
 ```
 
+All four push notification config methods require the agent card to advertise
+`capabilities.pushNotifications: true`. With the flag unset or false the server
+rejects them with JSON-RPC `-32003 PushNotificationNotSupported`.
+
 ###### `GetExtendedAgentCard`
 
 Fetch the authenticated extended [`AgentCard`] for the calling tenant. The
