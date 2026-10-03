@@ -146,6 +146,18 @@ pub(crate) async fn a2a_handler(
         .into_response();
     };
 
+    if is_push_notification_config_method(a2a_method) && !push_notifications_enabled(&state) {
+        return json_rpc_error(
+            id,
+            jsonrpc_errors::PUSH_NOTIFICATION_NOT_SUPPORTED,
+            "Push Notification is not supported",
+            Some(Value::String(format!(
+                "{method} is not supported: the agent card sets capabilities.pushNotifications to false"
+            ))),
+        )
+        .into_response();
+    }
+
     match a2a_method {
         A2aMethod::SendMessage => handle_message_send(&state, id, params)
             .await
@@ -177,6 +189,25 @@ pub(crate) async fn a2a_handler(
                 .into_response()
         }
     }
+}
+
+fn is_push_notification_config_method(method: A2aMethod) -> bool {
+    matches!(
+        method,
+        A2aMethod::CreateTaskPushNotificationConfig
+            | A2aMethod::GetTaskPushNotificationConfig
+            | A2aMethod::ListTaskPushNotificationConfigs
+            | A2aMethod::DeleteTaskPushNotificationConfig
+    )
+}
+
+fn push_notifications_enabled(state: &Arc<AppState>) -> bool {
+    state
+        .server
+        .agent_card
+        .as_ref()
+        .and_then(|card| card.capabilities.push_notifications)
+        .unwrap_or(false)
 }
 
 /// Returns the requested `A2A-Version` when this server doesn't speak it (A2A spec 3.6).
@@ -1506,6 +1537,78 @@ mod tests {
                     let card = result.unwrap_or_else(|e| panic!("{name}: expected card, got {e}"));
                     assert_eq!(card.name, "Extended Only", "{name}: wrong card returned");
                 }
+            }
+        }
+    }
+
+    // ----- Push notification config ----------------------
+
+    fn agent_card_with_push_notifications(supports: bool) -> AgentCard {
+        serde_json::from_value(serde_json::json!({
+            "name": "Push Config Agent",
+            "description": "Push notification capability test",
+            "version": "1.0.0",
+            "supportedInterfaces": [{"url": "http://localhost/a2a", "protocolBinding": "JSONRPC", "protocolVersion": "1.0"}],
+            "capabilities": {"streaming": true, "pushNotifications": supports},
+            "defaultInputModes": ["text/plain"],
+            "defaultOutputModes": ["text/plain"],
+            "skills": [{"id": "x", "name": "x", "description": "x", "tags": ["x"]}]
+        }))
+        .expect("agent card builds")
+    }
+
+    #[tokio::test]
+    async fn push_config_methods_rejected_when_card_disables_push_notifications() {
+        let methods = [
+            "CreateTaskPushNotificationConfig",
+            "GetTaskPushNotificationConfig",
+            "ListTaskPushNotificationConfigs",
+            "DeleteTaskPushNotificationConfig",
+        ];
+
+        for supports in [false, true] {
+            let server = A2AServerBuilder::new()
+                .with_agent_card(agent_card_with_push_notifications(supports))
+                .with_default_streaming_task_handler()
+                .build()
+                .await
+                .expect("server builds");
+            let addr = spawn_test_server(server).await;
+            let client = reqwest::Client::new();
+
+            for method in methods {
+                let response: Value = client
+                    .post(format!("http://{addr}/a2a"))
+                    .json(&serde_json::json!({
+                        "jsonrpc": "2.0",
+                        "id": method,
+                        "method": method,
+                        "params": {"taskId": "task-1", "id": "cfg-1", "url": "http://localhost/hook"},
+                    }))
+                    .send()
+                    .await
+                    .expect("request sent")
+                    .json()
+                    .await
+                    .expect("json body");
+
+                if supports {
+                    assert_ne!(
+                        response["error"]["code"], -32003,
+                        "{method}: push notifications enabled, got {response}"
+                    );
+                    continue;
+                }
+                assert_eq!(response["error"]["code"], -32003, "{method}: {response}");
+                assert_eq!(
+                    response["error"]["data"][0]["@type"],
+                    "type.googleapis.com/google.rpc.ErrorInfo"
+                );
+                assert_eq!(
+                    response["error"]["data"][0]["reason"],
+                    "PUSH_NOTIFICATION_NOT_SUPPORTED"
+                );
+                assert_eq!(response["error"]["data"][0]["domain"], "a2a-protocol.org");
             }
         }
     }

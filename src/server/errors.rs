@@ -12,6 +12,8 @@ pub(super) mod jsonrpc_errors {
     pub const TASK_NOT_FOUND: i64 = -32001;
     /// Task cannot be cancelled in its current state.
     pub const TASK_NOT_CANCELABLE: i64 = -32002;
+    /// The agent card disables push notifications (A2A spec 5.4).
+    pub const PUSH_NOTIFICATION_NOT_SUPPORTED: i64 = -32003;
     /// The requested operation is not supported by this agent (A2A spec 8.2).
     pub const UNSUPPORTED_OPERATION: i64 = -32004;
     /// The agent supports an extended card but none is configured (A2A spec 8.2).
@@ -26,6 +28,7 @@ fn a2a_error_reason(code: i64) -> Option<&'static str> {
     match code {
         jsonrpc_errors::TASK_NOT_FOUND => Some("TASK_NOT_FOUND"),
         jsonrpc_errors::TASK_NOT_CANCELABLE => Some("TASK_NOT_CANCELABLE"),
+        jsonrpc_errors::PUSH_NOTIFICATION_NOT_SUPPORTED => Some("PUSH_NOTIFICATION_NOT_SUPPORTED"),
         jsonrpc_errors::UNSUPPORTED_OPERATION => Some("UNSUPPORTED_OPERATION"),
         jsonrpc_errors::AUTHENTICATED_EXTENDED_CARD_NOT_CONFIGURED => {
             Some("EXTENDED_AGENT_CARD_NOT_CONFIGURED")
