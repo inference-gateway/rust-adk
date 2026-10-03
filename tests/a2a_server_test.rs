@@ -144,10 +144,13 @@ fn message_payload(message_id: &str, text: &str) -> Value {
     })
 }
 
+/// `SubmittedTaskHandler` never settles its tasks, so these params ask for the
+/// immediate return of A2A spec 3.2.2 instead of waiting for a state that never comes.
 fn send_message_params(message_id: &str, text: &str) -> Value {
     json!({
         "tenant": "test",
         "message": message_payload(message_id, text),
+        "configuration": { "returnImmediately": true },
     })
 }
 
@@ -683,7 +686,12 @@ async fn client_typed_helpers_round_trip_send_and_list() {
     let client = A2AClient::new(&suite.base_url).expect("client builds");
 
     let send_params = a2a_types::SendMessageRequest {
-        configuration: None,
+        configuration: Some(a2a_types::SendMessageConfiguration {
+            accepted_output_modes: vec![],
+            history_length: None,
+            return_immediately: Some(true),
+            task_push_notification_config: None,
+        }),
         message: a2a_types::Message {
             context_id: None,
             extensions: vec![],

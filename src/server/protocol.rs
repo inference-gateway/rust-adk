@@ -66,7 +66,7 @@ pub(crate) async fn a2a_handler(
     principal: Option<axum::Extension<AuthenticatedPrincipal>>,
     peer_cert: Option<axum::Extension<PeerCert>>,
     headers: axum::http::HeaderMap,
-    Json(payload): Json<Value>,
+    body: axum::body::Bytes,
 ) -> Response {
     // Principal is plumbed in by the auth middleware. We log it for
     // observability and keep it available to handlers via a future
@@ -91,6 +91,31 @@ pub(crate) async fn a2a_handler(
             "mTLS A2A request",
         );
     }
+
+    if let Some(content_type) = unsupported_content_type(&headers) {
+        return json_rpc_error(
+            Value::Null,
+            jsonrpc_errors::CONTENT_TYPE_NOT_SUPPORTED,
+            "Content type not supported",
+            Some(Value::String(format!(
+                "Content-Type {content_type} is not supported; use application/json"
+            ))),
+        )
+        .into_response();
+    }
+
+    let payload: Value = match serde_json::from_slice(&body) {
+        Ok(v) => v,
+        Err(e) => {
+            return json_rpc_error(
+                Value::Null,
+                jsonrpc_errors::PARSE_ERROR,
+                "Parse error",
+                Some(Value::String(e.to_string())),
+            )
+            .into_response();
+        }
+    };
     debug!("A2A request received: {payload:?}");
 
     let id = payload.get("id").cloned().unwrap_or(Value::Null);
@@ -252,6 +277,23 @@ fn push_notifications_enabled(state: &Arc<AppState>) -> bool {
         .unwrap_or(false)
 }
 
+/// Returns the request's `Content-Type` when it isn't JSON, so the caller can answer with a
+/// JSON-RPC `-32005` rather than letting the extractor reply with a bodiless HTTP 415.
+/// A missing header is accepted - clients that omit it keep working.
+fn unsupported_content_type(headers: &axum::http::HeaderMap) -> Option<String> {
+    let content_type = headers.get(axum::http::header::CONTENT_TYPE)?;
+    let content_type = content_type.to_str().unwrap_or("invalid");
+    let media_type = content_type
+        .split(';')
+        .next()
+        .unwrap_or_default()
+        .trim()
+        .to_ascii_lowercase();
+    let supported =
+        media_type.is_empty() || media_type == "application/json" || media_type.ends_with("+json");
+    (!supported).then(|| content_type.to_string())
+}
+
 /// Returns the requested `A2A-Version` when this server doesn't speak it (A2A spec 3.6).
 // ponytail: an empty header is accepted so clients that omit it keep working, although spec
 // section 3.6 reads it as 0.3; reject it once 0.3 clients are gone.
@@ -309,6 +351,101 @@ fn build_task_from_request(req: &SendMessageRequest) -> Task {
     }
 }
 
+/// Appends `message` to an existing task and re-submits it, so a `SendMessage` naming a
+/// `taskId` continues that task (for example answering an `input-required` one).
+fn continue_task(mut task: Task, message: &crate::a2a_types::Message) -> Task {
+    let mut message = message.clone();
+    if message.context_id.is_none() {
+        message.context_id = task.context_id.clone();
+    }
+    message.task_id = Some(task.id.clone());
+    task.history.push(message);
+    task.status = TaskStatus {
+        message: None,
+        state: TaskState::TaskStateSubmitted,
+        timestamp: Some(Timestamp(chrono::Utc::now())),
+    };
+    task
+}
+
+/// A2A spec 3.2.2: `SendMessage` returns once the task reaches a terminal or an
+/// interrupted state.
+fn is_settled(state: TaskState) -> bool {
+    state.is_terminal()
+        || matches!(
+            state,
+            TaskState::TaskStateInputRequired | TaskState::TaskStateAuthRequired
+        )
+}
+
+/// Keep only the last `history_length` messages; `None` leaves the history untouched
+/// (A2A spec 7.1).
+fn trim_history(task: &mut Task, history_length: Option<i32>) {
+    let Some(limit) = history_length else {
+        return;
+    };
+    let limit = limit.max(0) as usize;
+    if task.history.len() > limit {
+        let skip = task.history.len() - limit;
+        task.history = task.history.split_off(skip);
+    }
+}
+
+/// How long `SendMessage` waits for a task to settle before answering with its
+/// latest known state.
+const SETTLE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
+const SETTLE_POLL_INTERVAL: std::time::Duration = std::time::Duration::from_millis(25);
+
+/// Poll storage until the task settles, the timeout elapses, or the task disappears.
+// ponytail: polling keeps the Storage trait unchanged; swap in a per-task notifier if
+// the poll interval ever shows up in latency numbers.
+async fn wait_until_settled(state: &Arc<AppState>, submitted: Task) -> Task {
+    let deadline = tokio::time::Instant::now() + SETTLE_TIMEOUT;
+    let mut latest = submitted;
+    while tokio::time::Instant::now() < deadline {
+        if let Some(task) = state.server.storage.get_task(&latest.id).await {
+            if is_settled(task.status.state) {
+                return task;
+            }
+            latest = task;
+        }
+        tokio::time::sleep(SETTLE_POLL_INTERVAL).await;
+    }
+    warn!(task_id = %latest.id, "task did not settle within the SendMessage timeout");
+    latest
+}
+
+/// Registers a `taskPushNotificationConfig` sent inline with the message against the
+/// task it was sent with (A2A spec 7.2); ignored when the card disables push notifications.
+async fn register_inline_push_config(
+    state: &Arc<AppState>,
+    request: &SendMessageRequest,
+    task_id: &str,
+) {
+    let Some(mut config) = request
+        .configuration
+        .as_ref()
+        .and_then(|c| c.task_push_notification_config.clone())
+    else {
+        return;
+    };
+    if !push_notifications_enabled(state) {
+        warn!(
+            "ignoring inline taskPushNotificationConfig: the agent card disables push notifications"
+        );
+        return;
+    }
+    config.task_id = Some(task_id.to_string());
+    if config.id.as_deref().unwrap_or_default().is_empty() {
+        config.id = Some(uuid::Uuid::new_v4().to_string());
+    }
+    state
+        .server
+        .storage
+        .put_push_notification_config(config)
+        .await;
+}
+
 async fn handle_message_send(state: &Arc<AppState>, id: Value, params: Value) -> Json<Value> {
     let request: SendMessageRequest = match serde_json::from_value(params) {
         Ok(r) => r,
@@ -319,18 +456,22 @@ async fn handle_message_send(state: &Arc<AppState>, id: Value, params: Value) ->
         return invalid_params_message(id, detail);
     }
 
-    if let Some(task_id) = request.message.task_id.as_deref()
-        && state.server.storage.get_task(task_id).await.is_none()
-    {
-        return json_rpc_error(
-            id,
-            jsonrpc_errors::TASK_NOT_FOUND,
-            "Task not found",
-            Some(Value::String(task_id.to_string())),
-        );
-    }
+    let existing = match request.message.task_id.as_deref() {
+        Some(task_id) => match state.server.storage.get_task(task_id).await {
+            Some(task) => Some(task),
+            None => {
+                return json_rpc_error(
+                    id,
+                    jsonrpc_errors::TASK_NOT_FOUND,
+                    "Task not found",
+                    Some(Value::String(task_id.to_string())),
+                );
+            }
+        },
+        None => None,
+    };
 
-    if state.server.background_task_handler.is_none() {
+    let Some(handler) = state.server.background_task_handler.as_ref() else {
         return json_rpc_error(
             id,
             jsonrpc_errors::METHOD_NOT_FOUND,
@@ -340,24 +481,57 @@ async fn handle_message_send(state: &Arc<AppState>, id: Value, params: Value) ->
                     .to_string(),
             )),
         );
+    };
+
+    match handler.handle_message(&request.message).await {
+        Ok(Some(reply)) => {
+            return send_message_response(
+                id,
+                SendMessageResponse {
+                    message: Some(reply),
+                    task: None,
+                },
+            );
+        }
+        Ok(None) => {}
+        Err(e) => {
+            error!("handle_message failed: {e}");
+            return json_rpc_error(
+                id,
+                jsonrpc_errors::INTERNAL_ERROR,
+                "Internal error",
+                Some(Value::String(e.to_string())),
+            );
+        }
     }
 
-    let initial_task = build_task_from_request(&request);
+    let submitted = match existing {
+        Some(task) => {
+            let task = continue_task(task, &request.message);
+            state.server.storage.put_task(task.clone()).await;
+            task
+        }
+        None => {
+            let task = build_task_from_request(&request);
+            if let Err(e) = state.server.storage.create_active_task(&task).await {
+                error!("create_active_task failed: {e}");
+                return json_rpc_error(
+                    id,
+                    jsonrpc_errors::INTERNAL_ERROR,
+                    "Internal error",
+                    Some(Value::String(e.to_string())),
+                );
+            }
+            task
+        }
+    };
 
-    if let Err(e) = state.server.storage.create_active_task(&initial_task).await {
-        error!("create_active_task failed: {e}");
-        return json_rpc_error(
-            id,
-            jsonrpc_errors::INTERNAL_ERROR,
-            "Internal error",
-            Some(Value::String(e.to_string())),
-        );
-    }
+    register_inline_push_config(state, &request, &submitted.id).await;
 
     if let Err(e) = state
         .server
         .storage
-        .enqueue_task(initial_task.clone(), id.clone())
+        .enqueue_task(submitted.clone(), id.clone())
         .await
     {
         error!("enqueue_task failed: {e}");
@@ -369,11 +543,24 @@ async fn handle_message_send(state: &Arc<AppState>, id: Value, params: Value) ->
         );
     }
 
-    let response = SendMessageResponse {
-        message: None,
-        task: Some(initial_task),
+    let configuration = request.configuration.as_ref();
+    let mut task = if configuration.and_then(|c| c.return_immediately) == Some(true) {
+        submitted
+    } else {
+        wait_until_settled(state, submitted).await
     };
+    trim_history(&mut task, configuration.and_then(|c| c.history_length));
 
+    send_message_response(
+        id,
+        SendMessageResponse {
+            message: None,
+            task: Some(task),
+        },
+    )
+}
+
+fn send_message_response(id: Value, response: SendMessageResponse) -> Json<Value> {
     match serde_json::to_value(response) {
         Ok(v) => json_rpc_success(id, v),
         Err(e) => json_rpc_error(
@@ -485,13 +672,7 @@ async fn handle_tasks_get(state: &Arc<AppState>, id: Value, params: Value) -> Js
 
     match state.server.storage.get_task(task_id).await {
         Some(mut task) => {
-            if let Some(limit) = request.history_length {
-                let limit = limit.max(0) as usize;
-                if task.history.len() > limit {
-                    let skip = task.history.len() - limit;
-                    task.history = task.history.split_off(skip);
-                }
-            }
+            trim_history(&mut task, request.history_length);
             match serde_json::to_value(task) {
                 Ok(v) => json_rpc_success(id, v),
                 Err(e) => json_rpc_error(
@@ -955,7 +1136,7 @@ mod tests {
     use crate::a2a_types::{AgentCard, Message as A2AMessage, Part, Role};
     use crate::server::server_builder::A2AServerBuilder;
     use crate::server::task_handler::{
-        StreamEmitter, StreamableTaskHandler, build_agent_text_message,
+        StreamEmitter, StreamableTaskHandler, TaskHandler, build_agent_text_message,
     };
     use anyhow::Result;
     use axum::Router;
@@ -1692,5 +1873,257 @@ mod tests {
                 assert_eq!(response["error"]["data"][0]["domain"], "a2a-protocol.org");
             }
         }
+    }
+
+    // ----- SendMessage semantics (A2A spec 3.2.2) --------------------
+
+    /// Settles a task by messageId prefix so the blocking-`SendMessage` tests can
+    /// drive each state, and answers `direct-*` messages with a `Message`.
+    #[derive(Debug)]
+    struct SettlingHandler;
+
+    #[async_trait::async_trait]
+    impl TaskHandler for SettlingHandler {
+        async fn handle_task(&self, mut task: Task, message: Option<A2AMessage>) -> Result<Task> {
+            let message_id = message.map(|m| m.message_id).unwrap_or_default();
+            let state = if message_id.starts_with("input-") {
+                TaskState::TaskStateInputRequired
+            } else {
+                TaskState::TaskStateCompleted
+            };
+            task.status = TaskStatus {
+                message: Some(build_agent_text_message(&task, "handled")),
+                state,
+                timestamp: Some(Timestamp(chrono::Utc::now())),
+            };
+            Ok(task)
+        }
+
+        async fn handle_message(&self, message: &A2AMessage) -> Result<Option<A2AMessage>> {
+            if !message.message_id.starts_with("direct-") {
+                return Ok(None);
+            }
+            let mut reply = message.clone();
+            reply.role = Role::RoleAgent;
+            reply.message_id = uuid::Uuid::new_v4().to_string();
+            reply.parts = vec![Part {
+                text: Some("Direct message response".to_string()),
+                ..Default::default()
+            }];
+            Ok(Some(reply))
+        }
+    }
+
+    /// Background handlers require a card with streaming disabled (see
+    /// `A2AServerBuilder::build`); push notifications stay on for the inline-config case.
+    fn agent_card_for_background_handler() -> AgentCard {
+        serde_json::from_value(serde_json::json!({
+            "name": "SendMessage Agent",
+            "description": "Blocking SendMessage test",
+            "version": "1.0.0",
+            "supportedInterfaces": [{"url": "http://localhost/a2a", "protocolBinding": "JSONRPC", "protocolVersion": "1.0"}],
+            "capabilities": {"streaming": false, "pushNotifications": true},
+            "defaultInputModes": ["text/plain"],
+            "defaultOutputModes": ["text/plain"],
+            "skills": [{"id": "x", "name": "x", "description": "x", "tags": ["x"]}]
+        }))
+        .expect("agent card builds")
+    }
+
+    async fn spawn_settling_server() -> (
+        std::net::SocketAddr,
+        Arc<dyn crate::server::storage::Storage>,
+        crate::server::task_manager::TaskManagerRunner,
+    ) {
+        let mut server = A2AServerBuilder::new()
+            .with_agent_card(agent_card_for_background_handler())
+            .with_background_task_handler(SettlingHandler)
+            .build()
+            .await
+            .expect("server builds");
+        let runner = server
+            .task_manager
+            .take()
+            .expect("task manager configured")
+            .start();
+        let storage = server.storage();
+        (spawn_test_server(server).await, storage, runner)
+    }
+
+    async fn send_message(addr: std::net::SocketAddr, params: Value) -> Value {
+        reqwest::Client::new()
+            .post(format!("http://{addr}/a2a"))
+            .json(&json!({
+                "jsonrpc": "2.0",
+                "id": "send-1",
+                "method": "SendMessage",
+                "params": params,
+            }))
+            .send()
+            .await
+            .expect("request sent")
+            .json()
+            .await
+            .expect("json body")
+    }
+
+    #[tokio::test]
+    async fn send_message_waits_for_the_task_to_settle_and_continues_it() {
+        let (addr, storage, runner) = spawn_settling_server().await;
+
+        let interrupted = send_message(
+            addr,
+            json!({
+                "message": {
+                    "messageId": "input-1",
+                    "role": "ROLE_USER",
+                    "parts": [{"text": "need input"}],
+                },
+                "configuration": {
+                    "taskPushNotificationConfig": {"url": "http://localhost/hook"},
+                },
+            }),
+        )
+        .await;
+        let task = &interrupted["result"]["task"];
+        assert_eq!(task["status"]["state"], "TASK_STATE_INPUT_REQUIRED");
+        let task_id = task["id"].as_str().expect("task id").to_string();
+        assert_eq!(
+            storage.list_push_notification_configs(&task_id).await.len(),
+            1,
+            "inline taskPushNotificationConfig should be registered against the task",
+        );
+
+        let completed = send_message(
+            addr,
+            json!({
+                "message": {
+                    "messageId": "answer-1",
+                    "role": "ROLE_USER",
+                    "parts": [{"text": "here it is"}],
+                    "taskId": task_id,
+                },
+                "configuration": {"historyLength": 1},
+            }),
+        )
+        .await;
+        let task = &completed["result"]["task"];
+        assert_eq!(
+            task["id"], task_id,
+            "an existing taskId continues that task"
+        );
+        assert_eq!(task["status"]["state"], "TASK_STATE_COMPLETED");
+        assert_eq!(
+            task["history"].as_array().expect("history").len(),
+            1,
+            "historyLength caps the returned history",
+        );
+
+        runner.shutdown().await;
+    }
+
+    #[tokio::test]
+    async fn send_message_returns_immediately_when_asked() {
+        let (addr, _storage, runner) = spawn_settling_server().await;
+
+        let response = send_message(
+            addr,
+            json!({
+                "message": {
+                    "messageId": "input-2",
+                    "role": "ROLE_USER",
+                    "parts": [{"text": "need input"}],
+                },
+                "configuration": {"returnImmediately": true},
+            }),
+        )
+        .await;
+
+        assert_eq!(
+            response["result"]["task"]["status"]["state"],
+            "TASK_STATE_SUBMITTED"
+        );
+        runner.shutdown().await;
+    }
+
+    #[tokio::test]
+    async fn send_message_can_answer_with_a_direct_message() {
+        let (addr, _storage, runner) = spawn_settling_server().await;
+
+        let response = send_message(
+            addr,
+            json!({
+                "message": {
+                    "messageId": "direct-1",
+                    "role": "ROLE_USER",
+                    "parts": [{"text": "hi"}],
+                },
+            }),
+        )
+        .await;
+
+        assert!(
+            response["result"]["task"].is_null(),
+            "a direct message reply carries no task: {response}"
+        );
+        assert_eq!(
+            response["result"]["message"]["parts"][0]["text"],
+            "Direct message response"
+        );
+        runner.shutdown().await;
+    }
+
+    #[test]
+    fn unsupported_content_type_accepts_json_and_rejects_the_rest() {
+        let cases = [
+            (None, None),
+            (Some("application/json"), None),
+            (Some("application/json; charset=utf-8"), None),
+            (Some("application/vnd.a2a+json"), None),
+            (Some("text/plain"), Some("text/plain")),
+            (Some("application/xml"), Some("application/xml")),
+        ];
+
+        for (header, expected) in cases {
+            let mut headers = axum::http::HeaderMap::new();
+            if let Some(value) = header {
+                headers.insert(
+                    axum::http::header::CONTENT_TYPE,
+                    value.parse().expect("header value"),
+                );
+            }
+            assert_eq!(
+                unsupported_content_type(&headers).as_deref(),
+                expected,
+                "Content-Type: {header:?}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn wrong_content_type_answers_with_a_json_rpc_error() {
+        let server = A2AServerBuilder::new()
+            .with_agent_card(agent_card_with_push_notifications(true))
+            .with_default_streaming_task_handler()
+            .build()
+            .await
+            .expect("server builds");
+        let addr = spawn_test_server(server).await;
+
+        let response = reqwest::Client::new()
+            .post(format!("http://{addr}/a2a"))
+            .header("Content-Type", "text/plain")
+            .body(r#"{"jsonrpc":"2.0","id":1,"method":"GetTask","params":{"id":"x"}}"#)
+            .send()
+            .await
+            .expect("request sent");
+
+        assert_eq!(response.status(), axum::http::StatusCode::OK);
+        let body: Value = response.json().await.expect("json body");
+        assert_eq!(body["error"]["code"], -32005, "{body}");
+        assert_eq!(
+            body["error"]["data"][0]["reason"],
+            "CONTENT_TYPE_NOT_SUPPORTED"
+        );
     }
 }

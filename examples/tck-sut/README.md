@@ -20,12 +20,9 @@ uv run ./run_tck.py --sut-host http://localhost:9999 --transport jsonrpc
 
 ## Deselected in CI
 
-These tests fail until #200 lands (blocking `SendMessage`, direct `Message` replies, push
-notification delivery, agent card caching headers):
-
-- `tests/compatibility/agent_card/test_agent_card_caching.py`
-- `tests/compatibility/core_operations/test_artifacts.py`
-- `tests/compatibility/core_operations/test_push_notifications.py::TestPushNotificationDelivery`
+None: the gaps those `--deselect` flags covered (blocking `SendMessage`, direct `Message`
+replies, push notification delivery, agent card caching headers) are implemented, so the
+three `--deselect` lines in `.github/workflows/ci.yml` can go.
 
 ## Compatibility score
 

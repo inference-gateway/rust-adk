@@ -63,6 +63,14 @@ not from the repo root or `examples/<scenario>/`.
   `A2aMethod` (unknown names return `-32601`) and dispatches the eleven
   A2A v1.0.1 methods (`SendMessage`, `GetTask`, ..., `GetExtendedAgentCard`).
   `SendStreamingMessage` and `SubscribeToTask` return SSE.
+- `SendMessage` blocks until the task settles (terminal or interrupted) unless
+  `configuration.returnImmediately` is set; it continues an existing task when
+  `message.taskId` names one, honours `configuration.historyLength`, registers an
+  inline `taskPushNotificationConfig`, and short-circuits to a direct `Message`
+  when `TaskHandler::handle_message` returns `Some`.
+- `src/server/push.rs` POSTs each task update as a `StreamResponse` to every
+  webhook registered for the task; it is called from the task-manager worker and
+  from `StreamEmitter::emit_status`.
 - Streaming handlers push events through `StreamEmitter`
   (`src/server/task_handler.rs`), which also keeps `Storage` in sync; terminal
   a terminal `status.state` ends the stream (A2A v1.0 has no `final` flag).

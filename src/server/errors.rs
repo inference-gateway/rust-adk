@@ -3,6 +3,7 @@ use serde_json::Value;
 
 /// JSON-RPC standard error codes plus A2A-specific extensions.
 pub(super) mod jsonrpc_errors {
+    pub const PARSE_ERROR: i64 = -32700;
     pub const INVALID_REQUEST: i64 = -32600;
     pub const METHOD_NOT_FOUND: i64 = -32601;
     pub const INVALID_PARAMS: i64 = -32602;
@@ -16,6 +17,8 @@ pub(super) mod jsonrpc_errors {
     pub const PUSH_NOTIFICATION_NOT_SUPPORTED: i64 = -32003;
     /// The requested operation is not supported by this agent (A2A spec 8.2).
     pub const UNSUPPORTED_OPERATION: i64 = -32004;
+    /// The request or response media type is not supported (A2A spec 8.2).
+    pub const CONTENT_TYPE_NOT_SUPPORTED: i64 = -32005;
     /// The agent supports an extended card but none is configured (A2A spec 8.2).
     pub const AUTHENTICATED_EXTENDED_CARD_NOT_CONFIGURED: i64 = -32007;
     /// The requested `A2A-Version` is not supported (A2A spec 3.6).
@@ -30,6 +33,7 @@ fn a2a_error_reason(code: i64) -> Option<&'static str> {
         jsonrpc_errors::TASK_NOT_CANCELABLE => Some("TASK_NOT_CANCELABLE"),
         jsonrpc_errors::PUSH_NOTIFICATION_NOT_SUPPORTED => Some("PUSH_NOTIFICATION_NOT_SUPPORTED"),
         jsonrpc_errors::UNSUPPORTED_OPERATION => Some("UNSUPPORTED_OPERATION"),
+        jsonrpc_errors::CONTENT_TYPE_NOT_SUPPORTED => Some("CONTENT_TYPE_NOT_SUPPORTED"),
         jsonrpc_errors::AUTHENTICATED_EXTENDED_CARD_NOT_CONFIGURED => {
             Some("EXTENDED_AGENT_CARD_NOT_CONFIGURED")
         }
