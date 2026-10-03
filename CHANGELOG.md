@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.17.1](https://github.com/inference-gateway/rust-adk/compare/0.17.0...0.17.1) (2026-10-03)
+
+### 🐛 Bug Fixes
+
+* **server:** reject credentials in the advertised agent card url ([#217](https://github.com/inference-gateway/rust-adk/issues/217)) ([24cf8ef](https://github.com/inference-gateway/rust-adk/commit/24cf8ef19d8574c927ab33d07760847bfa66d03a)), closes [#216](https://github.com/inference-gateway/rust-adk/issues/216)
+
 ## [0.17.0](https://github.com/inference-gateway/rust-adk/compare/0.16.2...0.17.0) (2026-10-03)
 
 ### ✨ Features
