@@ -4,7 +4,7 @@
 //! - (a) auth off → existing behaviour is unchanged.
 //! - (b) auth on + valid token → `POST /a2a` returns the response.
 //! - (c) auth on + missing/invalid token → HTTP 401.
-//! - (d) public endpoints (`/health`, `/.well-known/agent.json`) stay
+//! - (d) public endpoints (`/health`, `/.well-known/agent-card.json`) stay
 //!   reachable without a token in both modes.
 //!
 //! A trait-stub `AuthVerifier` is used so the suite does not depend on

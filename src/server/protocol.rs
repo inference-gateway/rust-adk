@@ -65,6 +65,7 @@ pub(crate) async fn a2a_handler(
     State(state): State<Arc<AppState>>,
     principal: Option<axum::Extension<AuthenticatedPrincipal>>,
     peer_cert: Option<axum::Extension<PeerCert>>,
+    headers: axum::http::HeaderMap,
     Json(payload): Json<Value>,
 ) -> Response {
     // Principal is plumbed in by the auth middleware. We log it for
@@ -103,6 +104,18 @@ pub(crate) async fn a2a_handler(
             Some(Value::String(
                 "Missing or invalid \"jsonrpc\" field; must be \"2.0\"".to_string(),
             )),
+        )
+        .into_response();
+    }
+
+    if let Some(version) = unsupported_a2a_version(&headers) {
+        return json_rpc_error(
+            id,
+            jsonrpc_errors::VERSION_NOT_SUPPORTED,
+            "Version not supported",
+            Some(Value::String(format!(
+                "A2A-Version {version} is not supported"
+            ))),
         )
         .into_response();
     }
@@ -166,6 +179,14 @@ pub(crate) async fn a2a_handler(
     }
 }
 
+/// Returns the requested `A2A-Version` when this server doesn't speak it (A2A spec 3.6).
+// ponytail: an empty header is accepted so clients that omit it keep working, although spec
+// section 3.6 reads it as 0.3; reject it once 0.3 clients are gone.
+fn unsupported_a2a_version(headers: &axum::http::HeaderMap) -> Option<String> {
+    let version = headers.get("A2A-Version")?.to_str().unwrap_or("invalid");
+    (!version.is_empty() && version != crate::A2A_PROTOCOL_VERSION).then(|| version.to_string())
+}
+
 /// Validate the A2A-spec-required content of a `SendMessage` /
 /// `SendStreamingMessage` request. Returns an error suitable for surfacing as the
 /// `data` field of a JSON-RPC `-32602` response.
@@ -223,6 +244,17 @@ async fn handle_message_send(state: &Arc<AppState>, id: Value, params: Value) ->
 
     if let Err(detail) = validate_send_message_request(&request) {
         return invalid_params_message(id, detail);
+    }
+
+    if let Some(task_id) = request.message.task_id.as_deref()
+        && state.server.storage.get_task(task_id).await.is_none()
+    {
+        return json_rpc_error(
+            id,
+            jsonrpc_errors::TASK_NOT_FOUND,
+            "Task not found",
+            Some(Value::String(task_id.to_string())),
+        );
     }
 
     if state.server.background_task_handler.is_none() {
@@ -288,6 +320,18 @@ async fn handle_message_stream(state: Arc<AppState>, id: Value, params: Value) -
 
     if let Err(detail) = validate_send_message_request(&request) {
         return invalid_params_message(id, detail).into_response();
+    }
+
+    if let Some(task_id) = request.message.task_id.as_deref()
+        && state.server.storage.get_task(task_id).await.is_none()
+    {
+        return json_rpc_error(
+            id,
+            jsonrpc_errors::TASK_NOT_FOUND,
+            "Task not found",
+            Some(Value::String(task_id.to_string())),
+        )
+        .into_response();
     }
 
     let Some(handler) = state.server.streaming_task_handler.as_ref().cloned() else {

@@ -505,6 +505,82 @@ async fn push_notification_config_round_trip() {
 }
 
 #[tokio::test]
+async fn json_rpc_endpoint_accepts_trailing_slash() {
+    let suite = ensure_suite();
+    let request =
+        json!({"jsonrpc": "2.0", "id": "trailing-slash", "method": "ListTasks", "params": {}});
+    let response = reqwest::Client::new()
+        .post(format!("http://{}/a2a/", suite.server_addr))
+        .json(&request)
+        .send()
+        .await
+        .expect("HTTP request succeeded")
+        .json::<Value>()
+        .await
+        .expect("JSON response body");
+    assert!(
+        response.get("result").is_some(),
+        "expected a result, got {response}"
+    );
+}
+
+#[tokio::test]
+async fn task_not_found_carries_error_info() {
+    let suite = ensure_suite();
+    let request = json!({"jsonrpc": "2.0", "id": "error-info", "method": "GetTask", "params": {"id": "missing-task"}});
+    let response = post_jsonrpc(suite, request).await;
+    let error = &response["error"];
+    assert_eq!(error["code"], -32001, "got {response}");
+    assert_eq!(
+        error["data"][0]["@type"],
+        "type.googleapis.com/google.rpc.ErrorInfo"
+    );
+    assert_eq!(error["data"][0]["reason"], "TASK_NOT_FOUND");
+    assert_eq!(error["data"][0]["domain"], "a2a-protocol.org");
+    assert_eq!(error["data"][0]["metadata"]["detail"], "missing-task");
+}
+
+#[tokio::test]
+async fn message_send_to_unknown_task_returns_task_not_found() {
+    let suite = ensure_suite();
+    let mut params = send_message_params("unknown-task-message", "hello");
+    params["message"]["taskId"] = json!("no-such-task");
+    let request =
+        json!({"jsonrpc": "2.0", "id": "unknown-task", "method": "SendMessage", "params": params});
+    let response = post_jsonrpc(suite, request).await;
+    assert_eq!(response["error"]["code"], -32001, "got {response}");
+}
+
+#[tokio::test]
+async fn unsupported_a2a_version_returns_version_not_supported() {
+    let suite = ensure_suite();
+    let request = json!({"jsonrpc": "2.0", "id": "version", "method": "GetTask", "params": {"id": "missing"}});
+    for (version, want_code) in [
+        (Some("99.0"), -32009),
+        (Some("1.0"), -32001),
+        (None, -32001),
+    ] {
+        let mut http = reqwest::Client::new()
+            .post(format!("http://{}/a2a", suite.server_addr))
+            .json(&request);
+        if let Some(version) = version {
+            http = http.header("A2A-Version", version);
+        }
+        let response = http
+            .send()
+            .await
+            .expect("HTTP request succeeded")
+            .json::<Value>()
+            .await
+            .expect("JSON response body");
+        assert_eq!(
+            response["error"]["code"], want_code,
+            "version {version:?}: {response}"
+        );
+    }
+}
+
+#[tokio::test]
 async fn unknown_method_returns_method_not_found() {
     let suite = ensure_suite();
     let request = json!({

@@ -1,7 +1,7 @@
 # Auth-Gated A2A Example
 
 Demonstrates how the Rust ADK enforces bearer-token authentication on
-`POST /a2a` while keeping `GET /health` and `GET /.well-known/agent.json`
+`POST /a2a` while keeping `GET /health` and `GET /.well-known/agent-card.json`
 public, and how `GetExtendedAgentCard` returns the extended
 agent card only to authenticated callers.
 
@@ -14,7 +14,7 @@ agent card only to authenticated callers.
   `AUTH_ENABLED=true` is set.
 - `POST /a2a` returns **HTTP 401** when the `Authorization` header is
   missing or malformed.
-- `GET /health` and `GET /.well-known/agent.json` remain reachable
+- `GET /health` and `GET /.well-known/agent-card.json` remain reachable
   without a token.
 - `GetExtendedAgentCard` returns the agent card to
   callers whose bearer token verifies successfully.
@@ -45,7 +45,7 @@ You can also poke the endpoints directly with curl:
 ```bash
 # Public - works without a token
 curl http://localhost:8080/health
-curl http://localhost:8080/.well-known/agent.json
+curl http://localhost:8080/.well-known/agent-card.json
 
 # Protected - 401 without a token
 curl -i http://localhost:8080/a2a \

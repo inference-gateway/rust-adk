@@ -1,6 +1,6 @@
 //! Client for the auth-enabled example server.
 //!
-//! Demonstrates that `GET /health` and `GET /.well-known/agent.json` are
+//! Demonstrates that `GET /health` and `GET /.well-known/agent-card.json` are
 //! reachable without a token, while `POST /a2a` requires a bearer token.
 //! The `GetExtendedAgentCard` call is executed both with
 //! and without a token to show the contrast.

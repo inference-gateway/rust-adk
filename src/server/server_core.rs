@@ -44,7 +44,7 @@ pub struct A2AServer {
     pub(super) task_manager: Option<DefaultTaskManager>,
     /// When `Some`, the JSON-RPC route (`POST /a2a`) is wrapped with an
     /// auth middleware that requires a valid bearer token. `GET /health`
-    /// and `GET /.well-known/agent.json` are always public.
+    /// and `GET /.well-known/agent-card.json` are always public.
     pub(super) auth_verifier: Option<Arc<dyn AuthVerifier>>,
     /// Optional artifact service used to mint and serve file/data
     /// artifacts. When `Some` and `config.artifacts_config.enable` is
@@ -83,12 +83,17 @@ impl A2AServer {
 
         let public = Router::new()
             .route("/health", get(health_handler))
+            .route("/.well-known/agent-card.json", get(agent_card_handler))
             .route("/.well-known/agent.json", get(agent_card_handler))
             .with_state(Arc::clone(&state));
 
-        let protected = Router::new().route("/a2a", post(a2a_handler)).route_layer(
-            middleware::from_fn_with_state(Arc::clone(&state), auth_middleware),
-        );
+        let protected = Router::new()
+            .route("/a2a", post(a2a_handler))
+            .route("/a2a/", post(a2a_handler))
+            .route_layer(middleware::from_fn_with_state(
+                Arc::clone(&state),
+                auth_middleware,
+            ));
         #[cfg(feature = "telemetry")]
         let protected = protected.route_layer(middleware::from_fn(telemetry_middleware));
         let protected = protected.with_state(Arc::clone(&state));

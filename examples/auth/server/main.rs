@@ -1,7 +1,7 @@
 //! Auth-enabled A2A server.
 //!
 //! Demonstrates how to gate `POST /a2a` behind a bearer-token verifier
-//! while keeping `GET /health` and `GET /.well-known/agent.json` public.
+//! while keeping `GET /health` and `GET /.well-known/agent-card.json` public.
 //!
 //! Two modes share this binary:
 //!
@@ -117,7 +117,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("Auth-gated A2A server listening on port {port}");
     info!("Try:");
     info!("  curl http://localhost:{port}/health                               # public");
-    info!("  curl http://localhost:{port}/.well-known/agent.json               # public");
+    info!("  curl http://localhost:{port}/.well-known/agent-card.json          # public");
     if auth_enabled {
         info!(
             "  curl -H 'Authorization: Bearer <jwt>' http://localhost:{port}/a2a -d '...'  # protected (JWT from Keycloak)"

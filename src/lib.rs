@@ -4,6 +4,10 @@ pub mod config;
 pub mod server;
 pub mod telemetry;
 
+/// The A2A protocol version this ADK speaks, sent and checked as the `A2A-Version`
+/// header (A2A spec 3.6).
+pub const A2A_PROTOCOL_VERSION: &str = "1.0";
+
 pub use client::{A2AClient, HealthStatus};
 pub use config::{
     AgentConfig, ArtifactRetentionConfig, ArtifactsConfig, ArtifactsServerConfig,

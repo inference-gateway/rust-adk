@@ -34,8 +34,14 @@ pub struct A2AClient {
 /// `config.max_retries` is not applied here: reqwest has no built-in retry, so
 /// it remains an advisory knob for callers that layer their own retry policy.
 fn build_http_client(config: &ClientConfig) -> Result<reqwest::Client> {
+    let mut headers = reqwest::header::HeaderMap::new();
+    headers.insert(
+        "A2A-Version",
+        reqwest::header::HeaderValue::from_static(crate::A2A_PROTOCOL_VERSION),
+    );
     reqwest::Client::builder()
         .timeout(config.timeout)
+        .default_headers(headers)
         .build()
         .map_err(|e| anyhow!("failed to build HTTP client: {e}"))
 }
@@ -95,7 +101,7 @@ impl A2AClient {
     pub async fn get_agent_card(&self) -> Result<AgentCard> {
         debug!("Fetching agent card from server");
 
-        let url = format!("{}/.well-known/agent.json", self.base_url);
+        let url = format!("{}/.well-known/agent-card.json", self.base_url);
         let response = self
             .http_client
             .get(&url)

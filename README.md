@@ -298,7 +298,7 @@ suggested learning path.
 
 - **[Queue Storage](./examples/queue-storage/)** - Queue-driven `SendMessage` with in-memory or Redis storage (Compose profiles)
 - **[A2A Methods](./examples/a2a-methods/)** - One client binary per JSON-RPC method exposed by the A2A spec
-- **[Auth](./examples/auth/)** - Bearer-token authentication on `POST /a2a` with public `/health` and `/.well-known/agent.json`
+- **[Auth](./examples/auth/)** - Bearer-token authentication on `POST /a2a` with public `/health` and `/.well-known/agent-card.json`
 - **[TLS / mTLS](./examples/tls/)** - TLS termination via `axum-server` + `rustls`, optional mTLS with client-cert subject as principal
 - **[Artifacts (filesystem)](./examples/artifacts-filesystem/)** - Streaming handler emits a file part whose `url` is served by the standalone artifacts HTTP server, backed by an on-disk store
 - **[Health Check Example](#health-check-example)** - Monitor agent health status
@@ -377,7 +377,7 @@ Build A2A servers with custom configurations using a fluent interface. See
 | --- | --- |
 | `with_config(Config)` | Apply a fully-loaded `Config` (port, TLS, auth, queue, telemetry). |
 | `with_agent(Agent)` | Attach an LLM-backed agent built via `AgentBuilder`. |
-| `with_agent_card(AgentCard)` / `with_agent_card_from_file(path, overrides)` | Configure the card served at `/.well-known/agent.json`. |
+| `with_agent_card(AgentCard)` / `with_agent_card_from_file(path, overrides)` | Configure the card served at `/.well-known/agent-card.json`. |
 | `with_storage(Arc<dyn Storage>)` | Swap the task store (`InMemoryStorage` default, `RedisStorage` behind the `redis` feature). |
 | `with_background_task_handler(h)` | Custom `SendMessage` handler. |
 | `with_streaming_task_handler(h)` | Custom `SendStreamingMessage` handler. |
@@ -682,7 +682,7 @@ handler has three outcomes:
 - Otherwise the card passed to
   `A2AServerBuilder::with_extended_agent_card(...)` is returned. Registering
   it also forces `capabilities.extendedAgentCard: true` on the public card served
-  at `/.well-known/agent.json`.
+  at `/.well-known/agent-card.json`.
 
 ```rust
 use inference_gateway_adk::a2a_types::GetExtendedAgentCardRequest;
@@ -1203,7 +1203,7 @@ configured by `A2A_AUTH_ISSUER_URL`. The bundled `OidcJwtVerifier`:
 3. Validates the JWT signature, `iss`, `exp`, and `aud` (against
    `A2A_AUTH_CLIENT_ID`) claims.
 
-`GET /health` and `GET /.well-known/agent.json` are always public so
+`GET /health` and `GET /.well-known/agent-card.json` are always public so
 health probes and discovery clients keep working without a credential.
 Tokens that fail any check produce **HTTP 401** with a
 `WWW-Authenticate: Bearer realm="a2a"` header.
