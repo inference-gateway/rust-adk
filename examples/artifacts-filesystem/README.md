@@ -7,7 +7,7 @@ filesystem-backed storage provider:
   server. A `StreamableTaskHandler` produces a small text report and
   emits it as a file part whose `url` points at the artifacts
   server.
-- `client/` opens `message/stream`, collects the file artifact URI,
+- `client/` opens `SendStreamingMessage`, collects the file artifact URI,
   then downloads the artifact directly from the artifacts HTTP server
   and prints its contents.
 
@@ -26,7 +26,7 @@ artifacts-filesystem/
 ## Topology
 
 ```
-                  message/stream                   GET /artifacts/<id>/<file>
+                  SendStreamingMessage                   GET /artifacts/<id>/<file>
    client ───────────────────────► A2A :8087       ┌──────────────────────────► artifacts :8088
                                    (file part `url` points here)          └─► filesystem
                                                                                   ./server/artifacts-data/

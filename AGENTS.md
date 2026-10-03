@@ -51,17 +51,18 @@ from the repo root.
   handlers, `Arc<dyn Storage>` (`InMemoryStorage` default, `RedisStorage`
   behind `redis`), and auth.
 - Handler validation in `build()`: a streaming-enabled card needs a
-  `StreamableTaskHandler` (`message/stream`), a streaming-disabled card needs a
-  background `TaskHandler` (`message/send`), and neither is rejected - so
+  `StreamableTaskHandler` (`SendStreamingMessage`), a streaming-disabled card needs a
+  background `TaskHandler` (`SendMessage`), and neither is rejected - so
   mismatches fail at startup. `with_default_task_handlers()` delegates to the
   registered `Agent`, or echoes when none is present.
 - Auth: `OidcJwtVerifier` is auto-built when `auth_config.enable` is true;
   `with_auth_verifier(...)` overrides it regardless. The middleware gates only
   `POST /a2a`; `GET /health` and `GET /.well-known/agent.json` stay public.
 - `src/server/protocol.rs::a2a_handler` is the single `POST /a2a` entry point:
-  it validates `jsonrpc == "2.0"` and dispatches `message/*`, `tasks/*`,
-  `tasks/pushNotificationConfig/*` and `agent/getAuthenticatedExtendedCard`.
-  `message/stream` and `tasks/resubscribe` return SSE.
+  it validates `jsonrpc == "2.0"`, parses `method` into the generated
+  `A2aMethod` (unknown names return `-32601`) and dispatches the eleven
+  A2A v1.0.1 methods (`SendMessage`, `GetTask`, ..., `GetExtendedAgentCard`).
+  `SendStreamingMessage` and `SubscribeToTask` return SSE.
 - Streaming handlers push events through `StreamEmitter`
   (`src/server/task_handler.rs`), which also keeps `Storage` in sync; terminal
   a terminal `status.state` ends the stream (A2A v1.0 has no `final` flag).

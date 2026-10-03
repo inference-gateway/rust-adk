@@ -1,4 +1,4 @@
-//! `tasks/pushNotificationConfig/get` - read back a stored push notification
+//! `GetTaskPushNotificationConfig` - read back a stored push notification
 //! configuration.
 //!
 //! ```bash
@@ -32,7 +32,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 message_id: Uuid::new_v4().to_string(),
                 metadata: None,
                 parts: vec![Part {
-                    text: Some("seed for pushNotificationConfig/get".to_string()),
+                    text: Some("seed for GetTaskPushNotificationConfig".to_string()),
                     ..Default::default()
                 }],
                 reference_task_ids: vec![],
@@ -66,7 +66,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await?;
 
     info!(
-        "tasks/pushNotificationConfig/get → id={:?} url={}",
+        "GetTaskPushNotificationConfig → id={:?} url={}",
         fetched.id, fetched.url
     );
 

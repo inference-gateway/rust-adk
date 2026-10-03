@@ -1,6 +1,6 @@
-//! `tasks/get` - fetch a stored task by its resource name (`tasks/{task_id}`).
+//! `GetTask` - fetch a stored task by its resource name (`tasks/{task_id}`).
 //!
-//! Creates a task via `message/send` first so the example is self-contained.
+//! Creates a task via `SendMessage` first so the example is self-contained.
 //!
 //! ```bash
 //! cargo run -p a2a-methods-server
@@ -30,7 +30,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 message_id: Uuid::new_v4().to_string(),
                 metadata: None,
                 parts: vec![Part {
-                    text: Some("seed for tasks/get".to_string()),
+                    text: Some("seed for GetTask".to_string()),
                     ..Default::default()
                 }],
                 reference_task_ids: vec![],
@@ -43,7 +43,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await?;
     let seeded_task = seed.task.ok_or("server did not return a task")?;
 
-    // 2. fetch it via tasks/get.
+    // 2. fetch it via GetTask.
     let fetched = client
         .get_task(GetTaskRequest {
             history_length: None,
@@ -53,7 +53,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await?;
 
     info!(
-        "tasks/get → id={} state={:?} history_len={}",
+        "GetTask → id={} state={:?} history_len={}",
         fetched.id,
         fetched.status.state,
         fetched.history.len()

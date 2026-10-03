@@ -1,6 +1,6 @@
 # ai-powered-streaming example
 
-LLM-backed A2A server that streams delta chunks over `message/stream`.
+LLM-backed A2A server that streams delta chunks over `SendStreamingMessage`.
 Uses `A2AServerBuilder::with_default_task_handlers()` - the built-in
 `DefaultStreamingTaskHandler` converts the LLM's streaming response
 into a sequence of `TaskArtifactUpdateEvent`s ending with
@@ -11,7 +11,7 @@ Compare to:
 - [`../streaming`](../streaming) - same streaming wire-up, but the
   chunks come from a hardcoded sentence rather than an LLM.
 - [`../ai-powered`](../ai-powered) - same LLM agent shape but uses
-  `message/send` + polling instead of streaming.
+  `SendMessage` + polling instead of streaming.
 
 ## What's in the box
 
@@ -19,7 +19,7 @@ Compare to:
 ai-powered-streaming/
 ├── server/main.rs                 LLM agent + default streaming handler
 ├── server/.well-known/agent.json  Agent metadata loaded at startup
-├── client/main.rs                 Consumes message/stream + prints per-event timestamps
+├── client/main.rs                 Consumes SendStreamingMessage + prints per-event timestamps
 ├── docker-compose.yaml            Server + client + inference-gateway:latest
 ├── .env.example                   DEEPSEEK_API_KEY + provider/model overrides
 └── README.md

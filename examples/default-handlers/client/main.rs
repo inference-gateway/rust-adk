@@ -66,7 +66,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ))
         .await?;
     let Some(task) = response.task else {
-        error!("server returned no task for message/send");
+        error!("server returned no task for SendMessage");
         return Ok(());
     };
     info!("task {} accepted in state {:?}", task.id, task.status.state);

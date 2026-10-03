@@ -1,6 +1,6 @@
-//! `tasks/cancel` - cancel a stored task.
+//! `CancelTask` - cancel a stored task.
 //!
-//! `message/send` (non-blocking) leaves the task in SUBMITTED, so the cancel
+//! `SendMessage` (non-blocking) leaves the task in SUBMITTED, so the cancel
 //! transitions it to CANCELLED.
 //!
 //! ```bash
@@ -32,7 +32,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 message_id: Uuid::new_v4().to_string(),
                 metadata: None,
                 parts: vec![Part {
-                    text: Some("seed for tasks/cancel".to_string()),
+                    text: Some("seed for CancelTask".to_string()),
                     ..Default::default()
                 }],
                 reference_task_ids: vec![],
@@ -53,7 +53,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await?;
 
     info!(
-        "tasks/cancel → id={} state={:?}",
+        "CancelTask → id={} state={:?}",
         cancelled.id, cancelled.status.state
     );
 

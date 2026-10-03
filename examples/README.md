@@ -38,7 +38,7 @@ override via `.env` to use any other provider supported by the gateway
 |---|---|
 | [`default-handlers/`](./default-handlers) | LLM agent + `with_default_task_handlers()`, no custom handler code |
 | [`ai-powered/`](./ai-powered) | LLM agent with custom function tools (weather, math, search) |
-| [`ai-powered-streaming/`](./ai-powered-streaming) | LLM agent streamed over `message/stream` |
+| [`ai-powered-streaming/`](./ai-powered-streaming) | LLM agent streamed over `SendStreamingMessage` |
 | [`mcp/`](./mcp) | LLM agent that discovers/invokes MCP tools via `mcp_list_tools` / `mcp_call_tool` selector tools (`MCP_ENABLED`, `MCP_SERVERS`) |
 | [`usage-metadata/`](./usage-metadata) | Default handlers attach token `usage` + `execution_stats` to `task.metadata` on terminal states |
 
@@ -46,7 +46,7 @@ override via `.env` to use any other provider supported by the gateway
 
 | Example | What it shows |
 |---|---|
-| [`queue-storage/`](./queue-storage) | Queue-driven `message/send` with in-memory or Redis storage (compose profile) |
+| [`queue-storage/`](./queue-storage) | Queue-driven `SendMessage` with in-memory or Redis storage (compose profile) |
 | [`a2a-methods/`](./a2a-methods) | One client binary per JSON-RPC method exposed by the A2A spec |
 
 ### Artifacts
@@ -157,9 +157,9 @@ the top-level [README](../README.md) for the full env var reference.
    require mTLS, and surface the client-cert subject to handlers via
    `axum::Extension<PeerCert>`.
 8. **`ai-powered/`** - register custom function tools and drive an LLM
-   tool-loop via `message/send`.
+   tool-loop via `SendMessage`.
 9. **`ai-powered-streaming/`** - the same LLM agent shape streamed over
-   `message/stream`.
+   `SendStreamingMessage`.
 10. **`usage-metadata/`** - let the default handlers tally token usage and
     agent-loop stats, attaching them to `task.metadata` on the terminal
     transition.

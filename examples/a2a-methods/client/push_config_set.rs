@@ -1,4 +1,4 @@
-//! `tasks/pushNotificationConfig/set` - store a push notification
+//! `CreateTaskPushNotificationConfig` - store a push notification
 //! configuration on a task.
 //!
 //! The server persists the config in storage; an actual webhook sender is
@@ -34,7 +34,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 message_id: Uuid::new_v4().to_string(),
                 metadata: None,
                 parts: vec![Part {
-                    text: Some("seed for pushNotificationConfig/set".to_string()),
+                    text: Some("seed for CreateTaskPushNotificationConfig".to_string()),
                     ..Default::default()
                 }],
                 reference_task_ids: vec![],
@@ -58,7 +58,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await?;
 
     info!(
-        "tasks/pushNotificationConfig/set → stored {:?}/{:?} → {}",
+        "CreateTaskPushNotificationConfig → stored {:?}/{:?} → {}",
         stored.task_id, stored.id, stored.url
     );
 

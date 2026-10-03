@@ -4,9 +4,9 @@
 //! no LLM agent configured. Both handler paths are explicit so the
 //! request/response flow is visible in this file:
 //!
-//! * [`EchoBackgroundTaskHandler`] drives `message/send` (returns an echo
+//! * [`EchoBackgroundTaskHandler`] drives `SendMessage` (returns an echo
 //!   reply on a Completed task).
-//! * [`EchoStreamHandler`] drives `message/stream` (Submitted → Working →
+//! * [`EchoStreamHandler`] drives `SendStreamingMessage` (Submitted → Working →
 //!   echo artifact → Completed, with short delays between transitions).
 //!
 //! No external dependencies are required.
@@ -50,7 +50,7 @@ fn build_agent_message(task: &Task, text: &str) -> Message {
     }
 }
 
-/// Explicit `message/send` handler. Returns the task in `Completed` with an
+/// Explicit `SendMessage` handler. Returns the task in `Completed` with an
 /// echo of the user input attached as the final agent message.
 #[derive(Debug, Default)]
 struct EchoBackgroundTaskHandler;
@@ -69,7 +69,7 @@ impl TaskHandler for EchoBackgroundTaskHandler {
     }
 }
 
-/// Explicit `message/stream` handler used by the example server.
+/// Explicit `SendStreamingMessage` handler used by the example server.
 ///
 /// The handler walks the freshly-created task through three observable
 /// states so the example demonstrates streaming end-to-end:

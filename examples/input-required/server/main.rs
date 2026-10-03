@@ -10,7 +10,7 @@ use tracing::{error, info};
 /// state-machine flow without any AI noise.
 ///
 /// Note: this rust-adk version does not yet wire a "resume" path for
-/// `message/send` carrying an existing `task_id` - every send creates
+/// `SendMessage` carrying an existing `task_id` - every send creates
 /// a new task. The example therefore demonstrates the InputRequired
 /// state on its own; the client dispatches two independent tasks (one
 /// with a city, one without) to show both branches side by side.

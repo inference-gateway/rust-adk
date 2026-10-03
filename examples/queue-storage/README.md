@@ -1,8 +1,8 @@
 # queue-storage example
 
-Demonstrates the queue-driven `message/send` flow with selectable
+Demonstrates the queue-driven `SendMessage` flow with selectable
 `Storage` backends - in-memory (default) or Redis. Mirrors the Go ADK's
-async task lifecycle: `message/send` enqueues and returns immediately;
+async task lifecycle: `SendMessage` enqueues and returns immediately;
 a configurable number of background workers drain the queue and route
 each task to the active or dead-letter store based on its terminal
 state.

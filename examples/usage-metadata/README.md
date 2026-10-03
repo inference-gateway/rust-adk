@@ -12,7 +12,7 @@ a tool call, polls the task to terminal, and prints the `usage` +
 usage-metadata/
 ├── server/main.rs                 LLM agent + one calculate_sum tool
 ├── server/.well-known/agent.json  Agent metadata loaded at startup
-├── client/main.rs                 message/send + poll + metadata renderer
+├── client/main.rs                 SendMessage + poll + metadata renderer
 ├── docker-compose.yaml            Server + client + inference-gateway:latest
 ├── .env.example                   Provider key + ENABLE_USAGE_METADATA toggle
 └── README.md
@@ -37,7 +37,7 @@ usage-metadata/
   }
   ```
 
-Both the background (`message/send`) and streaming (`message/stream`) default
+Both the background (`SendMessage`) and streaming (`SendStreamingMessage`) default
 handlers attach the same blocks; this example demonstrates the background path
 because the client can read it straight off the polled task.
 

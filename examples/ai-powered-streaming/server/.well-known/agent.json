@@ -1,6 +1,6 @@
 {
   "name": "Rust A2A AI-Powered Streaming Agent",
-  "description": "LLM-backed A2A server streaming delta chunks over message/stream",
+  "description": "LLM-backed A2A server streaming delta chunks over SendStreamingMessage",
   "version": "0.1.0",
   "supportedInterfaces": [{"url": "http://localhost:8084", "protocolBinding": "JSONRPC", "protocolVersion": "1.0"}],
   "capabilities": {

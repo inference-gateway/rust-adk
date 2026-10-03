@@ -155,14 +155,14 @@ async fn create_task(suite: &Suite, text: &str) -> a2a_types::Task {
     let request = json!({
         "jsonrpc": "2.0",
         "id": format!("create-task-{}", uuid::Uuid::new_v4()),
-        "method": "message/send",
+        "method": "SendMessage",
         "params": send_message_params(&uuid::Uuid::new_v4().to_string(), text),
     });
     let response = post_jsonrpc(suite, request).await;
     let result = response
         .get("result")
         .cloned()
-        .unwrap_or_else(|| panic!("expected result in message/send response: {response}"));
+        .unwrap_or_else(|| panic!("expected result in SendMessage response: {response}"));
     let send_response: a2a_types::SendMessageResponse =
         serde_json::from_value(result).expect("SendMessageResponse parses");
     send_response.task.expect("server returned a task")
@@ -191,8 +191,8 @@ async fn message_send_returns_task() {
     let request = json!({
         "jsonrpc": "2.0",
         "id": "test-message-send-001",
-        "method": "message/send",
-        "params": send_message_params("msg-001", "Hello via message/send"),
+        "method": "SendMessage",
+        "params": send_message_params("msg-001", "Hello via SendMessage"),
     });
     let response = post_jsonrpc(suite, request).await;
     assert!(
@@ -213,7 +213,7 @@ async fn message_send_rejects_empty_message_id() {
     let request = json!({
         "jsonrpc": "2.0",
         "id": "test-message-send-empty-id",
-        "method": "message/send",
+        "method": "SendMessage",
         "params": {
             "tenant": "test",
             "message": {
@@ -241,7 +241,7 @@ async fn message_send_rejects_empty_parts() {
     let request = json!({
         "jsonrpc": "2.0",
         "id": "test-message-send-empty-parts",
-        "method": "message/send",
+        "method": "SendMessage",
         "params": {
             "tenant": "test",
             "message": {
@@ -278,7 +278,7 @@ async fn message_stream_emits_sse_state_transitions() {
             message_id: "msg-stream-001".to_string(),
             metadata: None,
             parts: vec![a2a_types::Part {
-                text: Some("Hello via message/stream".to_string()),
+                text: Some("Hello via SendStreamingMessage".to_string()),
                 ..Default::default()
             }],
             reference_task_ids: vec![],
@@ -321,11 +321,11 @@ async fn message_stream_emits_sse_state_transitions() {
 #[tokio::test]
 async fn tasks_get_returns_stored_task() {
     let suite = ensure_suite();
-    let task = create_task(suite, "tasks/get scenario").await;
+    let task = create_task(suite, "GetTask scenario").await;
     let request = json!({
         "jsonrpc": "2.0",
         "id": "test-tasks-get-001",
-        "method": "tasks/get",
+        "method": "GetTask",
         "params": {
             "id": task.id,
         },
@@ -343,11 +343,11 @@ async fn tasks_get_returns_stored_task() {
 #[tokio::test]
 async fn tasks_list_returns_paged_response() {
     let suite = ensure_suite();
-    let _ = create_task(suite, "tasks/list seed").await;
+    let _ = create_task(suite, "ListTasks seed").await;
     let request = json!({
         "jsonrpc": "2.0",
         "id": "test-tasks-list-001",
-        "method": "tasks/list",
+        "method": "ListTasks",
         "params": {
             "contextId": "",
             "pageToken": "",
@@ -370,13 +370,13 @@ async fn tasks_list_returns_paged_response() {
 #[tokio::test]
 async fn tasks_cancel_marks_task_cancelled() {
     let suite = ensure_suite();
-    // `message/send` (non-blocking by default) leaves the new task in the
+    // `SendMessage` (non-blocking by default) leaves the new task in the
     // SUBMITTED state, so cancelling it should succeed.
-    let task = create_task(suite, "tasks/cancel scenario").await;
+    let task = create_task(suite, "CancelTask scenario").await;
     let request = json!({
         "jsonrpc": "2.0",
         "id": "test-tasks-cancel-001",
-        "method": "tasks/cancel",
+        "method": "CancelTask",
         "params": {
             "id": task.id,
             "tenant": "test",
@@ -385,7 +385,7 @@ async fn tasks_cancel_marks_task_cancelled() {
     let response = post_jsonrpc(suite, request).await;
     assert!(
         response.get("error").is_none(),
-        "tasks/cancel returned error: {response}"
+        "CancelTask returned error: {response}"
     );
     let result = response.get("result").expect("result present");
     let cancelled: a2a_types::Task = serde_json::from_value(result.clone()).expect("Task parses");
@@ -405,7 +405,7 @@ async fn push_notification_config_round_trip() {
     let set_request = json!({
         "jsonrpc": "2.0",
         "id": "test-push-config-set-001",
-        "method": "tasks/pushNotificationConfig/set",
+        "method": "CreateTaskPushNotificationConfig",
         "params": {
             "taskId": task.id,
             "id": config_id,
@@ -428,7 +428,7 @@ async fn push_notification_config_round_trip() {
     let get_request = json!({
         "jsonrpc": "2.0",
         "id": "test-push-config-get-001",
-        "method": "tasks/pushNotificationConfig/get",
+        "method": "GetTaskPushNotificationConfig",
         "params": {
             "taskId": task.id,
             "id": config_id,
@@ -449,7 +449,7 @@ async fn push_notification_config_round_trip() {
     let list_request = json!({
         "jsonrpc": "2.0",
         "id": "test-push-config-list-001",
-        "method": "tasks/pushNotificationConfig/list",
+        "method": "ListTaskPushNotificationConfigs",
         "params": {
             "taskId": task.id,
             "pageSize": 10,
@@ -476,7 +476,7 @@ async fn push_notification_config_round_trip() {
     let delete_request = json!({
         "jsonrpc": "2.0",
         "id": "test-push-config-delete-001",
-        "method": "tasks/pushNotificationConfig/delete",
+        "method": "DeleteTaskPushNotificationConfig",
         "params": {
             "taskId": task.id,
             "id": config_id,
@@ -496,7 +496,7 @@ async fn push_notification_config_round_trip() {
         json!({
             "jsonrpc": "2.0",
             "id": "test-push-config-get-after-delete",
-            "method": "tasks/pushNotificationConfig/get",
+            "method": "GetTaskPushNotificationConfig",
             "params": { "taskId": task.id, "id": config_id, "tenant": "test" },
         }),
     )
@@ -522,12 +522,61 @@ async fn unknown_method_returns_method_not_found() {
 }
 
 #[tokio::test]
+async fn only_a2a_v1_method_names_are_dispatched() {
+    let suite = ensure_suite();
+    let client = reqwest::Client::new();
+    let url = format!("http://{}/a2a", suite.server_addr);
+    let cases = [
+        ("SendMessage", false),
+        ("SendStreamingMessage", false),
+        ("GetTask", false),
+        ("ListTasks", false),
+        ("CancelTask", false),
+        ("SubscribeToTask", false),
+        ("CreateTaskPushNotificationConfig", false),
+        ("GetTaskPushNotificationConfig", false),
+        ("ListTaskPushNotificationConfigs", false),
+        ("DeleteTaskPushNotificationConfig", false),
+        ("GetExtendedAgentCard", false),
+        ("message/send", true),
+        ("message/stream", true),
+        ("tasks/get", true),
+        ("tasks/list", true),
+        ("tasks/cancel", true),
+        ("tasks/resubscribe", true),
+        ("tasks/pushNotificationConfig/set", true),
+        ("tasks/pushNotificationConfig/get", true),
+        ("tasks/pushNotificationConfig/list", true),
+        ("tasks/pushNotificationConfig/delete", true),
+        ("agent/getAuthenticatedExtendedCard", true),
+    ];
+    for (method, want_method_not_found) in cases {
+        let request = json!({ "jsonrpc": "2.0", "id": method, "method": method, "params": {} });
+        let body = timeout(
+            suite.timeout_duration,
+            client.post(&url).json(&request).send(),
+        )
+        .await
+        .expect("HTTP request did not time out")
+        .expect("HTTP request succeeded")
+        .text()
+        .await
+        .expect("response body");
+        assert_eq!(
+            body.contains("-32601"),
+            want_method_not_found,
+            "{method}: {body}"
+        );
+    }
+}
+
+#[tokio::test]
 async fn invalid_params_returns_invalid_params_error() {
     let suite = ensure_suite();
     let request = json!({
         "jsonrpc": "2.0",
         "id": "test-invalid-params-001",
-        "method": "message/send",
+        "method": "SendMessage",
         "params": {
             "invalid": "parameters"
         }
@@ -643,7 +692,7 @@ async fn tasks_resubscribe_unknown_task_returns_task_not_found() {
     let request = json!({
         "jsonrpc": "2.0",
         "id": "test-resubscribe-not-found",
-        "method": "tasks/resubscribe",
+        "method": "SubscribeToTask",
         "params": {
             "id": "does-not-exist",
             "tenant": "test"
@@ -667,7 +716,7 @@ async fn get_authenticated_extended_card_rejects_when_not_supported() {
     let request = json!({
         "jsonrpc": "2.0",
         "id": "test-get-extended-card-disabled",
-        "method": "agent/getAuthenticatedExtendedCard",
+        "method": "GetExtendedAgentCard",
         "params": { "tenant": "test" }
     });
     let response = post_jsonrpc(suite, request).await;

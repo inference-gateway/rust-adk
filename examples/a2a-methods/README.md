@@ -12,17 +12,17 @@ a2a-methods/
 ├── docker-compose.yaml                          # Server + one Compose profile per client
 ├── server/main.rs                               # shared offline server (echo fallback)
 └── client/
-    ├── message_send.rs                          # message/send
-    ├── message_stream.rs                        # message/stream
-    ├── tasks_get.rs                             # tasks/get
-    ├── tasks_list.rs                            # tasks/list
-    ├── tasks_cancel.rs                          # tasks/cancel
-    ├── tasks_resubscribe.rs                     # tasks/resubscribe
-    ├── push_config_set.rs                       # tasks/pushNotificationConfig/set
-    ├── push_config_get.rs                       # tasks/pushNotificationConfig/get
-    ├── push_config_list.rs                      # tasks/pushNotificationConfig/list
-    ├── push_config_delete.rs                    # tasks/pushNotificationConfig/delete
-    └── agent_authenticated_extended_card.rs     # agent/getAuthenticatedExtendedCard
+    ├── message_send.rs                          # SendMessage
+    ├── message_stream.rs                        # SendStreamingMessage
+    ├── tasks_get.rs                             # GetTask
+    ├── tasks_list.rs                            # ListTasks
+    ├── tasks_cancel.rs                          # CancelTask
+    ├── tasks_resubscribe.rs                     # SubscribeToTask
+    ├── push_config_set.rs                       # CreateTaskPushNotificationConfig
+    ├── push_config_get.rs                       # GetTaskPushNotificationConfig
+    ├── push_config_list.rs                      # ListTaskPushNotificationConfigs
+    ├── push_config_delete.rs                    # DeleteTaskPushNotificationConfig
+    └── agent_authenticated_extended_card.rs     # GetExtendedAgentCard
 ```
 
 ## Running with Docker Compose
@@ -87,23 +87,23 @@ Clients respect `SERVER_URL` and default to `http://localhost:8085`.
 
 ## Notes
 
-- No LLM is wired up. `message/send` and `message/stream` fall through to the
+- No LLM is wired up. `SendMessage` and `SendStreamingMessage` fall through to the
   built-in offline echo reply, so each client runs end-to-end without external
   credentials.
-- Examples that mutate state (e.g. `tasks/cancel`,
-  `pushNotificationConfig/{set,get,list,delete}`) seed their own task via
-  `message/send` first so they remain self-contained and re-runnable.
+- Examples that mutate state (e.g. `CancelTask`,
+  the `*TaskPushNotificationConfig(s)` methods) seed their own task via
+  `SendMessage` first so they remain self-contained and re-runnable.
 - Webhook *delivery* for push notifications is tracked in a separate ticket;
-  the four `pushNotificationConfig/*` methods here exercise the control plane
+  the four `*TaskPushNotificationConfig(s)` methods here exercise the control plane
   (storage + retrieval) only.
 - The shared example server opts into the extended agent card by setting
   `capabilities.extendedAgentCard: true` on the static agent card it advertises;
   this is what lets `a2a-methods-agent-authenticated-extended-card` succeed
   rather than receive `METHOD_NOT_FOUND`. Production agents should gate the
   flag on their own auth policy.
-- `tasks/resubscribe` lets a client re-attach to an existing
+- `SubscribeToTask` lets a client re-attach to an existing
   task id and receive a snapshot of its current state
   followed by any remaining `TaskStatusUpdateEvent` deltas. The example
-  here seeds a task via `message/send` (which the echo handler completes
+  here seeds a task via `SendMessage` (which the echo handler completes
   immediately) so the resubscribed stream emits a snapshot and a terminal
   terminal status update.

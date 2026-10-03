@@ -91,7 +91,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     match client.send_message(request).await {
         Ok(response) => {
-            info!("message/send dispatched");
+            info!("SendMessage dispatched");
             if let Some(task) = response.task {
                 info!(
                     "→ task {} accepted in state {:?}",
@@ -118,7 +118,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         Err(e) => {
-            error!("Failed to dispatch message/send: {}", e);
+            error!("Failed to dispatch SendMessage: {}", e);
         }
     }
 

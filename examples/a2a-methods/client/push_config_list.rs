@@ -1,4 +1,4 @@
-//! `tasks/pushNotificationConfig/list` - list the push notification
+//! `ListTaskPushNotificationConfigs` - list the push notification
 //! configurations belonging to a task.
 //!
 //! ```bash
@@ -31,7 +31,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 message_id: Uuid::new_v4().to_string(),
                 metadata: None,
                 parts: vec![Part {
-                    text: Some("seed for pushNotificationConfig/list".to_string()),
+                    text: Some("seed for ListTaskPushNotificationConfigs".to_string()),
                     ..Default::default()
                 }],
                 reference_task_ids: vec![],
@@ -73,7 +73,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await?;
 
     info!(
-        "tasks/pushNotificationConfig/list → {} configs (next_page_token={:?})",
+        "ListTaskPushNotificationConfigs → {} configs (next_page_token={:?})",
         listed.configs.len(),
         listed.next_page_token
     );

@@ -67,7 +67,7 @@ async fn dispatch(
     info!("→ [{label}] sending: {text}");
     let response = client.send_message(user_message(text)).await?;
     let Some(task) = response.task else {
-        error!("[{label}] server returned no task for message/send");
+        error!("[{label}] server returned no task for SendMessage");
         return Ok(());
     };
     info!(

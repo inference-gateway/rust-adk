@@ -7,11 +7,12 @@ use super::storage::TaskFilter;
 use super::task_handler::StreamEmitter;
 use super::tls::PeerCert;
 use crate::a2a_types::{
-    CancelTaskRequest, DeleteTaskPushNotificationConfigRequest, GetExtendedAgentCardRequest,
-    GetTaskPushNotificationConfigRequest, GetTaskRequest, ListTaskPushNotificationConfigsRequest,
-    ListTaskPushNotificationConfigsResponse, ListTasksRequest, ListTasksResponse,
-    SendMessageRequest, SendMessageResponse, StreamResponse, SubscribeToTaskRequest, Task,
-    TaskPushNotificationConfig, TaskState, TaskStatus, TaskStatusUpdateEvent, Timestamp,
+    A2aMethod, CancelTaskRequest, DeleteTaskPushNotificationConfigRequest,
+    GetExtendedAgentCardRequest, GetTaskPushNotificationConfigRequest, GetTaskRequest,
+    ListTaskPushNotificationConfigsRequest, ListTaskPushNotificationConfigsResponse,
+    ListTasksRequest, ListTasksResponse, SendMessageRequest, SendMessageResponse, StreamResponse,
+    SubscribeToTaskRequest, Task, TaskPushNotificationConfig, TaskState, TaskStatus,
+    TaskStatusUpdateEvent, Timestamp,
 };
 use axum::{
     extract::State,
@@ -121,49 +122,52 @@ pub(crate) async fn a2a_handler(
 
     let params = payload.get("params").cloned().unwrap_or(Value::Null);
 
-    match method.as_str() {
-        "message/send" => handle_message_send(&state, id, params)
+    let Ok(a2a_method) = method.parse::<A2aMethod>() else {
+        warn!("Unknown JSON-RPC method requested: {method}");
+        return json_rpc_error(
+            id,
+            jsonrpc_errors::METHOD_NOT_FOUND,
+            "Method not found",
+            Some(Value::String(method)),
+        )
+        .into_response();
+    };
+
+    match a2a_method {
+        A2aMethod::SendMessage => handle_message_send(&state, id, params)
             .await
             .into_response(),
-        "message/stream" => handle_message_stream(state.clone(), id, params).await,
-        "tasks/get" => handle_tasks_get(&state, id, params).await.into_response(),
-        "tasks/list" => handle_tasks_list(&state, id, params).await.into_response(),
-        "tasks/cancel" => handle_tasks_cancel(&state, id, params)
+        A2aMethod::SendStreamingMessage => handle_message_stream(state.clone(), id, params).await,
+        A2aMethod::GetTask => handle_tasks_get(&state, id, params).await.into_response(),
+        A2aMethod::ListTasks => handle_tasks_list(&state, id, params).await.into_response(),
+        A2aMethod::CancelTask => handle_tasks_cancel(&state, id, params)
             .await
             .into_response(),
-        "tasks/pushNotificationConfig/set" => handle_set_push_config(&state, id, params)
+        A2aMethod::CreateTaskPushNotificationConfig => handle_set_push_config(&state, id, params)
             .await
             .into_response(),
-        "tasks/pushNotificationConfig/get" => handle_get_push_config(&state, id, params)
+        A2aMethod::GetTaskPushNotificationConfig => handle_get_push_config(&state, id, params)
             .await
             .into_response(),
-        "tasks/pushNotificationConfig/list" => handle_list_push_configs(&state, id, params)
+        A2aMethod::ListTaskPushNotificationConfigs => handle_list_push_configs(&state, id, params)
             .await
             .into_response(),
-        "tasks/pushNotificationConfig/delete" => handle_delete_push_config(&state, id, params)
-            .await
-            .into_response(),
-        "tasks/resubscribe" => handle_tasks_resubscribe(state.clone(), id, params).await,
-        "agent/getAuthenticatedExtendedCard" => {
+        A2aMethod::DeleteTaskPushNotificationConfig => {
+            handle_delete_push_config(&state, id, params)
+                .await
+                .into_response()
+        }
+        A2aMethod::SubscribeToTask => handle_tasks_resubscribe(state.clone(), id, params).await,
+        A2aMethod::GetExtendedAgentCard => {
             handle_get_authenticated_extended_card(&state, id, params)
                 .await
                 .into_response()
         }
-        other => {
-            warn!("Unknown JSON-RPC method requested: {other}");
-            json_rpc_error(
-                id,
-                jsonrpc_errors::METHOD_NOT_FOUND,
-                "Method not found",
-                Some(Value::String(other.to_string())),
-            )
-            .into_response()
-        }
     }
 }
 
-/// Validate the A2A-spec-required content of a `message/send` /
-/// `message/stream` request. Returns an error suitable for surfacing as the
+/// Validate the A2A-spec-required content of a `SendMessage` /
+/// `SendStreamingMessage` request. Returns an error suitable for surfacing as the
 /// `data` field of a JSON-RPC `-32602` response.
 fn validate_send_message_request(req: &SendMessageRequest) -> Result<(), String> {
     let msg = &req.message;
@@ -227,7 +231,7 @@ async fn handle_message_send(state: &Arc<AppState>, id: Value, params: Value) ->
             jsonrpc_errors::METHOD_NOT_FOUND,
             "Method not found",
             Some(Value::String(
-                "message/send is not supported: no background task handler is configured"
+                "SendMessage is not supported: no background task handler is configured"
                     .to_string(),
             )),
         );
@@ -292,7 +296,7 @@ async fn handle_message_stream(state: Arc<AppState>, id: Value, params: Value) -
             jsonrpc_errors::METHOD_NOT_FOUND,
             "Method not found",
             Some(Value::String(
-                "message/stream is not supported: no streaming task handler is configured"
+                "SendStreamingMessage is not supported: no streaming task handler is configured"
                     .to_string(),
             )),
         )
@@ -444,7 +448,7 @@ async fn handle_tasks_list(state: &Arc<AppState>, id: Value, params: Value) -> J
     }
 }
 
-/// The `tasks/list` page token is the offset of the page; an empty token is the first page.
+/// The `ListTasks` page token is the offset of the page; an empty token is the first page.
 fn parse_page_token(token: Option<&str>) -> Option<usize> {
     match token.unwrap_or_default() {
         "" => Some(0),
@@ -621,7 +625,7 @@ async fn handle_delete_push_config(state: &Arc<AppState>, id: Value, params: Val
     json_rpc_success(id, serde_json::json!({}))
 }
 
-/// `tasks/resubscribe` - re-attach to an existing task by id, emit the
+/// `SubscribeToTask` - re-attach to an existing task by id, emit the
 /// current task state, and replay subsequent state transitions as SSE
 /// events. The stream terminates with a `TaskStatusUpdateEvent` whose
 /// state is terminal (or when the task is removed from storage).
@@ -761,7 +765,7 @@ async fn handle_tasks_resubscribe(state: Arc<AppState>, id: Value, params: Value
         .into_response()
 }
 
-/// `agent/getAuthenticatedExtendedCard` - return the authenticated extended
+/// `GetExtendedAgentCard` - return the authenticated extended
 /// [`AgentCard`] for the calling tenant, following the A2A spec (8.2) contract:
 ///
 /// - `supportsExtendedAgentCard` absent or false -> `-32004`
@@ -796,7 +800,7 @@ async fn handle_get_authenticated_extended_card(
             jsonrpc_errors::UNSUPPORTED_OPERATION,
             "This operation is not supported",
             Some(Value::String(
-                "agent/getAuthenticatedExtendedCard is not supported by this agent \
+                "GetExtendedAgentCard is not supported by this agent \
                  (set supportsExtendedAgentCard=true and configure an extended card \
                  to enable it)"
                     .to_string(),
@@ -1096,12 +1100,12 @@ mod tests {
         assert!(final_update.status.state.is_terminal());
     }
 
-    // ----- tasks/resubscribe -------------------------------------------
+    // ----- SubscribeToTask -------------------------------------------
 
     fn minimal_agent_card_for_resubscribe() -> AgentCard {
         serde_json::from_value(serde_json::json!({
             "name": "Resubscribe Test Agent",
-            "description": "tasks/resubscribe E2E test",
+            "description": "SubscribeToTask E2E test",
             "version": "0.0.0",
             "supportedInterfaces": [{"url": "http://localhost/a2a", "protocolBinding": "JSONRPC", "protocolVersion": "1.0"}],
             "capabilities": {
@@ -1301,7 +1305,7 @@ mod tests {
         assert_eq!(final_update.status.state, TaskState::TaskStateCompleted);
     }
 
-    /// `tasks/resubscribe` against a missing task should surface a
+    /// `SubscribeToTask` against a missing task should surface a
     /// JSON-RPC `TASK_NOT_FOUND` error rather than opening an empty
     /// stream that never closes.
     #[tokio::test]
@@ -1335,12 +1339,12 @@ mod tests {
         );
     }
 
-    // ----- agent/getAuthenticatedExtendedCard --------------------------
+    // ----- GetExtendedAgentCard --------------------------
 
     fn agent_card_with_extended(supports: bool) -> AgentCard {
         serde_json::from_value(serde_json::json!({
             "name": "Extended Card Agent",
-            "description": "agent/getAuthenticatedExtendedCard test",
+            "description": "GetExtendedAgentCard test",
             "version": "1.2.3",
             "supportedInterfaces": [{"url": "http://localhost/a2a", "protocolBinding": "JSONRPC", "protocolVersion": "1.0"}],
             "capabilities": {

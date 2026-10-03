@@ -1,16 +1,16 @@
-//! `tasks/resubscribe` - re-attach to an existing task and stream its
+//! `SubscribeToTask` - re-attach to an existing task and stream its
 //! remaining state transitions over SSE.
 //!
-//! The example seeds a task via `message/send` (the offline echo handler
-//! drives it straight to `Completed`), then calls `tasks/resubscribe` to
+//! The example seeds a task via `SendMessage` (the offline echo handler
+//! drives it straight to `Completed`), then calls `SubscribeToTask` to
 //! demonstrate the recovery path: the server replays a snapshot of the
 //! task's current state followed by a `TaskStatusUpdateEvent` with
 //! `final: true`, and the stream closes cleanly.
 //!
-//! This mirrors the canonical use of `tasks/resubscribe` after a transport
+//! This mirrors the canonical use of `SubscribeToTask` after a transport
 //! disconnect - the client knows the `tasks/{task_id}` resource name and
 //! wants to resume observing the task without re-issuing
-//! `message/stream`.
+//! `SendStreamingMessage`.
 //!
 //! ```bash
 //! cargo run -p a2a-methods-server
@@ -44,7 +44,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 message_id: Uuid::new_v4().to_string(),
                 metadata: None,
                 parts: vec![Part {
-                    text: Some("seed for tasks/resubscribe".to_string()),
+                    text: Some("seed for SubscribeToTask".to_string()),
                     ..Default::default()
                 }],
                 reference_task_ids: vec![],
@@ -80,7 +80,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         if let Some(task) = response.task {
             info!(
-                "[{event_index}] tasks/resubscribe → snapshot: id={} state={:?}",
+                "[{event_index}] SubscribeToTask → snapshot: id={} state={:?}",
                 task.id, task.status.state
             );
         }
@@ -92,7 +92,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 ""
             };
             info!(
-                "[{event_index}] tasks/resubscribe → status update: {:?}{suffix}",
+                "[{event_index}] SubscribeToTask → status update: {:?}{suffix}",
                 update.status.state
             );
         }
@@ -105,10 +105,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .filter_map(|p| p.text.clone())
                 .collect::<Vec<_>>()
                 .join("");
-            info!("[{event_index}] tasks/resubscribe → artifact: {:?}", text);
+            info!("[{event_index}] SubscribeToTask → artifact: {:?}", text);
         }
     }
 
-    info!("tasks/resubscribe → stream closed after {event_index} events");
+    info!("SubscribeToTask → stream closed after {event_index} events");
     Ok(())
 }

@@ -99,7 +99,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut task_ids = Vec::with_capacity(n);
 
     info!(
-        "[{:.2}s] enqueuing {n} tasks via message/send …",
+        "[{:.2}s] enqueuing {n} tasks via SendMessage …",
         start.elapsed().as_secs_f64()
     );
     for i in 0..n {
@@ -107,7 +107,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .send_message(make_user_message(&format!("hello #{i}")))
             .await?
             .task
-            .expect("server returns task on message/send");
+            .expect("server returns task on SendMessage");
         info!(
             "[{:.2}s] enqueued task #{i} → id={} state={:?}",
             start.elapsed().as_secs_f64(),

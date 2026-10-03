@@ -4,7 +4,7 @@
 //! a `StreamableTaskHandler` that mints a file artifact mid-stream. The
 //! test then:
 //!
-//! 1. Opens `message/stream` and collects every event.
+//! 1. Opens `SendStreamingMessage` and collects every event.
 //! 2. Asserts one of the events carried a `FilePart` with `fileWithUri`
 //!    pointing at the artifacts server.
 //! 3. Fetches that URL over HTTP and verifies the round-tripped bytes.

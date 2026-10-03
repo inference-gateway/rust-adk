@@ -1,4 +1,4 @@
-//! `message/stream` - open the SSE stream and observe each event live.
+//! `SendStreamingMessage` - open the SSE stream and observe each event live.
 //!
 //! The example server registers an explicit
 //! [`EchoStreamHandler`](crate) that drives the task through
@@ -32,7 +32,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             message_id: Uuid::new_v4().to_string(),
             metadata: None,
             parts: vec![Part {
-                text: Some("Hello via message/stream".to_string()),
+                text: Some("Hello via SendStreamingMessage".to_string()),
                 ..Default::default()
             }],
             reference_task_ids: vec![],
@@ -52,7 +52,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         if let Some(task) = response.task {
             info!(
-                "[{event_index}] message/stream → task {} created (state {:?})",
+                "[{event_index}] SendStreamingMessage → task {} created (state {:?})",
                 task.id, task.status.state
             );
         }
@@ -64,7 +64,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 ""
             };
             info!(
-                "[{event_index}] message/stream → status update: {:?}{suffix}",
+                "[{event_index}] SendStreamingMessage → status update: {:?}{suffix}",
                 update.status.state
             );
         }
@@ -77,10 +77,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .filter_map(|p| p.text.clone())
                 .collect::<Vec<_>>()
                 .join("");
-            info!("[{event_index}] message/stream → artifact: {:?}", text);
+            info!(
+                "[{event_index}] SendStreamingMessage → artifact: {:?}",
+                text
+            );
         }
     }
 
-    info!("message/stream → stream closed after {event_index} events");
+    info!("SendStreamingMessage → stream closed after {event_index} events");
     Ok(())
 }

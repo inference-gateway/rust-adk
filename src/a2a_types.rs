@@ -9,6 +9,86 @@
 #![allow(clippy::match_single_binding)]
 #![allow(clippy::clone_on_copy)]
 
+#[doc = "The A2A method to invoke."]
+#[derive(
+    :: serde :: Deserialize,
+    :: serde :: Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+)]
+pub enum A2aMethod {
+    SendMessage,
+    SendStreamingMessage,
+    GetTask,
+    ListTasks,
+    CancelTask,
+    SubscribeToTask,
+    CreateTaskPushNotificationConfig,
+    GetTaskPushNotificationConfig,
+    ListTaskPushNotificationConfigs,
+    GetExtendedAgentCard,
+    DeleteTaskPushNotificationConfig,
+}
+impl ::std::fmt::Display for A2aMethod {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::SendMessage => f.write_str("SendMessage"),
+            Self::SendStreamingMessage => f.write_str("SendStreamingMessage"),
+            Self::GetTask => f.write_str("GetTask"),
+            Self::ListTasks => f.write_str("ListTasks"),
+            Self::CancelTask => f.write_str("CancelTask"),
+            Self::SubscribeToTask => f.write_str("SubscribeToTask"),
+            Self::CreateTaskPushNotificationConfig => {
+                f.write_str("CreateTaskPushNotificationConfig")
+            }
+            Self::GetTaskPushNotificationConfig => f.write_str("GetTaskPushNotificationConfig"),
+            Self::ListTaskPushNotificationConfigs => f.write_str("ListTaskPushNotificationConfigs"),
+            Self::GetExtendedAgentCard => f.write_str("GetExtendedAgentCard"),
+            Self::DeleteTaskPushNotificationConfig => {
+                f.write_str("DeleteTaskPushNotificationConfig")
+            }
+        }
+    }
+}
+impl ::std::str::FromStr for A2aMethod {
+    type Err = self::error::ConversionError;
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "SendMessage" => Ok(Self::SendMessage),
+            "SendStreamingMessage" => Ok(Self::SendStreamingMessage),
+            "GetTask" => Ok(Self::GetTask),
+            "ListTasks" => Ok(Self::ListTasks),
+            "CancelTask" => Ok(Self::CancelTask),
+            "SubscribeToTask" => Ok(Self::SubscribeToTask),
+            "CreateTaskPushNotificationConfig" => Ok(Self::CreateTaskPushNotificationConfig),
+            "GetTaskPushNotificationConfig" => Ok(Self::GetTaskPushNotificationConfig),
+            "ListTaskPushNotificationConfigs" => Ok(Self::ListTaskPushNotificationConfigs),
+            "GetExtendedAgentCard" => Ok(Self::GetExtendedAgentCard),
+            "DeleteTaskPushNotificationConfig" => Ok(Self::DeleteTaskPushNotificationConfig),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for A2aMethod {
+    type Error = self::error::ConversionError;
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for A2aMethod {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
 #[doc = "Defines optional capabilities supported by an agent."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
 #[serde(deny_unknown_fields)]
@@ -482,6 +562,75 @@ pub struct ImplicitOAuthFlow {
 }
 impl ImplicitOAuthFlow {
     pub fn builder() -> builder::ImplicitOAuthFlow {
+        Default::default()
+    }
+}
+#[doc = "A JSON-RPC 2.0 error object; A2A error codes are mapped in spec section 5.4.\n Hand-written by inference-gateway, not part of the official a2a.proto, which does not model\n the JSON-RPC binding."]
+#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
+#[serde(deny_unknown_fields)]
+pub struct JsonrpcError {
+    #[doc = "The error code, e.g. -32601 for an unknown method."]
+    pub code: i32,
+    #[doc = "Additional information about the error."]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub data: ::std::option::Option<Value>,
+    #[doc = "A short description of the error."]
+    pub message: ::std::string::String,
+}
+impl JsonrpcError {
+    pub fn builder() -> builder::JsonrpcError {
+        Default::default()
+    }
+}
+#[doc = "A JSON-RPC 2.0 response reporting a failed A2A method call (A2A spec section 9.5).\n Hand-written by inference-gateway, not part of the official a2a.proto, which does not model\n the JSON-RPC binding."]
+#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
+#[serde(deny_unknown_fields)]
+pub struct JsonrpcErrorResponse {
+    #[doc = "The error that occurred."]
+    pub error: JsonrpcError,
+    #[doc = "The id of the request this response answers, or null when it could not be read."]
+    pub id: Value,
+    #[doc = "The JSON-RPC version, always \"2.0\"."]
+    pub jsonrpc: ::std::string::String,
+}
+impl JsonrpcErrorResponse {
+    pub fn builder() -> builder::JsonrpcErrorResponse {
+        Default::default()
+    }
+}
+#[doc = "A JSON-RPC 2.0 request to an A2A agent (A2A spec section 9.3).\n Hand-written by inference-gateway, not part of the official a2a.proto, which does not model\n the JSON-RPC binding."]
+#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
+#[serde(deny_unknown_fields)]
+pub struct JsonrpcRequest {
+    #[doc = "The request id: a string, a number or null. Omitted for notifications."]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub id: ::std::option::Option<Value>,
+    #[doc = "The JSON-RPC version, always \"2.0\"."]
+    pub jsonrpc: ::std::string::String,
+    #[doc = "The A2A method to invoke."]
+    pub method: A2aMethod,
+    #[doc = "The method's request message, e.g. a SendMessageRequest for SendMessage."]
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub params: ::std::option::Option<Struct>,
+}
+impl JsonrpcRequest {
+    pub fn builder() -> builder::JsonrpcRequest {
+        Default::default()
+    }
+}
+#[doc = "A JSON-RPC 2.0 response carrying the result of an A2A method (A2A spec section 9).\n Hand-written by inference-gateway, not part of the official a2a.proto, which does not model\n the JSON-RPC binding."]
+#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
+#[serde(deny_unknown_fields)]
+pub struct JsonrpcSuccessResponse {
+    #[doc = "The id of the request this response answers."]
+    pub id: Value,
+    #[doc = "The JSON-RPC version, always \"2.0\"."]
+    pub jsonrpc: ::std::string::String,
+    #[doc = "The method's response message, e.g. a Task for GetTask."]
+    pub result: Value,
+}
+impl JsonrpcSuccessResponse {
+    pub fn builder() -> builder::JsonrpcSuccessResponse {
         Default::default()
     }
 }
@@ -3152,6 +3301,292 @@ pub mod builder {
                 authorization_url: Ok(value.authorization_url),
                 refresh_url: Ok(value.refresh_url),
                 scopes: Ok(value.scopes),
+            }
+        }
+    }
+    #[derive(Clone, Debug)]
+    pub struct JsonrpcError {
+        code: ::std::result::Result<i32, ::std::string::String>,
+        data: ::std::result::Result<::std::option::Option<super::Value>, ::std::string::String>,
+        message: ::std::result::Result<::std::string::String, ::std::string::String>,
+    }
+    impl ::std::default::Default for JsonrpcError {
+        fn default() -> Self {
+            Self {
+                code: Err("no value supplied for code".to_string()),
+                data: Ok(Default::default()),
+                message: Err("no value supplied for message".to_string()),
+            }
+        }
+    }
+    impl JsonrpcError {
+        pub fn code<T>(mut self, value: T) -> Self
+        where
+            T: ::std::convert::TryInto<i32>,
+            T::Error: ::std::fmt::Display,
+        {
+            self.code = value
+                .try_into()
+                .map_err(|e| format!("error converting supplied value for code: {e}"));
+            self
+        }
+        pub fn data<T>(mut self, value: T) -> Self
+        where
+            T: ::std::convert::TryInto<::std::option::Option<super::Value>>,
+            T::Error: ::std::fmt::Display,
+        {
+            self.data = value
+                .try_into()
+                .map_err(|e| format!("error converting supplied value for data: {e}"));
+            self
+        }
+        pub fn message<T>(mut self, value: T) -> Self
+        where
+            T: ::std::convert::TryInto<::std::string::String>,
+            T::Error: ::std::fmt::Display,
+        {
+            self.message = value
+                .try_into()
+                .map_err(|e| format!("error converting supplied value for message: {e}"));
+            self
+        }
+    }
+    impl ::std::convert::TryFrom<JsonrpcError> for super::JsonrpcError {
+        type Error = super::error::ConversionError;
+        fn try_from(
+            value: JsonrpcError,
+        ) -> ::std::result::Result<Self, super::error::ConversionError> {
+            Ok(Self {
+                code: value.code?,
+                data: value.data?,
+                message: value.message?,
+            })
+        }
+    }
+    impl ::std::convert::From<super::JsonrpcError> for JsonrpcError {
+        fn from(value: super::JsonrpcError) -> Self {
+            Self {
+                code: Ok(value.code),
+                data: Ok(value.data),
+                message: Ok(value.message),
+            }
+        }
+    }
+    #[derive(Clone, Debug)]
+    pub struct JsonrpcErrorResponse {
+        error: ::std::result::Result<super::JsonrpcError, ::std::string::String>,
+        id: ::std::result::Result<super::Value, ::std::string::String>,
+        jsonrpc: ::std::result::Result<::std::string::String, ::std::string::String>,
+    }
+    impl ::std::default::Default for JsonrpcErrorResponse {
+        fn default() -> Self {
+            Self {
+                error: Err("no value supplied for error".to_string()),
+                id: Err("no value supplied for id".to_string()),
+                jsonrpc: Err("no value supplied for jsonrpc".to_string()),
+            }
+        }
+    }
+    impl JsonrpcErrorResponse {
+        pub fn error<T>(mut self, value: T) -> Self
+        where
+            T: ::std::convert::TryInto<super::JsonrpcError>,
+            T::Error: ::std::fmt::Display,
+        {
+            self.error = value
+                .try_into()
+                .map_err(|e| format!("error converting supplied value for error: {e}"));
+            self
+        }
+        pub fn id<T>(mut self, value: T) -> Self
+        where
+            T: ::std::convert::TryInto<super::Value>,
+            T::Error: ::std::fmt::Display,
+        {
+            self.id = value
+                .try_into()
+                .map_err(|e| format!("error converting supplied value for id: {e}"));
+            self
+        }
+        pub fn jsonrpc<T>(mut self, value: T) -> Self
+        where
+            T: ::std::convert::TryInto<::std::string::String>,
+            T::Error: ::std::fmt::Display,
+        {
+            self.jsonrpc = value
+                .try_into()
+                .map_err(|e| format!("error converting supplied value for jsonrpc: {e}"));
+            self
+        }
+    }
+    impl ::std::convert::TryFrom<JsonrpcErrorResponse> for super::JsonrpcErrorResponse {
+        type Error = super::error::ConversionError;
+        fn try_from(
+            value: JsonrpcErrorResponse,
+        ) -> ::std::result::Result<Self, super::error::ConversionError> {
+            Ok(Self {
+                error: value.error?,
+                id: value.id?,
+                jsonrpc: value.jsonrpc?,
+            })
+        }
+    }
+    impl ::std::convert::From<super::JsonrpcErrorResponse> for JsonrpcErrorResponse {
+        fn from(value: super::JsonrpcErrorResponse) -> Self {
+            Self {
+                error: Ok(value.error),
+                id: Ok(value.id),
+                jsonrpc: Ok(value.jsonrpc),
+            }
+        }
+    }
+    #[derive(Clone, Debug)]
+    pub struct JsonrpcRequest {
+        id: ::std::result::Result<::std::option::Option<super::Value>, ::std::string::String>,
+        jsonrpc: ::std::result::Result<::std::string::String, ::std::string::String>,
+        method: ::std::result::Result<super::A2aMethod, ::std::string::String>,
+        params: ::std::result::Result<::std::option::Option<super::Struct>, ::std::string::String>,
+    }
+    impl ::std::default::Default for JsonrpcRequest {
+        fn default() -> Self {
+            Self {
+                id: Ok(Default::default()),
+                jsonrpc: Err("no value supplied for jsonrpc".to_string()),
+                method: Err("no value supplied for method".to_string()),
+                params: Ok(Default::default()),
+            }
+        }
+    }
+    impl JsonrpcRequest {
+        pub fn id<T>(mut self, value: T) -> Self
+        where
+            T: ::std::convert::TryInto<::std::option::Option<super::Value>>,
+            T::Error: ::std::fmt::Display,
+        {
+            self.id = value
+                .try_into()
+                .map_err(|e| format!("error converting supplied value for id: {e}"));
+            self
+        }
+        pub fn jsonrpc<T>(mut self, value: T) -> Self
+        where
+            T: ::std::convert::TryInto<::std::string::String>,
+            T::Error: ::std::fmt::Display,
+        {
+            self.jsonrpc = value
+                .try_into()
+                .map_err(|e| format!("error converting supplied value for jsonrpc: {e}"));
+            self
+        }
+        pub fn method<T>(mut self, value: T) -> Self
+        where
+            T: ::std::convert::TryInto<super::A2aMethod>,
+            T::Error: ::std::fmt::Display,
+        {
+            self.method = value
+                .try_into()
+                .map_err(|e| format!("error converting supplied value for method: {e}"));
+            self
+        }
+        pub fn params<T>(mut self, value: T) -> Self
+        where
+            T: ::std::convert::TryInto<::std::option::Option<super::Struct>>,
+            T::Error: ::std::fmt::Display,
+        {
+            self.params = value
+                .try_into()
+                .map_err(|e| format!("error converting supplied value for params: {e}"));
+            self
+        }
+    }
+    impl ::std::convert::TryFrom<JsonrpcRequest> for super::JsonrpcRequest {
+        type Error = super::error::ConversionError;
+        fn try_from(
+            value: JsonrpcRequest,
+        ) -> ::std::result::Result<Self, super::error::ConversionError> {
+            Ok(Self {
+                id: value.id?,
+                jsonrpc: value.jsonrpc?,
+                method: value.method?,
+                params: value.params?,
+            })
+        }
+    }
+    impl ::std::convert::From<super::JsonrpcRequest> for JsonrpcRequest {
+        fn from(value: super::JsonrpcRequest) -> Self {
+            Self {
+                id: Ok(value.id),
+                jsonrpc: Ok(value.jsonrpc),
+                method: Ok(value.method),
+                params: Ok(value.params),
+            }
+        }
+    }
+    #[derive(Clone, Debug)]
+    pub struct JsonrpcSuccessResponse {
+        id: ::std::result::Result<super::Value, ::std::string::String>,
+        jsonrpc: ::std::result::Result<::std::string::String, ::std::string::String>,
+        result: ::std::result::Result<super::Value, ::std::string::String>,
+    }
+    impl ::std::default::Default for JsonrpcSuccessResponse {
+        fn default() -> Self {
+            Self {
+                id: Err("no value supplied for id".to_string()),
+                jsonrpc: Err("no value supplied for jsonrpc".to_string()),
+                result: Err("no value supplied for result".to_string()),
+            }
+        }
+    }
+    impl JsonrpcSuccessResponse {
+        pub fn id<T>(mut self, value: T) -> Self
+        where
+            T: ::std::convert::TryInto<super::Value>,
+            T::Error: ::std::fmt::Display,
+        {
+            self.id = value
+                .try_into()
+                .map_err(|e| format!("error converting supplied value for id: {e}"));
+            self
+        }
+        pub fn jsonrpc<T>(mut self, value: T) -> Self
+        where
+            T: ::std::convert::TryInto<::std::string::String>,
+            T::Error: ::std::fmt::Display,
+        {
+            self.jsonrpc = value
+                .try_into()
+                .map_err(|e| format!("error converting supplied value for jsonrpc: {e}"));
+            self
+        }
+        pub fn result<T>(mut self, value: T) -> Self
+        where
+            T: ::std::convert::TryInto<super::Value>,
+            T::Error: ::std::fmt::Display,
+        {
+            self.result = value
+                .try_into()
+                .map_err(|e| format!("error converting supplied value for result: {e}"));
+            self
+        }
+    }
+    impl ::std::convert::TryFrom<JsonrpcSuccessResponse> for super::JsonrpcSuccessResponse {
+        type Error = super::error::ConversionError;
+        fn try_from(
+            value: JsonrpcSuccessResponse,
+        ) -> ::std::result::Result<Self, super::error::ConversionError> {
+            Ok(Self {
+                id: value.id?,
+                jsonrpc: value.jsonrpc?,
+                result: value.result?,
+            })
+        }
+    }
+    impl ::std::convert::From<super::JsonrpcSuccessResponse> for JsonrpcSuccessResponse {
+        fn from(value: super::JsonrpcSuccessResponse) -> Self {
+            Self {
+                id: Ok(value.id),
+                jsonrpc: Ok(value.jsonrpc),
+                result: Ok(value.result),
             }
         }
     }

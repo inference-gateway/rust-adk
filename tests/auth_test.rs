@@ -23,7 +23,7 @@ use inference_gateway_adk::{
 use serde_json::{Value, json};
 
 /// Background handler that leaves tasks in the SUBMITTED state - enough
-/// for `message/send` to succeed without spinning the queue runner.
+/// for `SendMessage` to succeed without spinning the queue runner.
 #[derive(Debug)]
 struct SubmittedTaskHandler;
 
@@ -72,7 +72,7 @@ fn allocate_port() -> u16 {
 fn agent_card(addr: SocketAddr, supports_extended: bool) -> a2a_types::AgentCard {
     let value = json!({
         "name": "Auth Test Agent",
-        "description": "agent/getAuthenticatedExtendedCard auth tests",
+        "description": "GetExtendedAgentCard auth tests",
         "version": "1.0.0",
         "supportedInterfaces": [{"url": format!("http://{addr}/a2a"), "protocolBinding": "JSONRPC", "protocolVersion": "1.0"}],
         "capabilities": {
@@ -145,7 +145,7 @@ fn extended_card_request() -> Value {
     json!({
         "jsonrpc": "2.0",
         "id": "auth-test-extended-card",
-        "method": "agent/getAuthenticatedExtendedCard",
+        "method": "GetExtendedAgentCard",
         "params": { "tenant": "acme" }
     })
 }

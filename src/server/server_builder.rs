@@ -65,7 +65,7 @@ impl A2AServerBuilder {
     }
 
     /// Register a separate extended agent card served over
-    /// `agent/getAuthenticatedExtendedCard` to authenticated callers.
+    /// `GetExtendedAgentCard` to authenticated callers.
     /// Setting it forces `supportsExtendedAgentCard: true` on the public
     /// card, mirroring `WithExtendedAgentCard` in the Go ADK.
     pub fn with_extended_agent_card(mut self, card: AgentCard) -> Self {
@@ -103,14 +103,14 @@ impl A2AServerBuilder {
         self
     }
 
-    /// Register a handler that drives `message/send` requests (the
+    /// Register a handler that drives `SendMessage` requests (the
     /// background/HTTP path).
     pub fn with_background_task_handler<H: TaskHandler + 'static>(mut self, handler: H) -> Self {
         self.background_task_handler = Some(Arc::new(handler));
         self
     }
 
-    /// Register a handler that drives `message/stream` requests (the SSE
+    /// Register a handler that drives `SendStreamingMessage` requests (the SSE
     /// path).
     pub fn with_streaming_task_handler<H: StreamableTaskHandler + 'static>(
         mut self,
@@ -121,7 +121,7 @@ impl A2AServerBuilder {
     }
 
     /// Opt in to the bundled [`DefaultBackgroundTaskHandler`] so
-    /// `message/send` works without custom code. If an [`Agent`] is also
+    /// `SendMessage` works without custom code. If an [`Agent`] is also
     /// registered via [`with_agent`], the default handler delegates to it
     /// via the configured inference gateway; otherwise it returns an echo
     /// reply. Default construction is deferred to [`build`] so this method
@@ -132,7 +132,7 @@ impl A2AServerBuilder {
     }
 
     /// Opt in to the bundled [`DefaultStreamingTaskHandler`] so
-    /// `message/stream` works without custom code (Submitted → Working →
+    /// `SendStreamingMessage` works without custom code (Submitted → Working →
     /// reply artifact → Completed). Uses the registered [`Agent`] when
     /// present, otherwise falls back to echo. Default construction is
     /// deferred to [`build`].
@@ -149,7 +149,7 @@ impl A2AServerBuilder {
     }
 
     /// Number of background workers that drain the storage queue for
-    /// `message/send`. Defaults to 1 if unset. Clamped to a minimum of
+    /// `SendMessage`. Defaults to 1 if unset. Clamped to a minimum of
     /// 1 by [`DefaultTaskManager`]. Only meaningful when a background
     /// task handler is configured - without one the manager is not
     /// spawned.

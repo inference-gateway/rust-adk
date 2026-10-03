@@ -16,7 +16,7 @@ just two *selector* tools regardless of how many tools the servers publish:
 mcp/
 ├── server/main.rs                 Agent wired to McpClient behind MCP_ENABLED
 ├── server/.well-known/agent.json  Agent metadata loaded at startup
-├── client/main.rs                 Two-prompt demo via message/send + poll
+├── client/main.rs                 Two-prompt demo via SendMessage + poll
 └── README.md
 ```
 

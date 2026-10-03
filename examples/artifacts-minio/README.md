@@ -7,7 +7,7 @@ MinIO storage provider, talking to a local on-premises MinIO server.
   server. A `StreamableTaskHandler` produces a small text report and
   emits it as a file part whose `url` points **directly at
   MinIO** (the example bucket has anonymous-read enabled).
-- `client/` opens `message/stream`, collects the file artifact URI,
+- `client/` opens `SendStreamingMessage`, collects the file artifact URI,
   then downloads the artifact straight from MinIO via HTTP and prints
   its contents.
 
@@ -30,7 +30,7 @@ artifacts-minio/
 ## Topology
 
 ```
-                   message/stream            file part `url` → http://minio:9000/artifacts/<id>/<file>
+                   SendStreamingMessage            file part `url` → http://minio:9000/artifacts/<id>/<file>
    client ────────────────────────► A2A :8089                ┌─────────► MinIO :9000  (anonymous read)
                                     (server uploads to minio:9000)
 ```

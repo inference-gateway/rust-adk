@@ -1,4 +1,4 @@
-//! `message/send` - dispatch a message to the agent and read the resulting
+//! `SendMessage` - dispatch a message to the agent and read the resulting
 //! task off the response.
 //!
 //! Run alongside `a2a-methods-server`:
@@ -29,7 +29,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             message_id: Uuid::new_v4().to_string(),
             metadata: None,
             parts: vec![Part {
-                text: Some("Hello via message/send".to_string()),
+                text: Some("Hello via SendMessage".to_string()),
                 ..Default::default()
             }],
             reference_task_ids: vec![],
@@ -44,11 +44,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     if let Some(task) = response.task {
         info!(
-            "message/send → task {} in state {:?}",
+            "SendMessage → task {} in state {:?}",
             task.id, task.status.state
         );
     } else if let Some(msg) = response.message {
-        info!("message/send → message {}", msg.message_id);
+        info!("SendMessage → message {}", msg.message_id);
     }
 
     Ok(())
