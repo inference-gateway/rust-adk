@@ -525,6 +525,33 @@ async fn json_rpc_endpoint_accepts_trailing_slash() {
 }
 
 #[tokio::test]
+async fn task_not_found_carries_error_info() {
+    let suite = ensure_suite();
+    let request = json!({"jsonrpc": "2.0", "id": "error-info", "method": "GetTask", "params": {"id": "missing-task"}});
+    let response = post_jsonrpc(suite, request).await;
+    let error = &response["error"];
+    assert_eq!(error["code"], -32001, "got {response}");
+    assert_eq!(
+        error["data"][0]["@type"],
+        "type.googleapis.com/google.rpc.ErrorInfo"
+    );
+    assert_eq!(error["data"][0]["reason"], "TASK_NOT_FOUND");
+    assert_eq!(error["data"][0]["domain"], "a2a-protocol.org");
+    assert_eq!(error["data"][0]["metadata"]["detail"], "missing-task");
+}
+
+#[tokio::test]
+async fn message_send_to_unknown_task_returns_task_not_found() {
+    let suite = ensure_suite();
+    let mut params = send_message_params("unknown-task-message", "hello");
+    params["message"]["taskId"] = json!("no-such-task");
+    let request =
+        json!({"jsonrpc": "2.0", "id": "unknown-task", "method": "SendMessage", "params": params});
+    let response = post_jsonrpc(suite, request).await;
+    assert_eq!(response["error"]["code"], -32001, "got {response}");
+}
+
+#[tokio::test]
 async fn unknown_method_returns_method_not_found() {
     let suite = ensure_suite();
     let request = json!({

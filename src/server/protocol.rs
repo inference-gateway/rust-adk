@@ -225,6 +225,17 @@ async fn handle_message_send(state: &Arc<AppState>, id: Value, params: Value) ->
         return invalid_params_message(id, detail);
     }
 
+    if let Some(task_id) = request.message.task_id.as_deref()
+        && state.server.storage.get_task(task_id).await.is_none()
+    {
+        return json_rpc_error(
+            id,
+            jsonrpc_errors::TASK_NOT_FOUND,
+            "Task not found",
+            Some(Value::String(task_id.to_string())),
+        );
+    }
+
     if state.server.background_task_handler.is_none() {
         return json_rpc_error(
             id,
@@ -288,6 +299,18 @@ async fn handle_message_stream(state: Arc<AppState>, id: Value, params: Value) -
 
     if let Err(detail) = validate_send_message_request(&request) {
         return invalid_params_message(id, detail).into_response();
+    }
+
+    if let Some(task_id) = request.message.task_id.as_deref()
+        && state.server.storage.get_task(task_id).await.is_none()
+    {
+        return json_rpc_error(
+            id,
+            jsonrpc_errors::TASK_NOT_FOUND,
+            "Task not found",
+            Some(Value::String(task_id.to_string())),
+        )
+        .into_response();
     }
 
     let Some(handler) = state.server.streaming_task_handler.as_ref().cloned() else {

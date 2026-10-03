@@ -16,6 +16,38 @@ pub(super) mod jsonrpc_errors {
     pub const UNSUPPORTED_OPERATION: i64 = -32004;
     /// The agent supports an extended card but none is configured (A2A spec 8.2).
     pub const AUTHENTICATED_EXTENDED_CARD_NOT_CONFIGURED: i64 = -32007;
+    /// The requested `A2A-Version` is not supported (A2A spec 3.6).
+    pub const VERSION_NOT_SUPPORTED: i64 = -32009;
+}
+
+/// The `google.rpc.ErrorInfo` reason of an A2A error code (A2A spec 5.4), or `None`
+/// for plain JSON-RPC codes.
+fn a2a_error_reason(code: i64) -> Option<&'static str> {
+    match code {
+        jsonrpc_errors::TASK_NOT_FOUND => Some("TASK_NOT_FOUND"),
+        jsonrpc_errors::TASK_NOT_CANCELABLE => Some("TASK_NOT_CANCELABLE"),
+        jsonrpc_errors::UNSUPPORTED_OPERATION => Some("UNSUPPORTED_OPERATION"),
+        jsonrpc_errors::AUTHENTICATED_EXTENDED_CARD_NOT_CONFIGURED => {
+            Some("EXTENDED_AGENT_CARD_NOT_CONFIGURED")
+        }
+        jsonrpc_errors::VERSION_NOT_SUPPORTED => Some("VERSION_NOT_SUPPORTED"),
+        _ => None,
+    }
+}
+
+/// A2A errors carry their details as a `google.rpc.ErrorInfo` array (A2A spec 9.5);
+/// a string detail moves into the ErrorInfo metadata.
+fn a2a_error_details(code: i64, detail: Option<&Value>) -> Option<Value> {
+    let reason = a2a_error_reason(code)?;
+    let mut info = serde_json::json!({
+        "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+        "reason": reason,
+        "domain": "a2a-protocol.org",
+    });
+    if let Some(Value::String(detail)) = detail {
+        info["metadata"] = serde_json::json!({ "detail": detail });
+    }
+    Some(Value::Array(vec![info]))
 }
 
 pub(super) fn json_rpc_success(id: Value, result: Value) -> Json<Value> {
@@ -36,7 +68,7 @@ pub(super) fn json_rpc_error(
         "code": code,
         "message": message,
     });
-    if let Some(d) = data {
+    if let Some(d) = a2a_error_details(code, data.as_ref()).or(data) {
         err["data"] = d;
     }
     Json(serde_json::json!({
