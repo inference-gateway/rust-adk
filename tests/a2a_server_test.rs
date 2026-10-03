@@ -505,6 +505,26 @@ async fn push_notification_config_round_trip() {
 }
 
 #[tokio::test]
+async fn json_rpc_endpoint_accepts_trailing_slash() {
+    let suite = ensure_suite();
+    let request =
+        json!({"jsonrpc": "2.0", "id": "trailing-slash", "method": "ListTasks", "params": {}});
+    let response = reqwest::Client::new()
+        .post(format!("http://{}/a2a/", suite.server_addr))
+        .json(&request)
+        .send()
+        .await
+        .expect("HTTP request succeeded")
+        .json::<Value>()
+        .await
+        .expect("JSON response body");
+    assert!(
+        response.get("result").is_some(),
+        "expected a result, got {response}"
+    );
+}
+
+#[tokio::test]
 async fn unknown_method_returns_method_not_found() {
     let suite = ensure_suite();
     let request = json!({
