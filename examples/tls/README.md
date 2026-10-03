@@ -61,7 +61,7 @@ Smoke-test with curl:
 
 ```bash
 curl --cacert examples/tls/certs/ca.crt https://localhost:8443/health
-curl --cacert examples/tls/certs/ca.crt https://localhost:8443/.well-known/agent.json
+curl --cacert examples/tls/certs/ca.crt https://localhost:8443/.well-known/agent-card.json
 ```
 
 Both should return 200 OK.

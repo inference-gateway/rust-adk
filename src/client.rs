@@ -95,7 +95,7 @@ impl A2AClient {
     pub async fn get_agent_card(&self) -> Result<AgentCard> {
         debug!("Fetching agent card from server");
 
-        let url = format!("{}/.well-known/agent.json", self.base_url);
+        let url = format!("{}/.well-known/agent-card.json", self.base_url);
         let response = self
             .http_client
             .get(&url)

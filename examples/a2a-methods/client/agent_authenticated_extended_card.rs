@@ -5,7 +5,7 @@
 //! agent card, so the JSON-RPC call returns the configured card. When the
 //! flag is absent or `false`, the server responds with
 //! `METHOD_NOT_FOUND` so clients can fall back to the unauthenticated
-//! card served at `/.well-known/agent.json`.
+//! card served at `/.well-known/agent-card.json`.
 //!
 //! For contrast, the example also fetches the unauthenticated card from
 //! the discovery endpoint and logs both side-by-side.
@@ -29,7 +29,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 1. Unauthenticated card (discovery endpoint) for comparison.
     let discovery_card = client.get_agent_card().await?;
     info!(
-        "/.well-known/agent.json → name={:?} version={:?} extendedAgentCard={:?}",
+        "/.well-known/agent-card.json → name={:?} version={:?} extendedAgentCard={:?}",
         discovery_card.name,
         discovery_card.version,
         discovery_card.capabilities.extended_agent_card
@@ -59,7 +59,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             // not fire when running against `a2a-methods-server`.
             info!(
                 "GetExtendedAgentCard not available ({err}); \
-                 falling back to the unauthenticated card from /.well-known/agent.json"
+                 falling back to the unauthenticated card from /.well-known/agent-card.json"
             );
         }
     }

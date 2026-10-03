@@ -89,11 +89,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("  curl --cacert examples/tls/certs/ca.crt https://localhost:{port}/health");
     if mtls {
         info!(
-            "  curl --cacert examples/tls/certs/ca.crt --cert examples/tls/certs/client.crt --key examples/tls/certs/client.key https://localhost:{port}/.well-known/agent.json"
+            "  curl --cacert examples/tls/certs/ca.crt --cert examples/tls/certs/client.crt --key examples/tls/certs/client.key https://localhost:{port}/.well-known/agent-card.json"
         );
     } else {
         info!(
-            "  curl --cacert examples/tls/certs/ca.crt https://localhost:{port}/.well-known/agent.json"
+            "  curl --cacert examples/tls/certs/ca.crt https://localhost:{port}/.well-known/agent-card.json"
         );
     }
 

@@ -1,6 +1,6 @@
 //! TLS / mTLS-enabled A2A client.
 //!
-//! Calls `GET /health` and `GET /.well-known/agent.json` over HTTPS
+//! Calls `GET /health` and `GET /.well-known/agent-card.json` over HTTPS
 //! against the example server, trusting only the example CA and (when
 //! mTLS is on) presenting the example client certificate.
 //!
@@ -87,19 +87,19 @@ async fn main() -> Result<()> {
         }
     }
 
-    // GET /.well-known/agent.json
+    // GET /.well-known/agent-card.json
     let card_url = format!(
-        "{}/.well-known/agent.json",
+        "{}/.well-known/agent-card.json",
         server_url.trim_end_matches('/')
     );
     match client.get(&card_url).send().await {
         Ok(response) => {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
-            info!("GET /.well-known/agent.json → HTTP {status}: {body}");
+            info!("GET /.well-known/agent-card.json → HTTP {status}: {body}");
         }
         Err(e) => {
-            error!("GET /.well-known/agent.json failed: {e}");
+            error!("GET /.well-known/agent-card.json failed: {e}");
             return Err(e.into());
         }
     }

@@ -164,7 +164,7 @@ impl A2AServerBuilder {
     /// (where you want to stub the verifier) and for plugging in a
     /// non-OIDC backend such as a static signing key.
     ///
-    /// `GET /health` and `GET /.well-known/agent.json` remain public.
+    /// `GET /health` and `GET /.well-known/agent-card.json` remain public.
     pub fn with_auth_verifier(mut self, verifier: Arc<dyn AuthVerifier>) -> Self {
         self.auth_verifier = Some(verifier);
         self

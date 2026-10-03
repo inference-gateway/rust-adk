@@ -57,7 +57,7 @@ from the repo root.
   registered `Agent`, or echoes when none is present.
 - Auth: `OidcJwtVerifier` is auto-built when `auth_config.enable` is true;
   `with_auth_verifier(...)` overrides it regardless. The middleware gates only
-  `POST /a2a`; `GET /health` and `GET /.well-known/agent.json` stay public.
+  `POST /a2a`; `GET /health` and `GET /.well-known/agent-card.json` stay public.
 - `src/server/protocol.rs::a2a_handler` is the single `POST /a2a` entry point:
   it validates `jsonrpc == "2.0"`, parses `method` into the generated
   `A2aMethod` (unknown names return `-32601`) and dispatches the eleven

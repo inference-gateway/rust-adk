@@ -3,7 +3,7 @@
 //! The middleware wired here protects `POST /a2a` (and any other route
 //! that opts in via [`auth_middleware`]) by validating an
 //! `Authorization: Bearer <token>` JWT against an OIDC issuer's JWKS.
-//! `GET /health` and `GET /.well-known/agent.json` are intentionally left
+//! `GET /health` and `GET /.well-known/agent-card.json` are intentionally left
 //! public so health probes and discovery clients keep working without a
 //! credential.
 //!
