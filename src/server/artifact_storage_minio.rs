@@ -6,7 +6,7 @@
 //! ## URL shape
 //!
 //! Generated URIs use path-style addressing:
-//! `<base_url>/<bucket>/<artifact_id>/<filename>`. Configure
+//! `<base_url>/<bucket>/<context_id>/<artifact_id>/<filename>`. Configure
 //! [`ArtifactsStorageConfig::base_url`] to point at whichever host the
 //! object can actually be read from — typically the MinIO endpoint when
 //! the bucket has an anonymous-read policy attached, or the
@@ -34,14 +34,14 @@ use minio::s3::types::{S3Api, ToStream, minio_error_response::MinioErrorCode};
 use crate::config::ArtifactsStorageConfig;
 
 use super::artifact_storage::{
-    ArtifactStorage, StoredArtifactInfo, sanitize_segment, urlencode_segment,
+    ArtifactStorage, StoredArtifactInfo, sanitize_segment, surplus_per_context, urlencode_segment,
 };
 
 /// MinIO-backed [`ArtifactStorage`].
 ///
-/// Objects are written at `<artifact_id>/<filename>` inside the
-/// configured bucket. Generated URLs use path-style addressing
-/// (`<base_url>/<bucket>/<artifact_id>/<filename>`).
+/// Objects are written at `<context_id>/<artifact_id>/<filename>` inside
+/// the configured bucket. Generated URLs use path-style addressing
+/// (`<base_url>/<bucket>/<context_id>/<artifact_id>/<filename>`).
 pub struct MinioArtifactStorage {
     client: Arc<MinioClient>,
     bucket: String,
@@ -128,11 +128,27 @@ impl MinioArtifactStorage {
         })
     }
 
-    fn object_key(&self, artifact_id: &str, filename: &str) -> Result<String> {
+    fn object_key(&self, context_id: &str, artifact_id: &str, filename: &str) -> Result<String> {
+        let context = sanitize_segment(context_id, "context_id")?;
         let id = sanitize_segment(artifact_id, "artifact_id")?;
         let name = sanitize_segment(filename, "filename")?;
-        Ok(format!("{id}/{name}"))
+        Ok(format!("{context}/{id}/{name}"))
     }
+}
+
+/// Split a `<context_id>/<artifact_id>/<filename>` object key. Keys that
+/// don't match that shape (legacy two-segment keys, stray objects) are
+/// skipped by the caller.
+fn split_object_key(key: &str) -> Option<(String, String, String)> {
+    let mut parts = key.splitn(3, '/');
+    let context_id = parts.next().filter(|s| !s.is_empty())?;
+    let artifact_id = parts.next().filter(|s| !s.is_empty())?;
+    let filename = parts.next().filter(|s| !s.is_empty())?;
+    Some((
+        context_id.to_string(),
+        artifact_id.to_string(),
+        filename.to_string(),
+    ))
 }
 
 fn is_no_such_key(err: &MinioError) -> bool {
@@ -145,8 +161,14 @@ fn is_no_such_key(err: &MinioError) -> bool {
 
 #[async_trait]
 impl ArtifactStorage for MinioArtifactStorage {
-    async fn store(&self, artifact_id: &str, filename: &str, data: Vec<u8>) -> Result<String> {
-        let key = self.object_key(artifact_id, filename)?;
+    async fn store(
+        &self,
+        context_id: &str,
+        artifact_id: &str,
+        filename: &str,
+        data: Vec<u8>,
+    ) -> Result<String> {
+        let key = self.object_key(context_id, artifact_id, filename)?;
         let bytes_len = data.len();
         let body = SegmentedBytes::from(bytes::Bytes::from(data));
         self.client
@@ -157,6 +179,7 @@ impl ArtifactStorage for MinioArtifactStorage {
             .await
             .map_err(|e| anyhow!("put_object({key}) failed: {e}"))?;
         debug!(
+            context_id,
             artifact_id,
             filename,
             bytes = bytes_len,
@@ -164,11 +187,16 @@ impl ArtifactStorage for MinioArtifactStorage {
             key = %key,
             "stored artifact in minio",
         );
-        Ok(self.url(artifact_id, filename))
+        Ok(self.url(context_id, artifact_id, filename))
     }
 
-    async fn retrieve(&self, artifact_id: &str, filename: &str) -> Result<Vec<u8>> {
-        let key = self.object_key(artifact_id, filename)?;
+    async fn retrieve(
+        &self,
+        context_id: &str,
+        artifact_id: &str,
+        filename: &str,
+    ) -> Result<Vec<u8>> {
+        let key = self.object_key(context_id, artifact_id, filename)?;
         let resp = self
             .client
             .get_object(self.bucket.clone(), key.clone())
@@ -184,8 +212,8 @@ impl ArtifactStorage for MinioArtifactStorage {
         Ok(bytes.to_vec())
     }
 
-    async fn exists(&self, artifact_id: &str, filename: &str) -> Result<bool> {
-        let key = self.object_key(artifact_id, filename)?;
+    async fn exists(&self, context_id: &str, artifact_id: &str, filename: &str) -> Result<bool> {
+        let key = self.object_key(context_id, artifact_id, filename)?;
         let result = self
             .client
             .stat_object(self.bucket.clone(), key.clone())
@@ -200,8 +228,8 @@ impl ArtifactStorage for MinioArtifactStorage {
         }
     }
 
-    async fn delete(&self, artifact_id: &str, filename: &str) -> Result<()> {
-        let key = self.object_key(artifact_id, filename)?;
+    async fn delete(&self, context_id: &str, artifact_id: &str, filename: &str) -> Result<()> {
+        let key = self.object_key(context_id, artifact_id, filename)?;
         let result = self
             .client
             .delete_object(self.bucket.clone(), key.clone())
@@ -216,11 +244,12 @@ impl ArtifactStorage for MinioArtifactStorage {
         }
     }
 
-    fn url(&self, artifact_id: &str, filename: &str) -> String {
+    fn url(&self, context_id: &str, artifact_id: &str, filename: &str) -> String {
         format!(
-            "{}/{}/{}/{}",
+            "{}/{}/{}/{}/{}",
             self.base_url,
             urlencode_segment(&self.bucket),
+            urlencode_segment(context_id),
             urlencode_segment(artifact_id),
             urlencode_segment(filename),
         )
@@ -238,8 +267,12 @@ impl ArtifactStorage for MinioArtifactStorage {
                 continue;
             };
             if modified < cutoff {
-                if let Err(e) = self.delete(&entry.artifact_id, &entry.filename).await {
+                if let Err(e) = self
+                    .delete(&entry.context_id, &entry.artifact_id, &entry.filename)
+                    .await
+                {
                     warn!(
+                        context_id = %entry.context_id,
                         artifact_id = %entry.artifact_id,
                         filename = %entry.filename,
                         "cleanup_expired: delete failed: {e}",
@@ -253,19 +286,14 @@ impl ArtifactStorage for MinioArtifactStorage {
     }
 
     async fn cleanup_oldest(&self, max_count: usize) -> Result<usize> {
-        if max_count == 0 {
-            return Ok(0);
-        }
-        let mut entries = self.list().await?;
-        if entries.len() <= max_count {
-            return Ok(0);
-        }
-        entries.sort_by_key(|e| e.modified.unwrap_or_else(Utc::now));
-        let drop_count = entries.len() - max_count;
         let mut removed = 0usize;
-        for entry in entries.into_iter().take(drop_count) {
-            if let Err(e) = self.delete(&entry.artifact_id, &entry.filename).await {
+        for entry in surplus_per_context(self.list().await?, max_count) {
+            if let Err(e) = self
+                .delete(&entry.context_id, &entry.artifact_id, &entry.filename)
+                .await
+            {
                 warn!(
+                    context_id = %entry.context_id,
                     artifact_id = %entry.artifact_id,
                     filename = %entry.filename,
                     "cleanup_oldest: delete failed: {e}",
@@ -294,13 +322,11 @@ impl ArtifactStorage for MinioArtifactStorage {
                 if item.is_prefix || item.is_delete_marker {
                     continue;
                 }
-                let (artifact_id, filename) = match item.name.split_once('/') {
-                    Some((id, rest)) if !id.is_empty() && !rest.is_empty() => {
-                        (id.to_string(), rest.to_string())
-                    }
-                    _ => continue,
+                let Some((context_id, artifact_id, filename)) = split_object_key(&item.name) else {
+                    continue;
                 };
                 out.push(StoredArtifactInfo {
+                    context_id,
                     artifact_id,
                     filename,
                     size: item.size.unwrap_or(0),

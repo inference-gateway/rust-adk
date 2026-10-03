@@ -1338,7 +1338,7 @@ deployments can plug in their own backends:
 | Configuration | `ArtifactsConfig` in `src/config.rs` | disabled (`ARTIFACTS_ENABLED=false`) |
 | Storage backend | `ArtifactStorage` (`store`, `retrieve`, `exists`, `delete`, `cleanup_*`) | `FilesystemArtifactStorage` |
 | Helper service | `ArtifactService` (`create_*_artifact`, `add_artifact_to_task`, retention) | `DefaultArtifactService` |
-| HTTP surface | `ArtifactsServer` (`GET /health`, `GET /artifacts/:artifact_id/:filename`) | `:8081` listener with range support |
+| HTTP surface | `ArtifactsServer` (`GET /health`, `GET /artifacts/:context_id/:artifact_id/:filename`) | `:8081` listener with range support |
 
 When `ARTIFACTS_ENABLED=true`, `A2AServer::serve(...)` spawns the
 artifacts HTTP server on its own listener alongside the main A2A
@@ -1401,7 +1401,7 @@ See `examples/artifacts-filesystem/server/main.rs` for a runnable version.
 | `ARTIFACTS_STORAGE_BUCKET_NAME` | unset | MinIO bucket name. |
 | `ARTIFACTS_STORAGE_REGION` | unset | MinIO region. |
 | `ARTIFACTS_STORAGE_USE_SSL` | `false` | Whether to use TLS when talking to the MinIO endpoint. |
-| `ARTIFACTS_RETENTION_MAX_ARTIFACTS` | `5` | Cap on the total number of artifacts kept by the backend, oldest pruned first; `0` means unlimited. Note: unlike the Go ADK, this cap is store-wide, not per `contextId`. |
+| `ARTIFACTS_RETENTION_MAX_ARTIFACTS` | `5` | Cap on the number of artifacts kept per `contextId`, oldest pruned first; `0` means unlimited. |
 | `ARTIFACTS_RETENTION_MAX_AGE` | `168h` | Maximum age before an artifact is pruned. |
 | `ARTIFACTS_RETENTION_CLEANUP_INTERVAL` | `24h` | Frequency of the retention loop. |
 
