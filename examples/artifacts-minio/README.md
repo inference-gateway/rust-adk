@@ -30,7 +30,7 @@ artifacts-minio/
 ## Topology
 
 ```
-                   SendStreamingMessage            file part `url` → http://minio:9000/artifacts/<id>/<file>
+                   SendStreamingMessage            file part `url` → http://minio:9000/artifacts/<ctx>/<id>/<file>
    client ────────────────────────► A2A :8089                ┌─────────► MinIO :9000  (anonymous read)
                                     (server uploads to minio:9000)
 ```
@@ -56,7 +56,7 @@ Three HTTP services run in the compose stack:
 - **Direct-to-MinIO download**: setting
   `ARTIFACTS_STORAGE_BASE_URL=http://minio:9000` makes
   `MinioArtifactStorage::url()` emit
-  `http://minio:9000/<bucket>/<artifact_id>/<filename>` — a plain
+  `http://minio:9000/<bucket>/<context_id>/<artifact_id>/<filename>` — a plain
   path-style GET against MinIO. Clients don't proxy through the ADK's
   artifacts HTTP server at all; this is how you'd offload bulk
   transfer in production.
@@ -83,7 +83,7 @@ Inspect the artifact in MinIO directly:
 
 ```bash
 # From the host (port-published):
-curl -sS http://localhost:9000/artifacts/<artifact-id>/<filename>
+curl -sS http://localhost:9000/artifacts/<context-id>/<artifact-id>/<filename>
 
 # Or browse the MinIO console:
 open http://localhost:9001   # login minioadmin / minioadmin

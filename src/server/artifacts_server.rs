@@ -5,7 +5,7 @@
 //! exposes two routes:
 //!
 //! - `GET  /health`                            - simple liveness probe.
-//! - `GET  /artifacts/:artifact_id/:filename`  - stream a stored artifact.
+//! - `GET  /artifacts/:context_id/:artifact_id/:filename` - stream a stored artifact.
 //!
 //! Range requests are honoured for bulk downloads via the standard
 //! `Range: bytes=...` syntax, and content-disposition headers carry the
@@ -74,7 +74,10 @@ impl ArtifactsServer {
         });
         Router::new()
             .route("/health", get(health_handler))
-            .route("/artifacts/{artifact_id}/{filename}", get(download_handler))
+            .route(
+                "/artifacts/{context_id}/{artifact_id}/{filename}",
+                get(download_handler),
+            )
             .with_state(state)
     }
 
@@ -139,28 +142,35 @@ async fn health_handler() -> Json<serde_json::Value> {
 
 async fn download_handler(
     State(state): State<Arc<ArtifactsState>>,
-    Path((artifact_id, filename)): Path<(String, String)>,
+    Path((context_id, artifact_id, filename)): Path<(String, String, String)>,
     headers: HeaderMap,
 ) -> Response {
     debug!(
+        context_id = %context_id,
         artifact_id = %artifact_id,
         filename = %filename,
         "artifacts download requested",
     );
 
-    if let Err(e) = super::artifact_storage::sanitize_segment(&artifact_id, "artifact_id") {
-        warn!("rejecting artifact request: {e}");
-        return (StatusCode::BAD_REQUEST, e.to_string()).into_response();
-    }
-    if let Err(e) = super::artifact_storage::sanitize_segment(&filename, "filename") {
-        warn!("rejecting artifact request: {e}");
-        return (StatusCode::BAD_REQUEST, e.to_string()).into_response();
+    for (value, label) in [
+        (&context_id, "context_id"),
+        (&artifact_id, "artifact_id"),
+        (&filename, "filename"),
+    ] {
+        if let Err(e) = super::artifact_storage::sanitize_segment(value, label) {
+            warn!("rejecting artifact request: {e}");
+            return (StatusCode::BAD_REQUEST, e.to_string()).into_response();
+        }
     }
 
-    let bytes = match state.service.retrieve(&artifact_id, &filename).await {
+    let bytes = match state
+        .service
+        .retrieve(&context_id, &artifact_id, &filename)
+        .await
+    {
         Ok(b) => b,
         Err(e) => {
-            debug!("artifact not found `{artifact_id}/{filename}`: {e}");
+            debug!("artifact not found `{context_id}/{artifact_id}/{filename}`: {e}");
             return (StatusCode::NOT_FOUND, "artifact not found".to_string()).into_response();
         }
     };
@@ -450,6 +460,7 @@ mod tests {
         let (addr, svc) = spawn_test_server(&root).await;
         let art = svc
             .create_file_artifact(
+                "ctx-1",
                 "report",
                 "demo",
                 "demo.txt",
@@ -458,7 +469,7 @@ mod tests {
             )
             .await
             .expect("create_file_artifact");
-        let url = format!("http://{addr}/artifacts/{}/demo.txt", art.artifact_id);
+        let url = format!("http://{addr}/artifacts/ctx-1/{}/demo.txt", art.artifact_id);
         let response = reqwest::get(&url).await.expect("download");
         assert_eq!(response.status(), reqwest::StatusCode::OK);
         assert_eq!(
@@ -485,6 +496,7 @@ mod tests {
         let (addr, svc) = spawn_test_server(&root).await;
         let art = svc
             .create_file_artifact(
+                "ctx-1",
                 "data",
                 "demo",
                 "data.bin",
@@ -493,7 +505,7 @@ mod tests {
             )
             .await
             .expect("create_file_artifact");
-        let url = format!("http://{addr}/artifacts/{}/data.bin", art.artifact_id);
+        let url = format!("http://{addr}/artifacts/ctx-1/{}/data.bin", art.artifact_id);
         let client = reqwest::Client::new();
         let response = client
             .get(&url)
@@ -517,7 +529,7 @@ mod tests {
     async fn download_missing_returns_404() {
         let root = tempdir("missing");
         let (addr, _svc) = spawn_test_server(&root).await;
-        let response = reqwest::get(format!("http://{addr}/artifacts/missing-id/nope.txt"))
+        let response = reqwest::get(format!("http://{addr}/artifacts/ctx-1/missing-id/nope.txt"))
             .await
             .expect("response");
         assert_eq!(response.status(), reqwest::StatusCode::NOT_FOUND);
@@ -530,7 +542,7 @@ mod tests {
         let (addr, _svc) = spawn_test_server(&root).await;
         // Build the path manually so the client doesn't normalize away
         // the traversal segment before it hits the server.
-        let url = format!("http://{addr}/artifacts/..%2F..%2Fetc/passwd");
+        let url = format!("http://{addr}/artifacts/ctx-1/..%2F..%2Fetc/passwd");
         let response = reqwest::get(&url).await.expect("response");
         // The router will either reject due to bad path or sanitize_segment
         // will. Either way we expect 400 or 404; 200 would be a bug.

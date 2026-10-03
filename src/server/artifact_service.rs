@@ -37,6 +37,7 @@ pub trait ArtifactService: Send + Sync + std::fmt::Debug {
     /// base64 via `file_with_bytes`.
     async fn create_file_artifact(
         &self,
+        context_id: &str,
         name: &str,
         description: &str,
         filename: &str,
@@ -68,19 +69,25 @@ pub trait ArtifactService: Send + Sync + std::fmt::Debug {
     /// Append `artifact` to `task.artifacts` in place.
     fn add_artifact_to_task(&self, task: &mut Task, artifact: Artifact);
 
-    /// Retrieve raw bytes for `artifact_id`/`filename` via the
-    /// configured storage. Errors if no storage is wired up.
-    async fn retrieve(&self, artifact_id: &str, filename: &str) -> Result<Vec<u8>>;
+    /// Retrieve raw bytes for `context_id`/`artifact_id`/`filename` via
+    /// the configured storage. Errors if no storage is wired up.
+    async fn retrieve(
+        &self,
+        context_id: &str,
+        artifact_id: &str,
+        filename: &str,
+    ) -> Result<Vec<u8>>;
 
-    /// Whether a blob is stored at `artifact_id`/`filename`.
-    async fn exists(&self, artifact_id: &str, filename: &str) -> Result<bool>;
+    /// Whether a blob is stored at `context_id`/`artifact_id`/`filename`.
+    async fn exists(&self, context_id: &str, artifact_id: &str, filename: &str) -> Result<bool>;
 
     /// Drop blobs older than `max_age`. Returns the number removed.
     /// Returns `Ok(0)` when no storage is configured.
     async fn cleanup_expired(&self, max_age: Duration) -> Result<usize>;
 
-    /// Trim to at most `max_count` blobs, `0` meaning unlimited. Returns
-    /// the number removed, `Ok(0)` when no storage is configured.
+    /// Trim each `contextId` to at most `max_count` blobs, `0` meaning
+    /// unlimited. Returns the number removed, `Ok(0)` when no storage is
+    /// configured.
     async fn cleanup_oldest(&self, max_count: usize) -> Result<usize>;
 
     /// Optional access to the underlying storage. Used by the
@@ -130,6 +137,7 @@ impl ArtifactService for DefaultArtifactService {
 
     async fn create_file_artifact(
         &self,
+        context_id: &str,
         name: &str,
         description: &str,
         filename: &str,
@@ -144,8 +152,11 @@ impl ArtifactService for DefaultArtifactService {
 
         let part = match self.storage.as_ref() {
             Some(storage) => {
-                let uri = storage.store(&artifact_id, filename, data).await?;
+                let uri = storage
+                    .store(context_id, &artifact_id, filename, data)
+                    .await?;
                 debug!(
+                    context_id,
                     artifact_id,
                     filename,
                     uri = %uri,
@@ -231,20 +242,25 @@ impl ArtifactService for DefaultArtifactService {
         task.artifacts.push(artifact);
     }
 
-    async fn retrieve(&self, artifact_id: &str, filename: &str) -> Result<Vec<u8>> {
+    async fn retrieve(
+        &self,
+        context_id: &str,
+        artifact_id: &str,
+        filename: &str,
+    ) -> Result<Vec<u8>> {
         let Some(storage) = self.storage.as_ref() else {
             return Err(anyhow::anyhow!(
                 "artifact service has no storage backend configured"
             ));
         };
-        storage.retrieve(artifact_id, filename).await
+        storage.retrieve(context_id, artifact_id, filename).await
     }
 
-    async fn exists(&self, artifact_id: &str, filename: &str) -> Result<bool> {
+    async fn exists(&self, context_id: &str, artifact_id: &str, filename: &str) -> Result<bool> {
         let Some(storage) = self.storage.as_ref() else {
             return Ok(false);
         };
-        storage.exists(artifact_id, filename).await
+        storage.exists(context_id, artifact_id, filename).await
     }
 
     async fn cleanup_expired(&self, max_age: Duration) -> Result<usize> {
@@ -410,6 +426,7 @@ mod tests {
         let svc = DefaultArtifactService::new(storage.clone());
         let art = svc
             .create_file_artifact(
+                "ctx-1",
                 "report",
                 "Generated report",
                 "report.pdf",
@@ -422,7 +439,7 @@ mod tests {
         assert_eq!(file_part.media_type.as_deref(), Some("application/pdf"));
         assert_eq!(file_part.filename.as_deref(), Some("report.pdf"));
         let uri = file_part.url.as_ref().expect("url");
-        assert!(uri.contains("/artifacts/"));
+        assert!(uri.contains("/artifacts/ctx-1/"));
         assert!(uri.ends_with("/report.pdf"));
         assert!(file_part.raw.is_none());
         let _ = std::fs::remove_dir_all(&root);
@@ -432,7 +449,7 @@ mod tests {
     async fn create_file_artifact_without_storage_falls_back_to_bytes() {
         let svc = DefaultArtifactService::without_storage();
         let art = svc
-            .create_file_artifact("name", "desc", "report.pdf", b"abc".to_vec(), None)
+            .create_file_artifact("ctx-1", "name", "desc", "report.pdf", b"abc".to_vec(), None)
             .await
             .expect("create_file_artifact");
         let file_part = &art.parts[0];

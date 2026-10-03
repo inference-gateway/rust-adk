@@ -211,7 +211,7 @@ impl StreamEmitter {
                 as Arc<dyn ArtifactService>,
         };
         let artifact = svc
-            .create_file_artifact(filename, "", filename, data, mime)
+            .create_file_artifact(context_id, filename, "", filename, data, mime)
             .await?;
 
         if let Some(mut task) = self.storage.get_task(task_id).await {

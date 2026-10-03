@@ -26,7 +26,7 @@ artifacts-filesystem/
 ## Topology
 
 ```
-                  SendStreamingMessage                   GET /artifacts/<id>/<file>
+                  SendStreamingMessage              GET /artifacts/<ctx>/<id>/<file>
    client ───────────────────────► A2A :8087       ┌──────────────────────────► artifacts :8088
                                    (file part `url` points here)          └─► filesystem
                                                                                   ./server/artifacts-data/
@@ -34,7 +34,7 @@ artifacts-filesystem/
 
 Two HTTP servers run inside the same process: the A2A JSON-RPC server on
 `8087` and the standalone artifacts server on `8088`. The artifacts
-server exposes `GET /artifacts/{artifact_id}/{filename}` (plus a
+server exposes `GET /artifacts/{context_id}/{artifact_id}/{filename}` (plus a
 `GET /health`).
 
 ## What this shows
@@ -48,9 +48,9 @@ server exposes `GET /artifacts/{artifact_id}/{filename}` (plus a
   points at the artifacts HTTP server (URL prefix taken from
   `ARTIFACTS_STORAGE_BASE_URL`).
 - The filesystem provider lays files out under
-  `<base_path>/<artifact_id>/<filename>`. With the local-run defaults
-  in `server/main.rs` that resolves to
-  `./artifacts-data/<artifact_id>/report.txt` relative to the server's
+  `<base_path>/<context_id>/<artifact_id>/<filename>`. With the
+  local-run defaults in `server/main.rs` that resolves to
+  `./artifacts-data/<context_id>/<artifact_id>/report.txt` relative to the server's
   CWD.
 - The client treats the URI as opaque and fetches it with a plain
   `reqwest::get(uri)` - it never needs to know about artifact IDs or
@@ -99,7 +99,7 @@ cargo run --example artifacts-filesystem-client
 The server listens on `0.0.0.0:8087` for A2A JSON-RPC and
 `0.0.0.0:8088` for the artifacts HTTP server. The client honours
 `SERVER_URL` (default `http://localhost:8087`). The on-disk store ends
-up at `./artifacts-data/<artifact_id>/<filename>` relative to the
+up at `./artifacts-data/<context_id>/<artifact_id>/<filename>` relative to the
 working directory the server was launched from.
 
 ## Environment variables
@@ -115,7 +115,7 @@ and assigns the result onto `Config::artifacts_config`:
 | `ARTIFACTS_STORAGE_PROVIDER` | `filesystem` | `filesystem` or `minio`. |
 | `ARTIFACTS_STORAGE_BASE_PATH` | `./artifacts` | Filesystem root for the filesystem provider. |
 | `ARTIFACTS_STORAGE_BASE_URL` | `http://localhost:8081` | Public URL prefix baked into file artifact URIs. |
-| `ARTIFACTS_RETENTION_MAX_ARTIFACTS` | `5` | Cap on retained artifacts store-wide; `0` means unlimited. |
+| `ARTIFACTS_RETENTION_MAX_ARTIFACTS` | `5` | Cap on retained artifacts per `contextId`; `0` means unlimited. |
 | `ARTIFACTS_RETENTION_MAX_AGE` | `168h` | Maximum age before a blob is pruned. |
 | `ARTIFACTS_RETENTION_CLEANUP_INTERVAL` | `24h` | Frequency of the retention loop. |
 
