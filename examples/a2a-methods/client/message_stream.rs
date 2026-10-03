@@ -7,7 +7,7 @@
 //!
 //! ```bash
 //! cargo run -p a2a-methods-server
-//! cargo run -p a2a-methods-message-stream
+//! cargo run -p a2a-methods-client --bin message-stream
 //! ```
 
 use futures::StreamExt;

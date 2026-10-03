@@ -136,7 +136,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let server = A2AServerBuilder::new()
         .with_config(config)
-        .with_agent_card_from_file(".well-known/agent.json", None)
+        .with_agent_card_from_file(".well-known/agent-card.json", None)
         .with_background_task_handler(SleepEchoHandler {
             delay: Duration::from_millis(app.delay_ms),
         })

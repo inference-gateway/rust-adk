@@ -16,7 +16,7 @@ filesystem-backed storage provider:
 ```
 artifacts-filesystem/
 ├── server/main.rs                 ReportHandler emits a file artifact via emit_file_artifact
-├── server/.well-known/agent.json  Agent metadata loaded at startup
+├── server/.well-known/agent-card.json  Agent metadata loaded at startup
 ├── client/main.rs                 Streams the task, downloads the artifact URI via reqwest
 ├── docker-compose.yaml            Server + client only (no inference-gateway)
 ├── .gitignore                     Ignores generated server/artifacts-data/

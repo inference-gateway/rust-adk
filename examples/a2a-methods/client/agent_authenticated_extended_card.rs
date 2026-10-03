@@ -12,7 +12,7 @@
 //!
 //! ```bash
 //! cargo run -p a2a-methods-server
-//! cargo run -p a2a-methods-agent-authenticated-extended-card
+//! cargo run -p a2a-methods-client --bin agent-authenticated-extended-card
 //! ```
 use inference_gateway_adk::A2AClient;
 use inference_gateway_adk::a2a_types::GetExtendedAgentCardRequest;

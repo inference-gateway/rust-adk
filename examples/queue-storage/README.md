@@ -17,7 +17,7 @@ returns `echo: <input>`. The slow handler makes worker concurrency
 ```
 queue-storage/
 ├── server/main.rs              SleepEchoHandler + env-driven storage
-├── server/.well-known/agent.json
+├── server/.well-known/agent-card.json
 ├── client/main.rs              dispatches N tasks, polls all to terminal, prints timestamps
 ├── docker-compose.yaml         single file driven by profiles
 └── .env.redis                  flips provider=redis + workers=4 in one shot

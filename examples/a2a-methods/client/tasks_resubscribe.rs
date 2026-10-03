@@ -2,10 +2,10 @@
 //! remaining state transitions over SSE.
 //!
 //! The example seeds a task via `SendMessage` (the offline echo handler
-//! drives it straight to `Completed`), then calls `SubscribeToTask` to
+//! completes it after a short delay), then calls `SubscribeToTask` to
 //! demonstrate the recovery path: the server replays a snapshot of the
-//! task's current state followed by a `TaskStatusUpdateEvent` with
-//! `final: true`, and the stream closes cleanly.
+//! task's current state, streams each change until the state is terminal,
+//! and the stream closes cleanly.
 //!
 //! This mirrors the canonical use of `SubscribeToTask` after a transport
 //! disconnect - the client knows the `tasks/{task_id}` resource name and
@@ -14,7 +14,7 @@
 //!
 //! ```bash
 //! cargo run -p a2a-methods-server
-//! cargo run -p a2a-methods-tasks-resubscribe
+//! cargo run -p a2a-methods-client --bin tasks-resubscribe
 //! ```
 use futures::StreamExt;
 use inference_gateway_adk::A2AClient;
@@ -33,8 +33,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = A2AClient::new(&server_url)?;
 
     // 1. Seed a task we can later resubscribe to. The example server's
-    //    EchoBackgroundTaskHandler drives the task through to `Completed`
-    //    synchronously, so the resubscribe below will see a terminal task.
+    //    EchoBackgroundTaskHandler completes the task after a short delay,
+    //    so the resubscribe below follows it through to `Completed`.
     let seed = client
         .send_message(SendMessageRequest {
             configuration: None,

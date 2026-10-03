@@ -15,7 +15,7 @@ just two *selector* tools regardless of how many tools the servers publish:
 ```
 mcp/
 ├── server/main.rs                 Agent wired to McpClient behind MCP_ENABLED
-├── server/.well-known/agent.json  Agent metadata loaded at startup
+├── server/.well-known/agent-card.json  Agent metadata loaded at startup
 ├── client/main.rs                 Two-prompt demo via SendMessage + poll
 └── README.md
 ```
@@ -50,7 +50,7 @@ mcp/
 
 ```bash
 # Start an Inference Gateway and one or more MCP servers separately, then run
-# the server from inside its subdir so .well-known/agent.json resolves:
+# the server from inside its subdir so .well-known/agent-card.json resolves:
 cd examples/mcp/server
 export MCP_ENABLED=true
 export MCP_SERVERS=http://localhost:3000   # your MCP server base URL(s)

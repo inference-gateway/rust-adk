@@ -10,7 +10,7 @@ display.
 ```
 streaming/
 ├── server/main.rs                 WordByWordStreamHandler
-├── server/.well-known/agent.json  Agent metadata loaded at startup
+├── server/.well-known/agent-card.json  Agent metadata loaded at startup
 ├── client/main.rs                 Consumes SendStreamingMessage + prints per-event timestamps
 ├── docker-compose.yaml            Server + client only (no inference-gateway)
 └── README.md

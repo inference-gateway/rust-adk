@@ -20,7 +20,7 @@ Compare to:
 ```
 default-handlers/
 ├── server/main.rs                 LLM agent + with_default_task_handlers(), no custom code
-├── server/.well-known/agent.json  Agent metadata loaded at startup
+├── server/.well-known/agent-card.json  Agent metadata loaded at startup
 ├── client/main.rs                 Single SendMessage + poll demo
 ├── docker-compose.yaml            Server + client + inference-gateway:latest
 ├── .env.example                   DEEPSEEK_API_KEY + provider/model overrides
@@ -57,7 +57,7 @@ The stack starts three services on port 8080 (server), with
 
 ```bash
 # Start an Inference Gateway separately, then run the server from inside its
-# subdir so .well-known/agent.json resolves correctly:
+# subdir so .well-known/agent-card.json resolves correctly:
 cd examples/default-handlers/server
 cargo run -p default-handlers-server
 # or: task examples:default-handlers-server

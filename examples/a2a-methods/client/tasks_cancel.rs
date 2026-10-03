@@ -5,7 +5,7 @@
 //!
 //! ```bash
 //! cargo run -p a2a-methods-server
-//! cargo run -p a2a-methods-tasks-cancel
+//! cargo run -p a2a-methods-client --bin tasks-cancel
 //! ```
 
 use inference_gateway_adk::A2AClient;
@@ -48,6 +48,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cancelled = client
         .cancel_task(CancelTaskRequest {
             id: task.id.clone(),
+            metadata: None,
             tenant: Some("example".to_string()),
         })
         .await?;

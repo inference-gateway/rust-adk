@@ -26,7 +26,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_config(config)
         .with_agent(agent)
         .with_agent_card_from_file(
-            ".well-known/agent.json",
+            ".well-known/agent-card.json",
             Some(
                 AgentCardOverrides::new()
                     .with_name("My Custom Agent")

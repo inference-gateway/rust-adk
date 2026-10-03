@@ -59,7 +59,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt().init();
 
     let server = A2AServerBuilder::new()
-        .with_agent_card_from_file(".well-known/agent.json", None)
+        .with_agent_card_from_file(".well-known/agent-card.json", None)
         .with_streaming_task_handler(WordByWordStreamHandler)
         .with_default_background_task_handler()
         .build()

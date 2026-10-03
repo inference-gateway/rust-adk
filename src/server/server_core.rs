@@ -84,7 +84,6 @@ impl A2AServer {
         let public = Router::new()
             .route("/health", get(health_handler))
             .route("/.well-known/agent-card.json", get(agent_card_handler))
-            .route("/.well-known/agent.json", get(agent_card_handler))
             .with_state(Arc::clone(&state));
 
         let protected = Router::new()

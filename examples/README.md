@@ -3,7 +3,7 @@
 Self-contained scenarios demonstrating different capabilities of the Rust
 Agent Development Kit (ADK). Each scenario has its own directory with a
 server, a client, an optional colocated agent card at
-`server/.well-known/agent.json`, and a README walking through what it shows
+`server/.well-known/agent-card.json`, and a README walking through what it shows
 and how to run it.
 
 ## Structure
@@ -73,7 +73,7 @@ task examples:minimal-server
 task examples:minimal-client
 ```
 
-> Examples that load `.well-known/agent.json` resolve it relative to the
+> Examples that load `.well-known/agent-card.json` resolve it relative to the
 > current working directory. Run those servers from inside their `server/`
 > directory, or pass an absolute path via `with_agent_card_from_file(...)`.
 

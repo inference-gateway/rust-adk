@@ -20,7 +20,7 @@ The server is gated by the `minio` Cargo feature: it pulls in the
 ```
 artifacts-minio/
 ├── server/main.rs                 ReportHandler emits a file artifact via emit_file_artifact (MinIO backend)
-├── server/.well-known/agent.json  Agent metadata loaded at startup
+├── server/.well-known/agent-card.json  Agent metadata loaded at startup
 ├── client/main.rs                 Streams the task, downloads the artifact URI via reqwest
 ├── docker-compose.yaml            minio + createbucket (mc) + server + client
 ├── .gitignore                     Ignores docker-compose .env overrides

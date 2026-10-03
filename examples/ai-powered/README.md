@@ -12,7 +12,7 @@ For the streaming variant of the same server shape, see
 ```
 ai-powered/
 ├── server/main.rs                 LLM agent + sync/async function tools
-├── server/.well-known/agent.json  Agent metadata loaded at startup
+├── server/.well-known/agent-card.json  Agent metadata loaded at startup
 ├── client/main.rs                 Two-prompt demo via SendMessage + poll
 ├── docker-compose.yaml            Server + client + inference-gateway:latest
 ├── .env.example                   DEEPSEEK_API_KEY + provider/model overrides
@@ -57,7 +57,7 @@ Override via `.env` to switch to any other provider supported by the gateway
 
 ```bash
 # Start an Inference Gateway separately, then run the server from inside its
-# subdir so .well-known/agent.json resolves correctly:
+# subdir so .well-known/agent-card.json resolves correctly:
 cd examples/ai-powered/server
 cargo run -p ai-powered-server
 # or: task examples:ai-powered-server
