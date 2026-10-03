@@ -471,6 +471,35 @@ async fn handle_message_send(state: &Arc<AppState>, id: Value, params: Value) ->
         None => None,
     };
 
+    if let Some(task) = existing.as_ref() {
+        if task.status.state.is_terminal() {
+            return json_rpc_error(
+                id,
+                jsonrpc_errors::UNSUPPORTED_OPERATION,
+                "Task cannot accept more messages in its current state",
+                Some(Value::String(format!(
+                    "task {:?} is in terminal state {:?}",
+                    task.id, task.status.state
+                ))),
+            );
+        }
+        // A contextId sent alongside a taskId must match the referenced task's
+        // (A2A spec 3.4.3).
+        if let Some(context_id) = request.message.context_id.as_deref()
+            && context_id != task.context_id_str()
+        {
+            return invalid_params_message(
+                id,
+                format!(
+                    "`message.contextId` {:?} does not match the contextId {:?} of task {:?}",
+                    context_id,
+                    task.context_id_str(),
+                    task.id
+                ),
+            );
+        }
+    }
+
     let Some(handler) = state.server.background_task_handler.as_ref() else {
         return json_rpc_error(
             id,
@@ -905,20 +934,13 @@ async fn handle_delete_push_config(state: &Arc<AppState>, id: Value, params: Val
         Err(e) => return invalid_params(id, e),
     };
 
-    let removed = state
+    // Deleting a config that is already gone succeeds: the method is idempotent
+    // (A2A spec 3.11).
+    state
         .server
         .storage
         .delete_push_notification_config(&request.task_id, &request.id)
         .await;
-
-    if !removed {
-        return json_rpc_error(
-            id,
-            jsonrpc_errors::TASK_NOT_FOUND,
-            "Push notification config not found",
-            Some(Value::String(format!("{}/{}", request.task_id, request.id))),
-        );
-    }
 
     json_rpc_success(id, serde_json::json!({}))
 }
@@ -954,6 +976,19 @@ async fn handle_tasks_resubscribe(state: Arc<AppState>, id: Value, params: Value
         }
     };
 
+    if task.status.state.is_terminal() {
+        return json_rpc_error(
+            id,
+            jsonrpc_errors::UNSUPPORTED_OPERATION,
+            "Task cannot be subscribed to in its current state",
+            Some(Value::String(format!(
+                "task {:?} is in terminal state {:?}; there is nothing left to stream",
+                task_id, task.status.state
+            ))),
+        )
+        .into_response();
+    }
+
     let (tx, rx) = mpsc::channel::<StreamResponse>(32);
 
     let initial = StreamResponse {
@@ -975,30 +1010,10 @@ async fn handle_tasks_resubscribe(state: Arc<AppState>, id: Value, params: Value
     }
 
     let storage = Arc::clone(&state.server.storage);
-    let context_id = task.context_id_str().to_string();
     let initial_state = task.status.state;
-    let initial_status = task.status.clone();
     let task_id_for_poll = task_id.clone();
 
     tokio::spawn(async move {
-        if initial_state.is_terminal() {
-            let final_event = TaskStatusUpdateEvent {
-                context_id: context_id.clone(),
-                metadata: None,
-                status: initial_status,
-                task_id: task_id_for_poll,
-            };
-            let _ = tx
-                .send(StreamResponse {
-                    artifact_update: None,
-                    message: None,
-                    status_update: Some(final_event),
-                    task: None,
-                })
-                .await;
-            return;
-        }
-
         let mut last_state = initial_state;
         loop {
             tokio::time::sleep(std::time::Duration::from_millis(100)).await;
@@ -1470,14 +1485,10 @@ mod tests {
         addr
     }
 
-    /// Resubscribing to a task that is already in a terminal state should
-    /// emit the snapshot followed by a single final status update.
+    /// Resubscribing to a task that is already terminal is rejected: there is
+    /// nothing left to stream (A2A spec 3.16).
     #[tokio::test]
-    async fn resubscribe_replays_terminal_task() {
-        use crate::A2AClient;
-        use crate::a2a_types::SubscribeToTaskRequest;
-        use futures_util::StreamExt;
-
+    async fn resubscribe_rejects_terminal_task() {
         let server = A2AServerBuilder::new()
             .with_agent_card(minimal_agent_card_for_resubscribe())
             .with_default_streaming_task_handler()
@@ -1510,42 +1521,26 @@ mod tests {
             .expect("dead-letter");
 
         let addr = spawn_test_server(server).await;
-        let client = A2AClient::new(format!("http://{addr}")).expect("client");
+        let response: Value = reqwest::Client::new()
+            .post(format!("http://{addr}/a2a"))
+            .json(&json!({
+                "jsonrpc": "2.0",
+                "id": "sub-1",
+                "method": "SubscribeToTask",
+                "params": {"id": task_id},
+            }))
+            .send()
+            .await
+            .expect("request sent")
+            .json()
+            .await
+            .expect("json body");
 
-        let mut stream = Box::pin(
-            client
-                .resubscribe_task(SubscribeToTaskRequest {
-                    id: task_id.to_string(),
-                    tenant: Some("tests".to_string()),
-                })
-                .await
-                .expect("resubscribe"),
-        );
-
-        let mut events: Vec<StreamResponse> = Vec::new();
-        while let Some(item) = stream.next().await {
-            events.push(item.expect("event"));
-        }
-
+        assert_eq!(response["error"]["code"], -32004, "{response}");
         assert_eq!(
-            events.len(),
-            2,
-            "expected snapshot + final event, got {events:?}"
+            response["error"]["data"][0]["reason"],
+            "UNSUPPORTED_OPERATION"
         );
-        let snapshot = events[0].task.as_ref().expect("first event is the task");
-        assert_eq!(snapshot.id, task_id);
-        assert_eq!(snapshot.status.state, TaskState::TaskStateCompleted);
-
-        let final_update = events[1]
-            .status_update
-            .as_ref()
-            .expect("second event is a status update");
-        assert!(
-            final_update.status.state.is_terminal(),
-            "terminal replay must set final=true"
-        );
-        assert_eq!(final_update.status.state, TaskState::TaskStateCompleted);
-        assert_eq!(final_update.task_id, task_id);
     }
 
     /// Resubscribing to a live task should emit the snapshot, then a

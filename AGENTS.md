@@ -68,6 +68,9 @@ not from the repo root or `examples/<scenario>/`.
   `message.taskId` names one, honours `configuration.historyLength`, registers an
   inline `taskPushNotificationConfig`, and short-circuits to a direct `Message`
   when `TaskHandler::handle_message` returns `Some`.
+- Terminal tasks are closed: `SendMessage` and `SubscribeToTask` on one return
+  `-32004`, a `message.contextId` that disagrees with the referenced task is
+  `-32602`, and `DeleteTaskPushNotificationConfig` is idempotent.
 - `src/server/push.rs` POSTs each task update as a `StreamResponse` to every
   webhook registered for the task; it is called from the task-manager worker and
   from `StreamEmitter::emit_status`.
