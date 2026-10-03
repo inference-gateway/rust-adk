@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.16.2](https://github.com/inference-gateway/rust-adk/compare/0.16.1...0.16.2) (2026-10-03)
+
+### 🐛 Bug Fixes
+
+* accept proto field names and unknown params in JSON-RPC requests ([#196](https://github.com/inference-gateway/rust-adk/issues/196)) ([04092c0](https://github.com/inference-gateway/rust-adk/commit/04092c068d99c95625a2f9a1ff7e9497479edd4b))
+* default agent url to the server's own /a2a endpoint ([#195](https://github.com/inference-gateway/rust-adk/issues/195)) ([0ff96a2](https://github.com/inference-gateway/rust-adk/commit/0ff96a208e76eab4d79e16b37251c18e4a01c8ce))
+* honor task cancellation and repair the examples ([#198](https://github.com/inference-gateway/rust-adk/issues/198)) ([510c304](https://github.com/inference-gateway/rust-adk/commit/510c30457edf6113af66c7c97176382ab6ba0170))
+* reject push config methods when card disables them ([#194](https://github.com/inference-gateway/rust-adk/issues/194)) ([fd9a19e](https://github.com/inference-gateway/rust-adk/commit/fd9a19e463ac49dfba7a70d9c03e3041a90eb40e))
+
 ## [0.16.1](https://github.com/inference-gateway/rust-adk/compare/0.16.0...0.16.1) (2026-10-03)
 
 ### 🐛 Bug Fixes
