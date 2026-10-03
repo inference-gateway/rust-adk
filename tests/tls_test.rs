@@ -34,7 +34,8 @@ use rcgen::{
     KeyUsagePurpose,
 };
 use rustls::RootCertStore;
-use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer, ServerName};
+use rustls::pki_types::pem::PemObject;
+use rustls::pki_types::{CertificateDer, PrivateKeyDer, ServerName};
 use serde_json::json;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
@@ -218,8 +219,7 @@ fn spawn_server(tls: TlsConfig, addr: SocketAddr) {
 
 fn root_store(ca_pem: &str) -> RootCertStore {
     let mut store = RootCertStore::empty();
-    let mut slice = ca_pem.as_bytes();
-    for cert in rustls_pemfile::certs(&mut slice) {
+    for cert in CertificateDer::pem_slice_iter(ca_pem.as_bytes()) {
         let cert = cert.expect("parse CA");
         store.add(cert).expect("trust CA");
     }
@@ -227,19 +227,13 @@ fn root_store(ca_pem: &str) -> RootCertStore {
 }
 
 fn leaf_chain(cert_pem: &str) -> Vec<CertificateDer<'static>> {
-    let mut slice = cert_pem.as_bytes();
-    rustls_pemfile::certs(&mut slice)
+    CertificateDer::pem_slice_iter(cert_pem.as_bytes())
         .map(|c| c.expect("parse leaf"))
         .collect()
 }
 
 fn leaf_key(key_pem: &str) -> PrivateKeyDer<'static> {
-    let mut slice = key_pem.as_bytes();
-    let der = rustls_pemfile::pkcs8_private_keys(&mut slice)
-        .next()
-        .expect("rcgen emits pkcs8")
-        .expect("parse pkcs8");
-    PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(der.secret_pkcs8_der().to_vec()))
+    PrivateKeyDer::from_pem_slice(key_pem.as_bytes()).expect("parse key")
 }
 
 fn ensure_default_provider() {
