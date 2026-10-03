@@ -16,7 +16,7 @@ minimal/
 ## What This Shows
 
 - `A2AServerBuilder::new()` without an agent
-- Default A2A endpoints (`/.well-known/agent.json`, `/health`, `POST /a2a`) served out of the box
+- Default A2A endpoints (`/.well-known/agent-card.json`, `/health`, `POST /a2a`) served out of the box
 - `A2AClient` performing the three core interactions: health, agent card, single task
 - Because no agent is registered, `POST /a2a` returns a JSON-RPC error
   (`"No agent configured..."`) - that is the expected, documented behavior of

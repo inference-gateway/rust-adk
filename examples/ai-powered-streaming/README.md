@@ -18,7 +18,7 @@ Compare to:
 ```
 ai-powered-streaming/
 ├── server/main.rs                 LLM agent + default streaming handler
-├── server/.well-known/agent.json  Agent metadata loaded at startup
+├── server/.well-known/agent-card.json  Agent metadata loaded at startup
 ├── client/main.rs                 Consumes SendStreamingMessage + prints per-event timestamps
 ├── docker-compose.yaml            Server + client + inference-gateway:latest
 ├── .env.example                   DEEPSEEK_API_KEY + provider/model overrides
@@ -54,7 +54,7 @@ The stack starts three services:
 
 ```bash
 # Start an Inference Gateway separately, then run the server from inside its
-# subdir so .well-known/agent.json resolves correctly:
+# subdir so .well-known/agent-card.json resolves correctly:
 cd examples/ai-powered-streaming/server
 cargo run -p ai-powered-streaming-server
 # or: task examples:ai-powered-streaming-server

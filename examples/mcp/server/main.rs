@@ -40,7 +40,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let server = A2AServerBuilder::new()
         .with_config(config)
         .with_agent(agent)
-        .with_agent_card_from_file(".well-known/agent.json", None)
+        .with_agent_card_from_file(".well-known/agent-card.json", None)
         .with_default_task_handlers()
         .build()
         .await?;

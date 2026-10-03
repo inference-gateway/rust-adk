@@ -11,7 +11,7 @@ a tool call, polls the task to terminal, and prints the `usage` +
 ```
 usage-metadata/
 ├── server/main.rs                 LLM agent + one calculate_sum tool
-├── server/.well-known/agent.json  Agent metadata loaded at startup
+├── server/.well-known/agent-card.json  Agent metadata loaded at startup
 ├── client/main.rs                 SendMessage + poll + metadata renderer
 ├── docker-compose.yaml            Server + client + inference-gateway:latest
 ├── .env.example                   Provider key + ENABLE_USAGE_METADATA toggle
@@ -63,7 +63,7 @@ in `.env` and re-run - the client then reports that no usage metadata was attach
 
 ```bash
 # Start an Inference Gateway separately, then run the server from inside its
-# subdir so .well-known/agent.json resolves correctly:
+# subdir so .well-known/agent-card.json resolves correctly:
 cd examples/usage-metadata/server
 cargo run -p usage-metadata-server
 # or: task examples:usage-metadata-server

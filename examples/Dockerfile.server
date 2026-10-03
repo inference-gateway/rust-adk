@@ -6,7 +6,7 @@ FROM rust:${RUST_VERSION}-slim-bookworm AS builder
 # entry in `examples/<example>/server/Cargo.toml` (e.g. `queue-storage-server`).
 ARG BIN_NAME
 # Path to the example directory inside the repo (e.g. `examples/queue-storage`).
-# Used only for staging the runtime `.well-known/agent.json` next to the binary.
+# Used only for staging the runtime `.well-known/agent-card.json` next to the binary.
 ARG EXAMPLE_PATH
 
 RUN apt-get update \
@@ -23,15 +23,15 @@ COPY examples ./examples
 # so the docker build just needs to ask Cargo for the package.
 RUN cargo build --release -p "${BIN_NAME}"
 
-# Stage runtime data files (.well-known/agent.json when present) into a known
+# Stage runtime data files (.well-known/agent-card.json when present) into a known
 # location so the next stage can COPY a single directory without colliding with
 # source dirs. The agent card lives inside the server's subdir
-# (`<example>/server/.well-known/agent.json`); we mirror that layout into /app
-# so the runtime `with_agent_card_from_file(".well-known/agent.json")` lookup
+# (`<example>/server/.well-known/agent-card.json`); we mirror that layout into /app
+# so the runtime `with_agent_card_from_file(".well-known/agent-card.json")` lookup
 # works under WORKDIR /app.
 RUN mkdir -p /staged/.well-known \
-    && if [ -f "${EXAMPLE_PATH}/server/.well-known/agent.json" ]; then \
-         cp "${EXAMPLE_PATH}/server/.well-known/agent.json" /staged/.well-known/agent.json; \
+    && if [ -f "${EXAMPLE_PATH}/server/.well-known/agent-card.json" ]; then \
+         cp "${EXAMPLE_PATH}/server/.well-known/agent-card.json" /staged/.well-known/agent-card.json; \
        fi
 
 FROM debian:bookworm-slim

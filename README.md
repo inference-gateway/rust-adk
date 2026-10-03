@@ -213,7 +213,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let server = A2AServerBuilder::new()
         .with_config(config)
         .with_agent(agent)
-        .with_agent_card_from_file(".well-known/agent.json", None)
+        .with_agent_card_from_file(".well-known/agent-card.json", None)
         .with_default_task_handlers()
         .build()
         .await?;
@@ -353,7 +353,7 @@ let server = A2AServerBuilder::new()
 // Server with an LLM agent and an agent card loaded from disk
 let server = A2AServerBuilder::new()
     .with_agent(agent)
-    .with_agent_card_from_file(".well-known/agent.json", None)
+    .with_agent_card_from_file(".well-known/agent-card.json", None)
     .with_default_task_handlers()
     .build()
     .await?;
@@ -361,7 +361,7 @@ let server = A2AServerBuilder::new()
 // Server with a custom SendMessage (background) and SendStreamingMessage handler
 let server = A2AServerBuilder::new()
     .with_config(config)
-    .with_agent_card_from_file(".well-known/agent.json", None)
+    .with_agent_card_from_file(".well-known/agent-card.json", None)
     .with_background_task_handler(my_background_handler)
     .with_streaming_task_handler(my_streaming_handler)
     .build()
@@ -411,7 +411,7 @@ let agent = AgentBuilder::new()
 // Wire the agent into the server
 let server = A2AServerBuilder::new()
     .with_agent(agent)
-    .with_agent_card_from_file(".well-known/agent.json", None)
+    .with_agent_card_from_file(".well-known/agent-card.json", None)
     .with_default_task_handlers()
     .build()
     .await?;
@@ -928,7 +928,7 @@ let agent = AgentBuilder::new()
 let server = A2AServerBuilder::new()
     .with_config(config)
     .with_agent(agent)
-    .with_agent_card_from_file(".well-known/agent.json", None)
+    .with_agent_card_from_file(".well-known/agent-card.json", None)
     .with_default_task_handlers()
     .build()
     .await?;
@@ -1048,7 +1048,7 @@ impl TaskHandler for EchoHandler {
 // with `capabilities.streaming: false`; a streaming-enabled card additionally
 // requires `with_streaming_task_handler(...)`.
 let server = A2AServerBuilder::new()
-    .with_agent_card_from_file(".well-known/agent.json", None)
+    .with_agent_card_from_file(".well-known/agent-card.json", None)
     .with_background_task_handler(EchoHandler)
     .build()
     .await?;
@@ -1182,7 +1182,7 @@ let config: Config = envy::prefixed("A2A_").from_env()?;
 let server = A2AServerBuilder::new()
     .with_config(config)
     .with_agent_card_from_file(
-        ".well-known/agent.json",
+        ".well-known/agent-card.json",
         Some(
             AgentCardOverrides::new()
                 .with_name("Development Weather Assistant")
@@ -1239,7 +1239,7 @@ the flag unset (`-32004`).
 ```rust
 let server = A2AServerBuilder::new()
     .with_config(config)
-    .with_agent_card_from_file(".well-known/agent.json", None)
+    .with_agent_card_from_file(".well-known/agent-card.json", None)
     .with_extended_agent_card(extended_card)
     .with_default_task_handlers()
     .build()
@@ -1405,7 +1405,7 @@ let config = Config {
 
 let server = A2AServerBuilder::new()
     .with_config(config)
-    .with_agent_card_from_file(".well-known/agent.json", None)
+    .with_agent_card_from_file(".well-known/agent-card.json", None)
     .with_default_task_handlers()
     .build()
     .await?;
@@ -1592,12 +1592,12 @@ RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/
 WORKDIR /app
 COPY --from=builder /app/target/release/rust-adk .
 # with_agent_card_from_file resolves its path relative to CWD
-COPY .well-known/agent.json ./.well-known/agent.json
+COPY .well-known/agent-card.json ./.well-known/agent-card.json
 CMD ["./rust-adk"]
 ```
 
 Agent metadata lives in the card JSON, so it is baked in by the `COPY` above -
-bind-mount a different `agent.json` over it to run the same image as another
+bind-mount a different `agent-card.json` over it to run the same image as another
 agent.
 
 ## License

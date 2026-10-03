@@ -16,7 +16,7 @@ the two branches are visible side by side.
 ```
 input-required/
 ├── server/main.rs                 WeatherHandler with branching state
-├── server/.well-known/agent.json  Agent metadata loaded at startup
+├── server/.well-known/agent-card.json  Agent metadata loaded at startup
 ├── client/main.rs                 Two dispatches: with-city and no-city
 ├── docker-compose.yaml            Server + client only (no inference-gateway)
 └── README.md

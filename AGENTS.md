@@ -39,9 +39,9 @@ clippy `-D warnings` means any new warning fails CI. CI's test step is plain
 `cargo test` - `task test` (all features/targets) is the stricter local gate.
 Run one test with `cargo test --all-features <test_name>`, or one integration
 file with `cargo test --all-features --test a2a_server_test`. Example servers
-that load `.well-known/agent.json` resolve it relative to CWD - use the task
-targets (they `cd` into the example dir) rather than raw `cargo run -p ...`
-from the repo root.
+that load `.well-known/agent-card.json` resolve it relative to CWD, and each card
+lives in `examples/<scenario>/server/` - run those servers from that directory,
+not from the repo root or `examples/<scenario>/`.
 
 ## Architecture
 
