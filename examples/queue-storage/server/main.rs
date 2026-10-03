@@ -130,9 +130,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         port = port,
         "starting queue-storage example server",
     );
-    if config.queue_config.provider == inference_gateway_adk::QueueProvider::Redis {
-        info!("redis URL: {:?}", config.queue_config.url);
-    }
 
     let server = A2AServerBuilder::new()
         .with_config(config)

@@ -44,18 +44,31 @@ pub(super) async fn notify(storage: &Arc<dyn Storage>, task: &Task) {
         match request.send().await {
             Ok(response) => debug!(
                 task_id = %task.id,
-                url = %config.url,
+                url = %loggable_url(&config.url),
                 status = response.status().as_u16(),
                 "push notification delivered",
             ),
             Err(e) => warn!(
                 task_id = %task.id,
-                url = %config.url,
-                error = %e,
+                url = %loggable_url(&config.url),
+                error = %e.without_url(),
                 "push notification delivery failed",
             ),
         }
     }
+}
+
+/// The webhook URL without userinfo, query or fragment, where clients put
+/// tokens; logs must not carry credentials (A2A v1.0.1 section 13.4).
+fn loggable_url(raw: &str) -> String {
+    let Ok(mut url) = reqwest::Url::parse(raw) else {
+        return "<invalid url>".to_string();
+    };
+    let _ = url.set_username("");
+    let _ = url.set_password(None);
+    url.set_query(None);
+    url.set_fragment(None);
+    url.to_string()
 }
 
 #[cfg(test)]
@@ -145,5 +158,31 @@ mod tests {
     async fn skips_tasks_without_configs() {
         let storage: Arc<dyn Storage> = Arc::new(InMemoryStorage::new());
         notify(&storage, &task("t2")).await;
+    }
+
+    #[test]
+    fn loggable_url_drops_credentials_query_and_fragment() {
+        let table = [
+            (
+                "credentials removed",
+                "https://user:s3cret@hook.example/notify",
+                "https://hook.example/notify",
+            ),
+            (
+                "password-only userinfo removed",
+                "https://:s3cret@hook.example/notify",
+                "https://hook.example/notify",
+            ),
+            (
+                "query and fragment removed",
+                "https://hook.example/notify?token=s3cret#s3cret",
+                "https://hook.example/notify",
+            ),
+            ("unparseable input", "not a url", "<invalid url>"),
+        ];
+
+        for (name, raw, expected) in table {
+            assert_eq!(loggable_url(raw), expected, "{name}");
+        }
     }
 }

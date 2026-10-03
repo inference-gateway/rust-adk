@@ -233,16 +233,27 @@ impl A2AServerBuilder {
         }
 
         if let Some(ref mut card) = agent_card {
-            let url = card_url_override
-                .or_else(|| non_empty(config.agent_url.clone()))
+            let (source, url) = card_url_override
+                .map(|url| ("agent card override url", url))
+                .or_else(|| {
+                    non_empty(config.agent_url.clone())
+                        .map(|url| ("config agent_url (A2A_AGENT_URL)", url))
+                })
                 .or_else(|| {
                     card.supported_interfaces
                         .first()
                         .and_then(|interface| non_empty(interface.url.clone()))
+                        .map(|url| ("agent card supportedInterfaces[0].url", url))
                 })
-                .unwrap_or_else(|| default_agent_url(&config));
+                .unwrap_or_else(|| ("default agent url", default_agent_url(&config)));
+            reject_url_credentials(source, &url)?;
             info!("Agent card advertises URL -> {}", url);
             set_agent_card_url(card, url);
+            reject_interface_credentials("agent card", card)?;
+        }
+
+        if let Some(ref card) = self.extended_agent_card {
+            reject_interface_credentials("extended agent card", card)?;
         }
 
         if self.extended_agent_card.is_some()
@@ -445,6 +456,30 @@ fn set_agent_card_url(card: &mut AgentCard, url: String) {
     }
 }
 
+/// Rejects a URL carrying userinfo: the agent card is served unauthenticated
+/// and the advertised URL is logged (A2A v1.0.1 sections 13.4, 14.3). The
+/// error names `source`, never the URL, so the credential is not echoed.
+fn reject_url_credentials(source: &str, url: &str) -> Result<()> {
+    match reqwest::Url::parse(url) {
+        Ok(parsed) if !parsed.username().is_empty() || parsed.password().is_some() => Err(anyhow!(
+            "{source} must not carry credentials (userinfo); remove them from the URL"
+        )),
+        _ => Ok(()),
+    }
+}
+
+fn reject_interface_credentials(card_name: &str, card: &AgentCard) -> Result<()> {
+    card.supported_interfaces
+        .iter()
+        .enumerate()
+        .try_for_each(|(index, interface)| {
+            reject_url_credentials(
+                &format!("{card_name} supportedInterfaces[{index}].url"),
+                &interface.url,
+            )
+        })
+}
+
 impl Default for A2AServerBuilder {
     fn default() -> Self {
         Self::new()
@@ -527,6 +562,65 @@ mod tests {
                 expected,
                 "{name}"
             );
+        }
+    }
+
+    #[tokio::test]
+    async fn build_rejects_credentials_in_agent_card_urls() {
+        let plain = serde_json::json!([{"url": "http://card/a2a", "protocolBinding": "JSONRPC", "protocolVersion": "1.0"}]);
+        let table = [
+            (
+                "config url",
+                "https://user:s3cret@env/a2a",
+                plain.clone(),
+                plain.clone(),
+                "config agent_url",
+            ),
+            (
+                "card url",
+                "",
+                serde_json::json!([{"url": "https://user:s3cret@card/a2a", "protocolBinding": "JSONRPC", "protocolVersion": "1.0"}]),
+                plain.clone(),
+                "agent card supportedInterfaces[0].url",
+            ),
+            (
+                "secondary card interface",
+                "",
+                serde_json::json!([
+                    {"url": "http://card/a2a", "protocolBinding": "JSONRPC", "protocolVersion": "1.0"},
+                    {"url": "https://:s3cret@card/rpc", "protocolBinding": "HTTP+JSON", "protocolVersion": "1.0"}
+                ]),
+                plain.clone(),
+                "agent card supportedInterfaces[1].url",
+            ),
+            (
+                "extended card interface",
+                "",
+                plain.clone(),
+                serde_json::json!([{"url": "https://user:s3cret@internal/a2a", "protocolBinding": "JSONRPC", "protocolVersion": "1.0"}]),
+                "extended agent card supportedInterfaces[0].url",
+            ),
+        ];
+
+        for (name, config_url, interfaces, extended_interfaces, source) in table {
+            let config = Config {
+                agent_url: config_url.to_string(),
+                ..Config::default()
+            };
+
+            let err = A2AServerBuilder::new()
+                .with_config(config)
+                .with_agent_card(agent_card_with_interfaces(interfaces))
+                .with_extended_agent_card(agent_card_with_interfaces(extended_interfaces))
+                .with_default_task_handlers()
+                .build()
+                .await
+                .err()
+                .unwrap_or_else(|| panic!("{name}: build should reject credentials"));
+
+            let message = err.to_string();
+            assert!(message.contains(source), "{name}: {message}");
+            assert!(!message.contains("s3cret"), "{name}: leaked: {message}");
         }
     }
 
