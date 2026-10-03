@@ -1,6 +1,7 @@
 use super::auth::{AuthVerifier, AuthenticatedPrincipal};
 use super::errors::{
-    invalid_params, invalid_params_message, json_rpc_error, json_rpc_success, jsonrpc_errors,
+    internal_error, invalid_params, invalid_params_message, json_rpc_error, json_rpc_result,
+    json_rpc_success, jsonrpc_errors, task_not_found,
 };
 use super::server_core::A2AServer;
 use super::storage::TaskFilter;
@@ -496,14 +497,7 @@ async fn handle_message_send(state: &Arc<AppState>, id: Value, params: Value) ->
                 }
                 Some(task)
             }
-            None => {
-                return json_rpc_error(
-                    id,
-                    jsonrpc_errors::TASK_NOT_FOUND,
-                    "Task not found",
-                    Some(Value::String(task_id.to_string())),
-                );
-            }
+            None => return task_not_found(id, task_id),
         },
         None => None,
     };
@@ -522,7 +516,7 @@ async fn handle_message_send(state: &Arc<AppState>, id: Value, params: Value) ->
 
     match handler.handle_message(&request.message).await {
         Ok(Some(reply)) => {
-            return send_message_response(
+            return json_rpc_result(
                 id,
                 SendMessageResponse {
                     message: Some(reply),
@@ -533,12 +527,7 @@ async fn handle_message_send(state: &Arc<AppState>, id: Value, params: Value) ->
         Ok(None) => {}
         Err(e) => {
             error!("handle_message failed: {e}");
-            return json_rpc_error(
-                id,
-                jsonrpc_errors::INTERNAL_ERROR,
-                "Internal error",
-                Some(Value::String(e.to_string())),
-            );
+            return internal_error(id, e);
         }
     }
 
@@ -552,12 +541,7 @@ async fn handle_message_send(state: &Arc<AppState>, id: Value, params: Value) ->
             let task = build_task_from_request(&request);
             if let Err(e) = state.server.storage.create_active_task(&task).await {
                 error!("create_active_task failed: {e}");
-                return json_rpc_error(
-                    id,
-                    jsonrpc_errors::INTERNAL_ERROR,
-                    "Internal error",
-                    Some(Value::String(e.to_string())),
-                );
+                return internal_error(id, e);
             }
             task
         }
@@ -572,12 +556,7 @@ async fn handle_message_send(state: &Arc<AppState>, id: Value, params: Value) ->
         .await
     {
         error!("enqueue_task failed: {e}");
-        return json_rpc_error(
-            id,
-            jsonrpc_errors::INTERNAL_ERROR,
-            "Internal error",
-            Some(Value::String(e.to_string())),
-        );
+        return internal_error(id, e);
     }
 
     let configuration = request.configuration.as_ref();
@@ -588,25 +567,13 @@ async fn handle_message_send(state: &Arc<AppState>, id: Value, params: Value) ->
     };
     trim_history(&mut task, configuration.and_then(|c| c.history_length));
 
-    send_message_response(
+    json_rpc_result(
         id,
         SendMessageResponse {
             message: None,
             task: Some(task),
         },
     )
-}
-
-fn send_message_response(id: Value, response: SendMessageResponse) -> Json<Value> {
-    match serde_json::to_value(response) {
-        Ok(v) => json_rpc_success(id, v),
-        Err(e) => json_rpc_error(
-            id,
-            jsonrpc_errors::INTERNAL_ERROR,
-            "Internal error",
-            Some(Value::String(e.to_string())),
-        ),
-    }
 }
 
 async fn handle_message_stream(state: Arc<AppState>, id: Value, params: Value) -> Response {
@@ -622,13 +589,7 @@ async fn handle_message_stream(state: Arc<AppState>, id: Value, params: Value) -
     if let Some(task_id) = request.message.task_id.as_deref()
         && state.server.storage.get_task(task_id).await.is_none()
     {
-        return json_rpc_error(
-            id,
-            jsonrpc_errors::TASK_NOT_FOUND,
-            "Task not found",
-            Some(Value::String(task_id.to_string())),
-        )
-        .into_response();
+        return task_not_found(id, task_id).into_response();
     }
 
     let Some(handler) = state.server.streaming_task_handler.as_ref().cloned() else {
@@ -656,15 +617,7 @@ async fn handle_message_stream(state: Arc<AppState>, id: Value, params: Value) -
         task: Some(task.clone()),
     };
     if tx.send(initial).await.is_err() {
-        return json_rpc_error(
-            id,
-            jsonrpc_errors::INTERNAL_ERROR,
-            "Internal error",
-            Some(Value::String(
-                "stream receiver closed before initial event".to_string(),
-            )),
-        )
-        .into_response();
+        return internal_error(id, "stream receiver closed before initial event").into_response();
     }
 
     let emitter = StreamEmitter::new(tx, Arc::clone(&state.server.storage))
@@ -710,22 +663,9 @@ async fn handle_tasks_get(state: &Arc<AppState>, id: Value, params: Value) -> Js
     match state.server.storage.get_task(task_id).await {
         Some(mut task) => {
             trim_history(&mut task, request.history_length);
-            match serde_json::to_value(task) {
-                Ok(v) => json_rpc_success(id, v),
-                Err(e) => json_rpc_error(
-                    id,
-                    jsonrpc_errors::INTERNAL_ERROR,
-                    "Internal error",
-                    Some(Value::String(e.to_string())),
-                ),
-            }
+            json_rpc_result(id, task)
         }
-        None => json_rpc_error(
-            id,
-            jsonrpc_errors::TASK_NOT_FOUND,
-            "Task not found",
-            Some(Value::String(request.id.clone())),
-        ),
+        None => task_not_found(id, task_id),
     }
 }
 
@@ -772,15 +712,7 @@ async fn handle_tasks_list(state: &Arc<AppState>, id: Value, params: Value) -> J
         total_size,
     };
 
-    match serde_json::to_value(response) {
-        Ok(v) => json_rpc_success(id, v),
-        Err(e) => json_rpc_error(
-            id,
-            jsonrpc_errors::INTERNAL_ERROR,
-            "Internal error",
-            Some(Value::String(e.to_string())),
-        ),
-    }
+    json_rpc_result(id, response)
 }
 
 /// The `ListTasks` page token is the offset of the page; an empty token is the first page.
@@ -796,19 +728,11 @@ async fn handle_tasks_cancel(state: &Arc<AppState>, id: Value, params: Value) ->
         Ok(r) => r,
         Err(e) => return invalid_params(id, e),
     };
-    let name = request.id.clone();
-    let task_id = name.clone();
+    let task_id = request.id.clone();
 
     let existing = match state.server.storage.get_task(&task_id).await {
         Some(t) => t,
-        None => {
-            return json_rpc_error(
-                id,
-                jsonrpc_errors::TASK_NOT_FOUND,
-                "Task not found",
-                Some(Value::String(name)),
-            );
-        }
+        None => return task_not_found(id, &task_id),
     };
 
     if existing.status.state.is_terminal() {
@@ -830,23 +754,10 @@ async fn handle_tasks_cancel(state: &Arc<AppState>, id: Value, params: Value) ->
         timestamp: Some(Timestamp(chrono::Utc::now())),
     };
     if let Err(e) = state.server.storage.store_dead_letter_task(&updated).await {
-        return json_rpc_error(
-            id,
-            jsonrpc_errors::INTERNAL_ERROR,
-            "Internal error",
-            Some(Value::String(e.to_string())),
-        );
+        return internal_error(id, e);
     }
 
-    match serde_json::to_value(updated) {
-        Ok(v) => json_rpc_success(id, v),
-        Err(e) => json_rpc_error(
-            id,
-            jsonrpc_errors::INTERNAL_ERROR,
-            "Internal error",
-            Some(Value::String(e.to_string())),
-        ),
-    }
+    json_rpc_result(id, updated)
 }
 
 async fn handle_set_push_config(state: &Arc<AppState>, id: Value, params: Value) -> Json<Value> {
@@ -867,15 +778,7 @@ async fn handle_set_push_config(state: &Arc<AppState>, id: Value, params: Value)
         .put_push_notification_config(config.clone())
         .await;
 
-    match serde_json::to_value(config) {
-        Ok(v) => json_rpc_success(id, v),
-        Err(e) => json_rpc_error(
-            id,
-            jsonrpc_errors::INTERNAL_ERROR,
-            "Internal error",
-            Some(Value::String(e.to_string())),
-        ),
-    }
+    json_rpc_result(id, config)
 }
 
 async fn handle_get_push_config(state: &Arc<AppState>, id: Value, params: Value) -> Json<Value> {
@@ -890,15 +793,7 @@ async fn handle_get_push_config(state: &Arc<AppState>, id: Value, params: Value)
         .get_push_notification_config(&request.task_id, &request.id)
         .await
     {
-        Some(config) => match serde_json::to_value(config) {
-            Ok(v) => json_rpc_success(id, v),
-            Err(e) => json_rpc_error(
-                id,
-                jsonrpc_errors::INTERNAL_ERROR,
-                "Internal error",
-                Some(Value::String(e.to_string())),
-            ),
-        },
+        Some(config) => json_rpc_result(id, config),
         None => json_rpc_error(
             id,
             jsonrpc_errors::TASK_NOT_FOUND,
@@ -925,15 +820,7 @@ async fn handle_list_push_configs(state: &Arc<AppState>, id: Value, params: Valu
         next_page_token: None,
     };
 
-    match serde_json::to_value(response) {
-        Ok(v) => json_rpc_success(id, v),
-        Err(e) => json_rpc_error(
-            id,
-            jsonrpc_errors::INTERNAL_ERROR,
-            "Internal error",
-            Some(Value::String(e.to_string())),
-        ),
-    }
+    json_rpc_result(id, response)
 }
 
 /// Deleting a push notification config is idempotent (A2A spec 3.11): an unknown
@@ -968,20 +855,11 @@ async fn handle_tasks_resubscribe(state: Arc<AppState>, id: Value, params: Value
         Ok(r) => r,
         Err(e) => return invalid_params(id, e).into_response(),
     };
-    let name = request.id.clone();
-    let task_id = name.clone();
+    let task_id = request.id.clone();
 
     let task = match state.server.storage.get_task(&task_id).await {
         Some(t) => t,
-        None => {
-            return json_rpc_error(
-                id,
-                jsonrpc_errors::TASK_NOT_FOUND,
-                "Task not found",
-                Some(Value::String(name)),
-            )
-            .into_response();
-        }
+        None => return task_not_found(id, &task_id).into_response(),
     };
 
     if task.status.state.is_terminal() {
@@ -990,7 +868,7 @@ async fn handle_tasks_resubscribe(state: Arc<AppState>, id: Value, params: Value
             jsonrpc_errors::UNSUPPORTED_OPERATION,
             "Unsupported operation",
             Some(Value::String(format!(
-                "task {name} is in terminal state {:?}; there is nothing left to stream",
+                "task {task_id} is in terminal state {:?}; there is nothing left to stream",
                 task.status.state
             ))),
         )
@@ -1006,15 +884,7 @@ async fn handle_tasks_resubscribe(state: Arc<AppState>, id: Value, params: Value
         task: Some(task.clone()),
     };
     if tx.send(initial).await.is_err() {
-        return json_rpc_error(
-            id,
-            jsonrpc_errors::INTERNAL_ERROR,
-            "Internal error",
-            Some(Value::String(
-                "stream receiver closed before initial event".to_string(),
-            )),
-        )
-        .into_response();
+        return internal_error(id, "stream receiver closed before initial event").into_response();
     }
 
     let storage = Arc::clone(&state.server.storage);
@@ -1105,14 +975,7 @@ async fn handle_get_authenticated_extended_card(
     };
 
     let Some(agent_card) = state.server.agent_card.as_ref() else {
-        return json_rpc_error(
-            id,
-            jsonrpc_errors::INTERNAL_ERROR,
-            "Internal error",
-            Some(Value::String(
-                "no agent card configured on this server".to_string(),
-            )),
-        );
+        return internal_error(id, "no agent card configured on this server");
     };
 
     if !agent_card.capabilities.extended_agent_card.unwrap_or(false) {
@@ -1142,15 +1005,7 @@ async fn handle_get_authenticated_extended_card(
         );
     };
 
-    match serde_json::to_value(extended_card) {
-        Ok(v) => json_rpc_success(id, v),
-        Err(e) => json_rpc_error(
-            id,
-            jsonrpc_errors::INTERNAL_ERROR,
-            "Internal error",
-            Some(Value::String(e.to_string())),
-        ),
-    }
+    json_rpc_result(id, extended_card)
 }
 
 #[cfg(test)]
