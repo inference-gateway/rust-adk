@@ -65,6 +65,7 @@ pub(crate) async fn a2a_handler(
     State(state): State<Arc<AppState>>,
     principal: Option<axum::Extension<AuthenticatedPrincipal>>,
     peer_cert: Option<axum::Extension<PeerCert>>,
+    headers: axum::http::HeaderMap,
     Json(payload): Json<Value>,
 ) -> Response {
     // Principal is plumbed in by the auth middleware. We log it for
@@ -103,6 +104,18 @@ pub(crate) async fn a2a_handler(
             Some(Value::String(
                 "Missing or invalid \"jsonrpc\" field; must be \"2.0\"".to_string(),
             )),
+        )
+        .into_response();
+    }
+
+    if let Some(version) = unsupported_a2a_version(&headers) {
+        return json_rpc_error(
+            id,
+            jsonrpc_errors::VERSION_NOT_SUPPORTED,
+            "Version not supported",
+            Some(Value::String(format!(
+                "A2A-Version {version} is not supported"
+            ))),
         )
         .into_response();
     }
@@ -164,6 +177,14 @@ pub(crate) async fn a2a_handler(
                 .into_response()
         }
     }
+}
+
+/// Returns the requested `A2A-Version` when this server doesn't speak it (A2A spec 3.6).
+// ponytail: an empty header is accepted so clients that omit it keep working, although spec
+// section 3.6 reads it as 0.3; reject it once 0.3 clients are gone.
+fn unsupported_a2a_version(headers: &axum::http::HeaderMap) -> Option<String> {
+    let version = headers.get("A2A-Version")?.to_str().unwrap_or("invalid");
+    (!version.is_empty() && version != crate::A2A_PROTOCOL_VERSION).then(|| version.to_string())
 }
 
 /// Validate the A2A-spec-required content of a `SendMessage` /

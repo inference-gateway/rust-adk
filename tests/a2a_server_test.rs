@@ -552,6 +552,35 @@ async fn message_send_to_unknown_task_returns_task_not_found() {
 }
 
 #[tokio::test]
+async fn unsupported_a2a_version_returns_version_not_supported() {
+    let suite = ensure_suite();
+    let request = json!({"jsonrpc": "2.0", "id": "version", "method": "GetTask", "params": {"id": "missing"}});
+    for (version, want_code) in [
+        (Some("99.0"), -32009),
+        (Some("1.0"), -32001),
+        (None, -32001),
+    ] {
+        let mut http = reqwest::Client::new()
+            .post(format!("http://{}/a2a", suite.server_addr))
+            .json(&request);
+        if let Some(version) = version {
+            http = http.header("A2A-Version", version);
+        }
+        let response = http
+            .send()
+            .await
+            .expect("HTTP request succeeded")
+            .json::<Value>()
+            .await
+            .expect("JSON response body");
+        assert_eq!(
+            response["error"]["code"], want_code,
+            "version {version:?}: {response}"
+        );
+    }
+}
+
+#[tokio::test]
 async fn unknown_method_returns_method_not_found() {
     let suite = ensure_suite();
     let request = json!({
