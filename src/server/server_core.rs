@@ -32,7 +32,7 @@ use tracing::{debug, error, info, warn};
 pub struct A2AServer {
     pub(super) config: Config,
     pub(super) agent_card: Option<AgentCard>,
-    /// Separate card served over `agent/getAuthenticatedExtendedCard`.
+    /// Separate card served over `GetExtendedAgentCard`.
     /// When `Some`, the public card advertises `supportsExtendedAgentCard:
     /// true` and this card is returned to authenticated callers.
     pub(super) extended_agent_card: Option<AgentCard>,

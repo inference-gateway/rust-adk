@@ -21,7 +21,7 @@ Compare to:
 default-handlers/
 ├── server/main.rs                 LLM agent + with_default_task_handlers(), no custom code
 ├── server/.well-known/agent.json  Agent metadata loaded at startup
-├── client/main.rs                 Single message/send + poll demo
+├── client/main.rs                 Single SendMessage + poll demo
 ├── docker-compose.yaml            Server + client + inference-gateway:latest
 ├── .env.example                   DEEPSEEK_API_KEY + provider/model overrides
 └── README.md

@@ -114,7 +114,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let response = client.send_message(user_message(prompt)).await?;
     let Some(task) = response.task else {
-        error!("server returned no task for message/send");
+        error!("server returned no task for SendMessage");
         return Ok(());
     };
     info!(

@@ -1,4 +1,4 @@
-//! `agent/getAuthenticatedExtendedCard` - fetch the authenticated extended
+//! `GetExtendedAgentCard` - fetch the authenticated extended
 //! [`AgentCard`] for the calling tenant.
 //!
 //! The example server advertises `supportsExtendedAgentCard: true` on its
@@ -44,7 +44,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     {
         Ok(extended_card) => {
             info!(
-                "agent/getAuthenticatedExtendedCard → name={:?} version={:?} skills={} description={:?}",
+                "GetExtendedAgentCard → name={:?} version={:?} skills={} description={:?}",
                 extended_card.name,
                 extended_card.version,
                 extended_card.skills.len(),
@@ -58,7 +58,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             // case - the example server opts in, so this branch should
             // not fire when running against `a2a-methods-server`.
             info!(
-                "agent/getAuthenticatedExtendedCard not available ({err}); \
+                "GetExtendedAgentCard not available ({err}); \
                  falling back to the unauthenticated card from /.well-known/agent.json"
             );
         }

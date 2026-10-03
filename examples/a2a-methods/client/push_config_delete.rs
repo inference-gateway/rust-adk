@@ -1,4 +1,4 @@
-//! `tasks/pushNotificationConfig/delete` - remove a push notification
+//! `DeleteTaskPushNotificationConfig` - remove a push notification
 //! configuration.
 //!
 //! ```bash
@@ -31,7 +31,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 message_id: Uuid::new_v4().to_string(),
                 metadata: None,
                 parts: vec![Part {
-                    text: Some("seed for pushNotificationConfig/delete".to_string()),
+                    text: Some("seed for DeleteTaskPushNotificationConfig".to_string()),
                     ..Default::default()
                 }],
                 reference_task_ids: vec![],
@@ -65,7 +65,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await?;
 
     info!(
-        "tasks/pushNotificationConfig/delete → removed {}/{config_id}",
+        "DeleteTaskPushNotificationConfig → removed {}/{config_id}",
         task.id
     );
 

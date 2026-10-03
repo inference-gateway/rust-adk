@@ -1,4 +1,4 @@
-//! `tasks/list` - page through stored tasks for a tenant.
+//! `ListTasks` - page through stored tasks for a tenant.
 //!
 //! Seeds a couple of tasks first so the response is non-empty.
 //!
@@ -63,7 +63,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await?;
 
     info!(
-        "tasks/list → returned {} tasks (total_size={}, next_page_token={:?})",
+        "ListTasks → returned {} tasks (total_size={}, next_page_token={:?})",
         listed.tasks.len(),
         listed.total_size,
         listed.next_page_token

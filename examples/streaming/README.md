@@ -11,7 +11,7 @@ display.
 streaming/
 ├── server/main.rs                 WordByWordStreamHandler
 ├── server/.well-known/agent.json  Agent metadata loaded at startup
-├── client/main.rs                 Consumes message/stream + prints per-event timestamps
+├── client/main.rs                 Consumes SendStreamingMessage + prints per-event timestamps
 ├── docker-compose.yaml            Server + client only (no inference-gateway)
 └── README.md
 ```
@@ -27,7 +27,7 @@ streaming/
   `last_chunk=true` on the final emit so the client knows the stream
   has ended.
 - The server also registers `with_default_background_task_handler()`
-  so `message/send` still works alongside (returns the built-in echo
+  so `SendMessage` still works alongside (returns the built-in echo
   reply because no agent is configured).
 
 Expected client log (≈ 9 words × 150ms ≈ 1.5s wall time):

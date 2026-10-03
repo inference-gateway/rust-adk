@@ -17,7 +17,7 @@ use std::sync::Arc;
 use tokio::sync::mpsc;
 use tracing::{Instrument, debug, warn};
 
-/// Handler invoked by the server for `message/send` requests.
+/// Handler invoked by the server for `SendMessage` requests.
 ///
 /// Implementations receive a freshly-built task (already in
 /// `TaskStateSubmitted`) plus the incoming user message, run the business
@@ -28,7 +28,7 @@ pub trait TaskHandler: Send + Sync + std::fmt::Debug {
     async fn handle_task(&self, task: Task, message: Option<A2AMessage>) -> Result<Task>;
 }
 
-/// Handler invoked by the server for `message/stream` requests.
+/// Handler invoked by the server for `SendStreamingMessage` requests.
 ///
 /// The server is responsible for parsing the request, persisting the initial
 /// `Submitted` task, and emitting the first event (the `Task` wrapper). The
@@ -38,7 +38,7 @@ pub trait TaskHandler: Send + Sync + std::fmt::Debug {
 /// callers will treat the stream as unterminated.
 #[async_trait::async_trait]
 pub trait StreamableTaskHandler: Send + Sync + std::fmt::Debug {
-    /// Drive a `message/stream` interaction.
+    /// Drive a `SendStreamingMessage` interaction.
     ///
     /// `task` is the freshly-built task already persisted in storage at
     /// `TaskStateSubmitted`. The handler should emit subsequent events
@@ -51,7 +51,7 @@ pub trait StreamableTaskHandler: Send + Sync + std::fmt::Debug {
     ) -> Result<()>;
 }
 
-/// Emits `StreamResponse` events into an active `message/stream` response and
+/// Emits `StreamResponse` events into an active `SendStreamingMessage` response and
 /// keeps the stored task in sync with the latest status.
 #[derive(Clone)]
 pub struct StreamEmitter {
@@ -277,7 +277,7 @@ impl StreamEmitter {
     /// Merge the accumulated usage/execution statistics from `tracker` into the
     /// stored task's `metadata` field. Streaming handlers call this once, just
     /// before emitting the terminal status update, so the persisted task
-    /// (returned by later `tasks/get` calls) carries the same `usage` /
+    /// (returned by later `GetTask` calls) carries the same `usage` /
     /// `execution_stats` blocks the background handler attaches.
     pub async fn populate_usage_metadata(&self, task_id: &str, tracker: &UsageTracker) {
         let usage = tracker.metadata();
@@ -575,7 +575,7 @@ async fn run_tool_loop(
     })
 }
 
-/// Opt-in default `message/send` handler wired up by
+/// Opt-in default `SendMessage` handler wired up by
 /// [`A2AServerBuilder::with_default_background_task_handler`] /
 /// [`A2AServerBuilder::with_default_task_handlers`].
 ///
@@ -671,7 +671,7 @@ impl TaskHandler for DefaultBackgroundTaskHandler {
     }
 }
 
-/// Opt-in default `message/stream` handler wired up by
+/// Opt-in default `SendStreamingMessage` handler wired up by
 /// [`A2AServerBuilder::with_default_streaming_task_handler`] /
 /// [`A2AServerBuilder::with_default_task_handlers`].
 ///
@@ -1350,7 +1350,7 @@ mod tests {
                 tenant: Some("tests".to_string()),
             })
             .await
-            .expect("message/send");
+            .expect("SendMessage");
 
         let submitted = response.task.expect("task in response");
         assert_eq!(submitted.status.state, TaskState::TaskStateSubmitted);
@@ -1385,8 +1385,8 @@ mod tests {
         runner.shutdown().await;
     }
 
-    /// Poll `tasks/get` until the task reaches a terminal state, with a
-    /// per-test timeout. Used by the queue-driven `message/send` tests
+    /// Poll `GetTask` until the task reaches a terminal state, with a
+    /// per-test timeout. Used by the queue-driven `SendMessage` tests
     /// that need to wait for the background worker to complete.
     async fn poll_until_terminal(client: &crate::A2AClient, task_id: &str) -> Task {
         for _ in 0..100 {
@@ -1397,7 +1397,7 @@ mod tests {
                     tenant: Some("tests".to_string()),
                 })
                 .await
-                .expect("tasks/get");
+                .expect("GetTask");
             if fetched.status.state.is_terminal() {
                 return fetched;
             }

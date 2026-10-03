@@ -252,7 +252,7 @@ Each example exposes a `-server` and `-client` task target. Run
 - `input-required` - `TaskStateInputRequired` flow (no LLM)
 - `default-handlers` - LLM agent with `with_default_task_handlers()`
 - `ai-powered` - LLM agent with custom function tools
-- `ai-powered-streaming` - LLM agent streamed over `message/stream`
+- `ai-powered-streaming` - LLM agent streamed over `SendStreamingMessage`
 
 For example: `task examples:minimal-server`, `task examples:minimal-client`.
 

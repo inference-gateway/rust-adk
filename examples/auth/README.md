@@ -2,7 +2,7 @@
 
 Demonstrates how the Rust ADK enforces bearer-token authentication on
 `POST /a2a` while keeping `GET /health` and `GET /.well-known/agent.json`
-public, and how `agent/getAuthenticatedExtendedCard` returns the extended
+public, and how `GetExtendedAgentCard` returns the extended
 agent card only to authenticated callers.
 
 ## What this shows
@@ -16,7 +16,7 @@ agent card only to authenticated callers.
   missing or malformed.
 - `GET /health` and `GET /.well-known/agent.json` remain reachable
   without a token.
-- `agent/getAuthenticatedExtendedCard` returns the agent card to
+- `GetExtendedAgentCard` returns the agent card to
   callers whose bearer token verifies successfully.
 
 ## Running locally with the static-token verifier (no Docker)
@@ -50,13 +50,13 @@ curl http://localhost:8080/.well-known/agent.json
 # Protected - 401 without a token
 curl -i http://localhost:8080/a2a \
   -H 'Content-Type: application/json' \
-  -d '{"jsonrpc":"2.0","id":"1","method":"agent/getAuthenticatedExtendedCard","params":{"tenant":"demo-tenant"}}'
+  -d '{"jsonrpc":"2.0","id":"1","method":"GetExtendedAgentCard","params":{"tenant":"demo-tenant"}}'
 
 # Protected - 200 with a valid token
 curl http://localhost:8080/a2a \
   -H 'Authorization: Bearer demo-token-123' \
   -H 'Content-Type: application/json' \
-  -d '{"jsonrpc":"2.0","id":"1","method":"agent/getAuthenticatedExtendedCard","params":{"tenant":"demo-tenant"}}'
+  -d '{"jsonrpc":"2.0","id":"1","method":"GetExtendedAgentCard","params":{"tenant":"demo-tenant"}}'
 ```
 
 ## Running with Docker Compose (Keycloak OIDC)
@@ -87,9 +87,9 @@ keycloak  | Imported realm inference-gateway-realm
 server    | enabling bearer-token auth on POST /a2a (issuer=http://keycloak:8080/realms/inference-gateway-realm)
 client    | → fetching client_credentials JWT from http://keycloak:8080/...
 client    | ← received access_token (1024 chars)
-client    | → calling agent/getAuthenticatedExtendedCard WITHOUT a token
+client    | → calling GetExtendedAgentCard WITHOUT a token
 client    | ← server replied 401 Unauthorized (expected 401)
-client    | → calling agent/getAuthenticatedExtendedCard WITH bearer token
+client    | → calling GetExtendedAgentCard WITH bearer token
 client    | ← server replied 200 OK
 client    | extended agent card: name=Auth-Gated Rust A2A Agent version=0.1.0
 ```

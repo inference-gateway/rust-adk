@@ -2,7 +2,7 @@ use inference_gateway_adk::{A2AServerBuilder, AgentBuilder, Config};
 use tracing::{error, info};
 
 /// `ai-powered-streaming` server: LLM agent attached, streaming over
-/// `message/stream` using the built-in `DefaultStreamingTaskHandler`,
+/// `SendStreamingMessage` using the built-in `DefaultStreamingTaskHandler`,
 /// which converts LLM delta chunks into `TaskArtifactUpdateEvent`s.
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

@@ -2,7 +2,7 @@
 //!
 //! Demonstrates that `GET /health` and `GET /.well-known/agent.json` are
 //! reachable without a token, while `POST /a2a` requires a bearer token.
-//! The `agent/getAuthenticatedExtendedCard` call is executed both with
+//! The `GetExtendedAgentCard` call is executed both with
 //! and without a token to show the contrast.
 //!
 //! Two modes share this binary:
@@ -93,11 +93,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let rpc_body = json!({
         "jsonrpc": "2.0",
         "id": "example-1",
-        "method": "agent/getAuthenticatedExtendedCard",
+        "method": "GetExtendedAgentCard",
         "params": { "tenant": "demo-tenant" }
     });
 
-    info!("→ calling agent/getAuthenticatedExtendedCard WITHOUT a token");
+    info!("→ calling GetExtendedAgentCard WITHOUT a token");
     let no_token_response = http.post(&rpc_url).json(&rpc_body).send().await?;
     info!(
         "← server replied {} (expected 401)",
@@ -106,7 +106,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // --- Protected endpoint: valid token → expect 200 + the card ------
 
-    info!("→ calling agent/getAuthenticatedExtendedCard WITH bearer token");
+    info!("→ calling GetExtendedAgentCard WITH bearer token");
     let response = http
         .post(&rpc_url)
         .bearer_auth(&bearer_token)

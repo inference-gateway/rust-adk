@@ -291,12 +291,12 @@ suggested learning path.
 
 - **[Default Handlers](./examples/default-handlers/)** - LLM agent + `with_default_task_handlers()`, no custom handler code
 - **[AI Powered](./examples/ai-powered/)** - LLM agent with custom function tools (weather, math, search)
-- **[AI Powered Streaming](./examples/ai-powered-streaming/)** - LLM agent streamed over `message/stream`
+- **[AI Powered Streaming](./examples/ai-powered-streaming/)** - LLM agent streamed over `SendStreamingMessage`
 - **[Usage Metadata](./examples/usage-metadata/)** - Default handlers attach token `usage` + `execution_stats` to `task.metadata` on terminal states
 
 **Storage & protocol coverage:**
 
-- **[Queue Storage](./examples/queue-storage/)** - Queue-driven `message/send` with in-memory or Redis storage (Compose profiles)
+- **[Queue Storage](./examples/queue-storage/)** - Queue-driven `SendMessage` with in-memory or Redis storage (Compose profiles)
 - **[A2A Methods](./examples/a2a-methods/)** - One client binary per JSON-RPC method exposed by the A2A spec
 - **[Auth](./examples/auth/)** - Bearer-token authentication on `POST /a2a` with public `/health` and `/.well-known/agent.json`
 - **[TLS / mTLS](./examples/tls/)** - TLS termination via `axum-server` + `rustls`, optional mTLS with client-cert subject as principal
@@ -358,7 +358,7 @@ let server = A2AServerBuilder::new()
     .build()
     .await?;
 
-// Server with a custom message/send (background) and message/stream handler
+// Server with a custom SendMessage (background) and SendStreamingMessage handler
 let server = A2AServerBuilder::new()
     .with_config(config)
     .with_agent_card_from_file(".well-known/agent.json", None)
@@ -379,8 +379,8 @@ Build A2A servers with custom configurations using a fluent interface. See
 | `with_agent(Agent)` | Attach an LLM-backed agent built via `AgentBuilder`. |
 | `with_agent_card(AgentCard)` / `with_agent_card_from_file(path, overrides)` | Configure the card served at `/.well-known/agent.json`. |
 | `with_storage(Arc<dyn Storage>)` | Swap the task store (`InMemoryStorage` default, `RedisStorage` behind the `redis` feature). |
-| `with_background_task_handler(h)` | Custom `message/send` handler. |
-| `with_streaming_task_handler(h)` | Custom `message/stream` handler. |
+| `with_background_task_handler(h)` | Custom `SendMessage` handler. |
+| `with_streaming_task_handler(h)` | Custom `SendStreamingMessage` handler. |
 | `with_default_task_handlers()` | Wire in the LLM-backed defaults for both. |
 | `with_workers(n)` | Number of queue workers to spawn. |
 | `with_auth_verifier(v)` | Plug in a custom `AuthVerifier` (overrides `A2A_AUTH_ENABLED`). |
@@ -460,20 +460,20 @@ binary per method.
 
 | Method                                        | `A2AClient` helper                          | Request type                                  | Response type                            |
 | --------------------------------------------- | ------------------------------------------- | --------------------------------------------- | ---------------------------------------- |
-| `message/send`                                | `send_message`                              | `SendMessageRequest`                          | `SendMessageResponse`                    |
-| `message/stream`                              | `stream_message`                            | `SendMessageRequest`                          | `Stream<StreamResponse>` (SSE)           |
-| `message/stream` (drained)                    | `send_streaming_message`                    | `SendMessageRequest`                          | `SendMessageResponse`                    |
-| `tasks/get`                                   | `get_task`                                  | `GetTaskRequest`                              | `Task`                                   |
-| `tasks/list`                                  | `list_tasks`                                | `ListTasksRequest`                            | `ListTasksResponse`                      |
-| `tasks/cancel`                                | `cancel_task`                               | `CancelTaskRequest`                           | `Task`                                   |
-| `tasks/resubscribe`                           | `resubscribe_task`                          | `SubscribeToTaskRequest`                      | `Stream<StreamResponse>` (SSE)           |
-| `tasks/pushNotificationConfig/set`            | `set_task_push_notification_config`         | `TaskPushNotificationConfig`                  | `TaskPushNotificationConfig`             |
-| `tasks/pushNotificationConfig/get`            | `get_task_push_notification_config`         | `GetTaskPushNotificationConfigRequest`        | `TaskPushNotificationConfig`             |
-| `tasks/pushNotificationConfig/list`           | `list_task_push_notification_configs`       | `ListTaskPushNotificationConfigsRequest`      | `ListTaskPushNotificationConfigsResponse` |
-| `tasks/pushNotificationConfig/delete`         | `delete_task_push_notification_config`      | `DeleteTaskPushNotificationConfigRequest`     | `serde_json::Value`                      |
-| `agent/getAuthenticatedExtendedCard`          | `get_authenticated_extended_card`           | `GetExtendedAgentCardRequest`                 | `AgentCard`                              |
+| `SendMessage`                                | `send_message`                              | `SendMessageRequest`                          | `SendMessageResponse`                    |
+| `SendStreamingMessage`                              | `stream_message`                            | `SendMessageRequest`                          | `Stream<StreamResponse>` (SSE)           |
+| `SendStreamingMessage` (drained)                    | `send_streaming_message`                    | `SendMessageRequest`                          | `SendMessageResponse`                    |
+| `GetTask`                                   | `get_task`                                  | `GetTaskRequest`                              | `Task`                                   |
+| `ListTasks`                                  | `list_tasks`                                | `ListTasksRequest`                            | `ListTasksResponse`                      |
+| `CancelTask`                                | `cancel_task`                               | `CancelTaskRequest`                           | `Task`                                   |
+| `SubscribeToTask`                           | `resubscribe_task`                          | `SubscribeToTaskRequest`                      | `Stream<StreamResponse>` (SSE)           |
+| `CreateTaskPushNotificationConfig`            | `set_task_push_notification_config`         | `TaskPushNotificationConfig`                  | `TaskPushNotificationConfig`             |
+| `GetTaskPushNotificationConfig`            | `get_task_push_notification_config`         | `GetTaskPushNotificationConfigRequest`        | `TaskPushNotificationConfig`             |
+| `ListTaskPushNotificationConfigs`           | `list_task_push_notification_configs`       | `ListTaskPushNotificationConfigsRequest`      | `ListTaskPushNotificationConfigsResponse` |
+| `DeleteTaskPushNotificationConfig`         | `delete_task_push_notification_config`      | `DeleteTaskPushNotificationConfigRequest`     | `serde_json::Value`                      |
+| `GetExtendedAgentCard`          | `get_authenticated_extended_card`           | `GetExtendedAgentCardRequest`                 | `AgentCard`                              |
 
-###### `message/send`
+###### `SendMessage`
 
 ```rust
 use inference_gateway_adk::a2a_types::{Message, Part, Role, SendMessageRequest};
@@ -490,7 +490,7 @@ let response = client
                 data: None,
                 file: None,
                 metadata: None,
-                text: Some("Hello via message/send".to_string()),
+                text: Some("Hello via SendMessage".to_string()),
             }],
             reference_task_ids: vec![],
             role: Role::RoleUser,
@@ -504,9 +504,9 @@ let response = client
 let task = response.task.expect("server returned a task");
 ```
 
-###### `message/stream`
+###### `SendStreamingMessage`
 
-Same request shape as `message/send`. `stream_message` opens a real
+Same request shape as `SendMessage`. `stream_message` opens a real
 server-sent events stream and yields a `Result<StreamResponse>` per event as
 it arrives - the first event typically carries the freshly created `Task` in
 `Submitted`, later events are `TaskStatusUpdateEvent` /
@@ -525,14 +525,14 @@ while let Some(event) = stream.next().await {
 
 `send_streaming_message` drains that same SSE stream and assembles a single
 `SendMessageResponse` from the last task seen plus the final agent message -
-use it when you prefer a `message/send`-shaped result and do not care about
+use it when you prefer a `SendMessage`-shaped result and do not care about
 intermediate state transitions.
 
 ```rust
 let response = client.send_streaming_message(request).await?;
 ```
 
-###### `tasks/get`
+###### `GetTask`
 
 ```rust
 use inference_gateway_adk::a2a_types::GetTaskRequest;
@@ -546,7 +546,7 @@ let task = client
     .await?;
 ```
 
-###### `tasks/list`
+###### `ListTasks`
 
 ```rust
 use inference_gateway_adk::a2a_types::{ListTasksRequest, TaskState};
@@ -565,7 +565,7 @@ let page = client
     .await?;
 ```
 
-###### `tasks/cancel`
+###### `CancelTask`
 
 ```rust
 use inference_gateway_adk::a2a_types::CancelTaskRequest;
@@ -578,7 +578,7 @@ let cancelled = client
     .await?;
 ```
 
-###### `tasks/resubscribe`
+###### `SubscribeToTask`
 
 Re-attach to an already-running task and stream subsequent state
 transitions over SSE. The first event carries a snapshot of the task at
@@ -609,7 +609,7 @@ while let Some(event) = stream.next().await {
 }
 ```
 
-###### `tasks/pushNotificationConfig/set`
+###### `CreateTaskPushNotificationConfig`
 
 ```rust
 use inference_gateway_adk::a2a_types::TaskPushNotificationConfig;
@@ -626,7 +626,7 @@ client
     .await?;
 ```
 
-###### `tasks/pushNotificationConfig/get`
+###### `GetTaskPushNotificationConfig`
 
 ```rust
 use inference_gateway_adk::a2a_types::GetTaskPushNotificationConfigRequest;
@@ -640,7 +640,7 @@ let cfg = client
     .await?;
 ```
 
-###### `tasks/pushNotificationConfig/list`
+###### `ListTaskPushNotificationConfigs`
 
 ```rust
 use inference_gateway_adk::a2a_types::ListTaskPushNotificationConfigsRequest;
@@ -655,7 +655,7 @@ let listed = client
     .await?;
 ```
 
-###### `tasks/pushNotificationConfig/delete`
+###### `DeleteTaskPushNotificationConfig`
 
 ```rust
 use inference_gateway_adk::a2a_types::DeleteTaskPushNotificationConfigRequest;
@@ -669,7 +669,7 @@ client
     .await?;
 ```
 
-###### `agent/getAuthenticatedExtendedCard`
+###### `GetExtendedAgentCard`
 
 Fetch the authenticated extended [`AgentCard`] for the calling tenant. The
 handler has three outcomes:
@@ -982,8 +982,8 @@ return value is appended to the conversation as a tool message. See
 ### Custom Task Handlers
 
 The server's two extension points for task execution are the `TaskHandler`
-trait (for `message/send`) and `StreamableTaskHandler` (for
-`message/stream`). The defaults wired in by
+trait (for `SendMessage`) and `StreamableTaskHandler` (for
+`SendStreamingMessage`). The defaults wired in by
 `A2AServerBuilder::with_default_task_handlers()` delegate to the
 registered `Agent`; override either trait to plug in custom logic:
 
@@ -1055,10 +1055,10 @@ for `TaskStateInputRequired` flows see [`examples/input-required/`](./examples/i
 A2A servers persist per-task webhook configurations through four JSON-RPC
 methods on `A2AClient`:
 
-- `tasks/pushNotificationConfig/set` - `client.set_task_push_notification_config(...)`
-- `tasks/pushNotificationConfig/get` - `client.get_task_push_notification_config(...)`
-- `tasks/pushNotificationConfig/list` - `client.list_task_push_notification_configs(...)`
-- `tasks/pushNotificationConfig/delete` - `client.delete_task_push_notification_config(...)`
+- `CreateTaskPushNotificationConfig` - `client.set_task_push_notification_config(...)`
+- `GetTaskPushNotificationConfig` - `client.get_task_push_notification_config(...)`
+- `ListTaskPushNotificationConfigs` - `client.list_task_push_notification_configs(...)`
+- `DeleteTaskPushNotificationConfig` - `client.delete_task_push_notification_config(...)`
 
 Each call uses the typed structs from
 [`inference_gateway_adk::a2a_types`](src/a2a_types.rs) and is exercised by a
@@ -1220,7 +1220,7 @@ is a future no-op behind a feature flag rather than a breaking change.
 
 **Behaviour when `A2A_AUTH_ENABLED=false`** - the middleware is not attached,
 so `POST /a2a` is reachable without a credential and
-`agent/getAuthenticatedExtendedCard` behaves exactly as it does with auth on:
+`GetExtendedAgentCard` behaves exactly as it does with auth on:
 it returns JSON-RPC `-32004 UnsupportedOperation` unless the public card
 advertises `capabilities.extendedAgentCard: true`, `-32007` when the flag is set
 but no extended card is configured, and otherwise the card registered with
@@ -1419,7 +1419,7 @@ When an LLM agent is wired in via `with_default_task_handlers()`, the
 bundled handlers can tally token usage and agent-loop statistics across a
 task's lifetime and attach them to `task.metadata` on the **terminal**
 transition (`completed` / `failed` / `cancelled`) - never mid-flight. Both
-the background (`message/send`) and streaming (`message/stream`) default
+the background (`SendMessage`) and streaming (`SendStreamingMessage`) default
 handlers emit the same two blocks:
 
 ```jsonc

@@ -46,7 +46,7 @@ Expected client log:
 
 ## Note on the resume path
 
-In the current rust-adk, `message/send` always creates a new task,
+In the current rust-adk, `SendMessage` always creates a new task,
 even when the request carries an existing `task_id`. That means the
 "second send resumes the paused task" flow demonstrated by some other
 A2A implementations is not yet wired here - the `TaskStateInputRequired`

@@ -1,9 +1,10 @@
 use crate::a2a_types::{
-    AgentCard, CancelTaskRequest, DeleteTaskPushNotificationConfigRequest,
+    A2aMethod, AgentCard, CancelTaskRequest, DeleteTaskPushNotificationConfigRequest,
     GetExtendedAgentCardRequest, GetTaskPushNotificationConfigRequest, GetTaskRequest,
-    ListTaskPushNotificationConfigsRequest, ListTaskPushNotificationConfigsResponse,
-    ListTasksRequest, ListTasksResponse, SendMessageRequest, SendMessageResponse, StreamResponse,
-    SubscribeToTaskRequest, Task, TaskPushNotificationConfig,
+    JsonrpcRequest, ListTaskPushNotificationConfigsRequest,
+    ListTaskPushNotificationConfigsResponse, ListTasksRequest, ListTasksResponse,
+    SendMessageRequest, SendMessageResponse, StreamResponse, Struct, SubscribeToTaskRequest, Task,
+    TaskPushNotificationConfig,
 };
 use crate::config::ClientConfig;
 use anyhow::{Result, anyhow};
@@ -125,7 +126,7 @@ impl A2AClient {
     /// custom payloads and for examples.
     pub async fn send_task(&self, params: serde_json::Value) -> Result<serde_json::Value> {
         debug!("Posting JSON-RPC envelope to A2A server");
-        self.post_raw(params).await
+        self.post_raw(&params).await
     }
 
     /// Send a request and stream the response back through `event_handler`.
@@ -152,13 +153,13 @@ impl A2AClient {
     // Typed JSON-RPC methods (one per A2A specification method)
     // -------------------------------------------------------------------
 
-    /// `message/send` - dispatch a message and return the resulting task /
+    /// `SendMessage` - dispatch a message and return the resulting task /
     /// agent response.
     pub async fn send_message(&self, params: SendMessageRequest) -> Result<SendMessageResponse> {
-        self.call_typed("message/send", params).await
+        self.call_typed(A2aMethod::SendMessage, params).await
     }
 
-    /// `message/stream` - open an SSE stream and yield each
+    /// `SendStreamingMessage` - open an SSE stream and yield each
     /// [`StreamResponse`] event as it arrives.
     ///
     /// The first event typically carries the freshly-created `Task` in
@@ -169,10 +170,11 @@ impl A2AClient {
         &self,
         params: SendMessageRequest,
     ) -> Result<impl Stream<Item = Result<StreamResponse>> + Send + 'static> {
-        self.call_streaming("message/stream", params).await
+        self.call_streaming(A2aMethod::SendStreamingMessage, params)
+            .await
     }
 
-    /// `tasks/resubscribe` - re-attach to an existing task by `tasks/{task_id}`
+    /// `SubscribeToTask` - re-attach to an existing task by `tasks/{task_id}`
     /// resource name and stream subsequent state transitions over SSE.
     ///
     /// The first event carries a snapshot of the task as currently
@@ -184,13 +186,14 @@ impl A2AClient {
         &self,
         params: SubscribeToTaskRequest,
     ) -> Result<impl Stream<Item = Result<StreamResponse>> + Send + 'static> {
-        self.call_streaming("tasks/resubscribe", params).await
+        self.call_streaming(A2aMethod::SubscribeToTask, params)
+            .await
     }
 
-    /// `message/stream` - drain the SSE stream and return a single
+    /// `SendStreamingMessage` - drain the SSE stream and return a single
     /// [`SendMessageResponse`] assembled from the last task seen and the
     /// final agent message (if any). Kept for callers that prefer a
-    /// `message/send`-shaped response; use [`A2AClient::stream_message`]
+    /// `SendMessage`-shaped response; use [`A2AClient::stream_message`]
     /// when you want to observe state transitions as they happen.
     pub async fn send_streaming_message(
         &self,
@@ -227,62 +230,62 @@ impl A2AClient {
         })
     }
 
-    /// `tasks/get` - fetch a stored task by resource name (`tasks/{task_id}`).
+    /// `GetTask` - fetch a stored task by resource name (`tasks/{task_id}`).
     pub async fn get_task(&self, params: GetTaskRequest) -> Result<Task> {
-        self.call_typed("tasks/get", params).await
+        self.call_typed(A2aMethod::GetTask, params).await
     }
 
-    /// `tasks/list` - page through stored tasks.
+    /// `ListTasks` - page through stored tasks.
     pub async fn list_tasks(&self, params: ListTasksRequest) -> Result<ListTasksResponse> {
-        self.call_typed("tasks/list", params).await
+        self.call_typed(A2aMethod::ListTasks, params).await
     }
 
-    /// `tasks/cancel` - request cancellation of a stored task.
+    /// `CancelTask` - request cancellation of a stored task.
     pub async fn cancel_task(&self, params: CancelTaskRequest) -> Result<Task> {
-        self.call_typed("tasks/cancel", params).await
+        self.call_typed(A2aMethod::CancelTask, params).await
     }
 
-    /// `tasks/pushNotificationConfig/set` - create/replace a push
+    /// `CreateTaskPushNotificationConfig` - create/replace a push
     /// notification configuration for a task.
     pub async fn set_task_push_notification_config(
         &self,
         params: TaskPushNotificationConfig,
     ) -> Result<TaskPushNotificationConfig> {
-        self.call_typed("tasks/pushNotificationConfig/set", params)
+        self.call_typed(A2aMethod::CreateTaskPushNotificationConfig, params)
             .await
     }
 
-    /// `tasks/pushNotificationConfig/get` - fetch a push notification
+    /// `GetTaskPushNotificationConfig` - fetch a push notification
     /// configuration by resource name.
     pub async fn get_task_push_notification_config(
         &self,
         params: GetTaskPushNotificationConfigRequest,
     ) -> Result<TaskPushNotificationConfig> {
-        self.call_typed("tasks/pushNotificationConfig/get", params)
+        self.call_typed(A2aMethod::GetTaskPushNotificationConfig, params)
             .await
     }
 
-    /// `tasks/pushNotificationConfig/list` - list push notification configs
+    /// `ListTaskPushNotificationConfigs` - list push notification configs
     /// belonging to a parent task.
     pub async fn list_task_push_notification_configs(
         &self,
         params: ListTaskPushNotificationConfigsRequest,
     ) -> Result<ListTaskPushNotificationConfigsResponse> {
-        self.call_typed("tasks/pushNotificationConfig/list", params)
+        self.call_typed(A2aMethod::ListTaskPushNotificationConfigs, params)
             .await
     }
 
-    /// `tasks/pushNotificationConfig/delete` - remove a push notification
+    /// `DeleteTaskPushNotificationConfig` - remove a push notification
     /// configuration.
     pub async fn delete_task_push_notification_config(
         &self,
         params: DeleteTaskPushNotificationConfigRequest,
     ) -> Result<Value> {
-        self.call_typed("tasks/pushNotificationConfig/delete", params)
+        self.call_typed(A2aMethod::DeleteTaskPushNotificationConfig, params)
             .await
     }
 
-    /// `agent/getAuthenticatedExtendedCard` - fetch the authenticated
+    /// `GetExtendedAgentCard` - fetch the authenticated
     /// extended [`AgentCard`] for the calling tenant.
     ///
     /// The server returns the separate card registered with
@@ -294,7 +297,7 @@ impl A2AClient {
         &self,
         params: GetExtendedAgentCardRequest,
     ) -> Result<AgentCard> {
-        self.call_typed("agent/getAuthenticatedExtendedCard", params)
+        self.call_typed(A2aMethod::GetExtendedAgentCard, params)
             .await
     }
 
@@ -307,21 +310,13 @@ impl A2AClient {
     /// [`A2AClient::stream_message`] and [`A2AClient::resubscribe_task`].
     async fn call_streaming<P>(
         &self,
-        method: &str,
+        method: A2aMethod,
         params: P,
     ) -> Result<impl Stream<Item = Result<StreamResponse>> + Send + 'static>
     where
         P: Serialize,
     {
-        let params_value = serde_json::to_value(params)
-            .map_err(|e| anyhow!("failed to serialize params for {method}: {e}"))?;
-
-        let envelope = serde_json::json!({
-            "jsonrpc": "2.0",
-            "id": Uuid::new_v4().to_string(),
-            "method": method,
-            "params": params_value,
-        });
+        let envelope = jsonrpc_request(method, params)?;
 
         let url = format!("{}/a2a", self.base_url);
         let response = self
@@ -402,12 +397,12 @@ impl A2AClient {
         Ok(stream)
     }
 
-    async fn post_raw(&self, body: Value) -> Result<Value> {
+    async fn post_raw(&self, body: &impl Serialize) -> Result<Value> {
         let url = format!("{}/a2a", self.base_url);
         let response = self
             .http_client
             .post(&url)
-            .json(&body)
+            .json(body)
             .send()
             .await
             .map_err(|e| anyhow!("Task request failed: {}", e))?;
@@ -424,22 +419,12 @@ impl A2AClient {
         Ok(body)
     }
 
-    async fn call_typed<P, R>(&self, method: &str, params: P) -> Result<R>
+    async fn call_typed<P, R>(&self, method: A2aMethod, params: P) -> Result<R>
     where
         P: Serialize,
         R: DeserializeOwned,
     {
-        let params_value = serde_json::to_value(params)
-            .map_err(|e| anyhow!("failed to serialize params for {method}: {e}"))?;
-
-        let envelope = serde_json::json!({
-            "jsonrpc": "2.0",
-            "id": Uuid::new_v4().to_string(),
-            "method": method,
-            "params": params_value,
-        });
-
-        let response = self.post_raw(envelope).await?;
+        let response = self.post_raw(&jsonrpc_request(method, params)?).await?;
 
         if let Some(err) = response.get("error").cloned() {
             return Err(anyhow!("JSON-RPC error for {method}: {err}"));
@@ -453,6 +438,21 @@ impl A2AClient {
         serde_json::from_value(result)
             .map_err(|e| anyhow!("failed to deserialize result for {method}: {e}"))
     }
+}
+
+/// Builds the JSON-RPC request envelope for `method`, carrying `params` as its JSON object.
+fn jsonrpc_request<P: Serialize>(method: A2aMethod, params: P) -> Result<JsonrpcRequest> {
+    let params: Struct = serde_json::to_value(params)
+        .and_then(serde_json::from_value)
+        .map_err(|e| anyhow!("failed to serialize params for {method}: {e}"))?;
+    Ok(JsonrpcRequest {
+        id: Some(crate::a2a_types::Value(Value::String(
+            Uuid::new_v4().to_string(),
+        ))),
+        jsonrpc: "2.0".to_string(),
+        method,
+        params: Some(params),
+    })
 }
 
 #[cfg(test)]

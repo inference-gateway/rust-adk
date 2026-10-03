@@ -2,7 +2,7 @@
 
 A2A server backed by an LLM agent with three custom tools (`get_current_weather`,
 `calculate_math`, `search_web`) registered through `AgentBuilder::with_toolbox()`.
-The client sends two prompts via `message/send` and polls each task to terminal.
+The client sends two prompts via `SendMessage` and polls each task to terminal.
 
 For the streaming variant of the same server shape, see
 [`../ai-powered-streaming`](../ai-powered-streaming).
@@ -13,7 +13,7 @@ For the streaming variant of the same server shape, see
 ai-powered/
 ├── server/main.rs                 LLM agent + sync/async function tools
 ├── server/.well-known/agent.json  Agent metadata loaded at startup
-├── client/main.rs                 Two-prompt demo via message/send + poll
+├── client/main.rs                 Two-prompt demo via SendMessage + poll
 ├── docker-compose.yaml            Server + client + inference-gateway:latest
 ├── .env.example                   DEEPSEEK_API_KEY + provider/model overrides
 └── README.md
