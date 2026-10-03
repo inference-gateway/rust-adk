@@ -116,6 +116,7 @@ members = [
     "examples/a2a-methods/client",
     "examples/mcp/server",
     "examples/mcp/client",
+    "examples/tck-sut",
 ]
 
 [workspace.dependencies]

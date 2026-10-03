@@ -39,3 +39,39 @@ jobs:
 
       - name: Run tests
         run: cargo test --verbose
+
+  tck:
+    runs-on: ubuntu-24.04
+    name: TCK
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - name: Checkout A2A TCK
+        uses: actions/checkout@v7.0.1
+        with:
+          repository: a2aproject/a2a-tck
+          ref: 263b9cfaf16a554bdfb166a7ba5b67716e946349
+          path: a2a-tck
+          persist-credentials: false
+
+      - name: Install Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v2.0.0
+        with:
+          toolchain: 1.95.0
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.2.0
+
+      - name: Start TCK system under test
+        run: |
+          cargo build -p tck-sut
+          ./target/debug/tck-sut &
+          curl -sf --retry 30 --retry-connrefused --retry-delay 1 http://localhost:9999/health
+
+      - name: Run TCK (JSON-RPC)
+        working-directory: a2a-tck
+        run: >-
+          uv run ./run_tck.py --sut-host http://localhost:9999 --transport jsonrpc --
+          --deselect tests/compatibility/agent_card/test_agent_card_caching.py
+          --deselect tests/compatibility/core_operations/test_artifacts.py
+          --deselect tests/compatibility/core_operations/test_push_notifications.py::TestPushNotificationDelivery

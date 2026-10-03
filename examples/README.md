@@ -48,6 +48,7 @@ override via `.env` to use any other provider supported by the gateway
 |---|---|
 | [`queue-storage/`](./queue-storage) | Queue-driven `SendMessage` with in-memory or Redis storage (compose profile) |
 | [`a2a-methods/`](./a2a-methods) | One client binary per JSON-RPC method exposed by the A2A spec |
+| [`tck-sut/`](./tck-sut) | Server implementing the A2A TCK scenarios; CI runs the TCK against it |
 
 ### Artifacts
 
