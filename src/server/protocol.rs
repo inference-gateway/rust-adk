@@ -351,6 +351,36 @@ fn build_task_from_request(req: &SendMessageRequest) -> Task {
     }
 }
 
+/// Why a `SendMessage` naming an existing `taskId` cannot continue it: a terminal task
+/// accepts no more input (A2A spec 3.1) and a `contextId` must match the task's own
+/// (spec 3.4.3).
+fn continuation_rejection(
+    task: &Task,
+    message: &crate::a2a_types::Message,
+) -> Option<(i64, &'static str, String)> {
+    if task.status.state.is_terminal() {
+        return Some((
+            jsonrpc_errors::UNSUPPORTED_OPERATION,
+            "Unsupported operation",
+            format!(
+                "task {} is in terminal state {:?} and cannot accept more messages",
+                task.id, task.status.state
+            ),
+        ));
+    }
+    let context_id = message.context_id.as_deref()?;
+    (context_id != task.context_id_str()).then(|| {
+        (
+            jsonrpc_errors::INVALID_PARAMS,
+            "Invalid params",
+            format!(
+                "`message.contextId` {context_id} does not match the contextId of task {}",
+                task.id
+            ),
+        )
+    })
+}
+
 /// Appends `message` to an existing task and re-submits it, so a `SendMessage` naming a
 /// `taskId` continues that task (for example answering an `input-required` one).
 fn continue_task(mut task: Task, message: &crate::a2a_types::Message) -> Task {
@@ -458,7 +488,14 @@ async fn handle_message_send(state: &Arc<AppState>, id: Value, params: Value) ->
 
     let existing = match request.message.task_id.as_deref() {
         Some(task_id) => match state.server.storage.get_task(task_id).await {
-            Some(task) => Some(task),
+            Some(task) => {
+                if let Some((code, message, detail)) =
+                    continuation_rejection(&task, &request.message)
+                {
+                    return json_rpc_error(id, code, message, Some(Value::String(detail)));
+                }
+                Some(task)
+            }
             None => {
                 return json_rpc_error(
                     id,
@@ -470,35 +507,6 @@ async fn handle_message_send(state: &Arc<AppState>, id: Value, params: Value) ->
         },
         None => None,
     };
-
-    if let Some(task) = existing.as_ref() {
-        if task.status.state.is_terminal() {
-            return json_rpc_error(
-                id,
-                jsonrpc_errors::UNSUPPORTED_OPERATION,
-                "Task cannot accept more messages in its current state",
-                Some(Value::String(format!(
-                    "task {:?} is in terminal state {:?}",
-                    task.id, task.status.state
-                ))),
-            );
-        }
-        // A contextId sent alongside a taskId must match the referenced task's
-        // (A2A spec 3.4.3).
-        if let Some(context_id) = request.message.context_id.as_deref()
-            && context_id != task.context_id_str()
-        {
-            return invalid_params_message(
-                id,
-                format!(
-                    "`message.contextId` {:?} does not match the contextId {:?} of task {:?}",
-                    context_id,
-                    task.context_id_str(),
-                    task.id
-                ),
-            );
-        }
-    }
 
     let Some(handler) = state.server.background_task_handler.as_ref() else {
         return json_rpc_error(
@@ -928,14 +936,14 @@ async fn handle_list_push_configs(state: &Arc<AppState>, id: Value, params: Valu
     }
 }
 
+/// Deleting a push notification config is idempotent (A2A spec 3.11): an unknown
+/// `(taskId, id)` pair succeeds too.
 async fn handle_delete_push_config(state: &Arc<AppState>, id: Value, params: Value) -> Json<Value> {
     let request: DeleteTaskPushNotificationConfigRequest = match serde_json::from_value(params) {
         Ok(r) => r,
         Err(e) => return invalid_params(id, e),
     };
 
-    // Deleting a config that is already gone succeeds: the method is idempotent
-    // (A2A spec 3.11).
     state
         .server
         .storage
@@ -980,10 +988,10 @@ async fn handle_tasks_resubscribe(state: Arc<AppState>, id: Value, params: Value
         return json_rpc_error(
             id,
             jsonrpc_errors::UNSUPPORTED_OPERATION,
-            "Task cannot be subscribed to in its current state",
+            "Unsupported operation",
             Some(Value::String(format!(
-                "task {:?} is in terminal state {:?}; there is nothing left to stream",
-                task_id, task.status.state
+                "task {name} is in terminal state {:?}; there is nothing left to stream",
+                task.status.state
             ))),
         )
         .into_response();
@@ -1485,10 +1493,13 @@ mod tests {
         addr
     }
 
-    /// Resubscribing to a task that is already terminal is rejected: there is
-    /// nothing left to stream (A2A spec 3.16).
+    /// Resubscribing to a task that already reached a terminal state is rejected
+    /// (A2A spec 3.1.6 / TCK STREAM-SUB-003).
     #[tokio::test]
     async fn resubscribe_rejects_terminal_task() {
+        use crate::A2AClient;
+        use crate::a2a_types::SubscribeToTaskRequest;
+
         let server = A2AServerBuilder::new()
             .with_agent_card(minimal_agent_card_for_resubscribe())
             .with_default_streaming_task_handler()
@@ -1521,25 +1532,20 @@ mod tests {
             .expect("dead-letter");
 
         let addr = spawn_test_server(server).await;
-        let response: Value = reqwest::Client::new()
-            .post(format!("http://{addr}/a2a"))
-            .json(&json!({
-                "jsonrpc": "2.0",
-                "id": "sub-1",
-                "method": "SubscribeToTask",
-                "params": {"id": task_id},
-            }))
-            .send()
-            .await
-            .expect("request sent")
-            .json()
-            .await
-            .expect("json body");
+        let client = A2AClient::new(format!("http://{addr}")).expect("client");
 
-        assert_eq!(response["error"]["code"], -32004, "{response}");
-        assert_eq!(
-            response["error"]["data"][0]["reason"],
-            "UNSUPPORTED_OPERATION"
+        let err = client
+            .resubscribe_task(SubscribeToTaskRequest {
+                id: task_id.to_string(),
+                tenant: Some("tests".to_string()),
+            })
+            .await
+            .err()
+            .expect("resubscribe against a terminal task must error");
+        let message = err.to_string();
+        assert!(
+            message.contains("Unsupported operation") || message.contains("-32004"),
+            "expected UNSUPPORTED_OPERATION error, got: {message}"
         );
     }
 
@@ -1946,12 +1952,16 @@ mod tests {
     }
 
     async fn send_message(addr: std::net::SocketAddr, params: Value) -> Value {
+        rpc(addr, "SendMessage", params).await
+    }
+
+    async fn rpc(addr: std::net::SocketAddr, method: &str, params: Value) -> Value {
         reqwest::Client::new()
             .post(format!("http://{addr}/a2a"))
             .json(&json!({
                 "jsonrpc": "2.0",
-                "id": "send-1",
-                "method": "SendMessage",
+                "id": "rpc-1",
+                "method": method,
                 "params": params,
             }))
             .send()
@@ -2038,6 +2048,118 @@ mod tests {
             response["result"]["task"]["status"]["state"],
             "TASK_STATE_SUBMITTED"
         );
+        runner.shutdown().await;
+    }
+
+    #[tokio::test]
+    async fn delete_push_config_is_idempotent() {
+        let (addr, _storage, runner) = spawn_settling_server().await;
+
+        let created = send_message(
+            addr,
+            json!({
+                "message": {
+                    "messageId": "input-4",
+                    "role": "ROLE_USER",
+                    "parts": [{"text": "need input"}],
+                },
+                "configuration": {
+                    "taskPushNotificationConfig": {"id": "hook-1", "url": "http://localhost/hook"},
+                },
+            }),
+        )
+        .await;
+        let task_id = created["result"]["task"]["id"]
+            .as_str()
+            .expect("task id")
+            .to_string();
+
+        let params = json!({"taskId": task_id, "id": "hook-1"});
+        for attempt in 1..=2 {
+            let response = rpc(addr, "DeleteTaskPushNotificationConfig", params.clone()).await;
+            assert!(
+                response["error"].is_null(),
+                "delete attempt {attempt} must succeed: {response}"
+            );
+        }
+
+        runner.shutdown().await;
+    }
+
+    #[tokio::test]
+    async fn send_message_rejects_terminal_tasks_and_mismatching_contexts() {
+        let (addr, _storage, runner) = spawn_settling_server().await;
+
+        let interrupted = send_message(
+            addr,
+            json!({
+                "message": {
+                    "messageId": "input-3",
+                    "role": "ROLE_USER",
+                    "parts": [{"text": "need input"}],
+                },
+            }),
+        )
+        .await;
+        let task_id = interrupted["result"]["task"]["id"]
+            .as_str()
+            .expect("task id")
+            .to_string();
+
+        let mismatched = send_message(
+            addr,
+            json!({
+                "message": {
+                    "messageId": "answer-3",
+                    "role": "ROLE_USER",
+                    "parts": [{"text": "wrong context"}],
+                    "taskId": task_id,
+                    "contextId": "not-the-tasks-context",
+                },
+            }),
+        )
+        .await;
+        assert_eq!(
+            mismatched["error"]["code"],
+            jsonrpc_errors::INVALID_PARAMS,
+            "a mismatching contextId is rejected: {mismatched}"
+        );
+
+        let completed = send_message(
+            addr,
+            json!({
+                "message": {
+                    "messageId": "answer-4",
+                    "role": "ROLE_USER",
+                    "parts": [{"text": "here it is"}],
+                    "taskId": task_id,
+                },
+            }),
+        )
+        .await;
+        assert_eq!(
+            completed["result"]["task"]["status"]["state"],
+            "TASK_STATE_COMPLETED"
+        );
+
+        let after_terminal = send_message(
+            addr,
+            json!({
+                "message": {
+                    "messageId": "answer-5",
+                    "role": "ROLE_USER",
+                    "parts": [{"text": "too late"}],
+                    "taskId": task_id,
+                },
+            }),
+        )
+        .await;
+        assert_eq!(
+            after_terminal["error"]["code"],
+            jsonrpc_errors::UNSUPPORTED_OPERATION,
+            "a terminal task accepts no more messages: {after_terminal}"
+        );
+
         runner.shutdown().await;
     }
 
