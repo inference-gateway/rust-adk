@@ -257,6 +257,9 @@ mod de {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Config {
+    /// URL this agent advertises in `supportedInterfaces[0].url`. Empty (the
+    /// default) falls back to the agent card's own URL, and then to
+    /// `http(s)://localhost:<server_port>/a2a`.
     pub agent_url: String,
 
     pub debug: bool,
@@ -766,7 +769,7 @@ pub struct ArtifactRetentionConfig {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            agent_url: "http://helloworld-agent:8080".to_string(),
+            agent_url: String::new(),
             debug: false,
             streaming_status_update_interval_secs: 1,
             agent_config: AgentConfig::default(),

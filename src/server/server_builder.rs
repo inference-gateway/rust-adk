@@ -209,6 +209,7 @@ impl A2AServerBuilder {
             ));
         }
 
+        let mut card_url_override = None;
         #[allow(clippy::collapsible_if)]
         if let Some(ref mut card) = agent_card {
             if let Some(overrides) = self.agent_card_overrides {
@@ -227,19 +228,21 @@ impl A2AServerBuilder {
                     );
                     card.version = version;
                 }
-                if let Some(url) = overrides.url {
-                    info!("Overriding agent card URL -> {}", url);
-                    match card.supported_interfaces.first_mut() {
-                        Some(interface) => interface.url = url,
-                        None => card.supported_interfaces.push(AgentInterface {
-                            protocol_binding: "JSONRPC".to_string(),
-                            protocol_version: "1.0".to_string(),
-                            tenant: None,
-                            url,
-                        }),
-                    }
-                }
+                card_url_override = overrides.url;
             }
+        }
+
+        if let Some(ref mut card) = agent_card {
+            let url = card_url_override
+                .or_else(|| non_empty(config.agent_url.clone()))
+                .or_else(|| {
+                    card.supported_interfaces
+                        .first()
+                        .and_then(|interface| non_empty(interface.url.clone()))
+                })
+                .unwrap_or_else(|| default_agent_url(&config));
+            info!("Agent card advertises URL -> {}", url);
+            set_agent_card_url(card, url);
         }
 
         if self.extended_agent_card.is_some()
@@ -417,6 +420,31 @@ impl A2AServerBuilder {
     }
 }
 
+fn non_empty(value: String) -> Option<String> {
+    (!value.is_empty()).then_some(value)
+}
+
+fn default_agent_url(config: &Config) -> String {
+    let scheme = if config.tls_config.enable {
+        "https"
+    } else {
+        "http"
+    };
+    format!("{scheme}://localhost:{}/a2a", config.server_config.port)
+}
+
+fn set_agent_card_url(card: &mut AgentCard, url: String) {
+    match card.supported_interfaces.first_mut() {
+        Some(interface) => interface.url = url,
+        None => card.supported_interfaces.push(AgentInterface {
+            protocol_binding: "JSONRPC".to_string(),
+            protocol_version: "1.0".to_string(),
+            tenant: None,
+            url,
+        }),
+    }
+}
+
 impl Default for A2AServerBuilder {
     fn default() -> Self {
         Self::new()
@@ -426,6 +454,81 @@ impl Default for A2AServerBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::ServerConfig;
+
+    fn agent_card_with_interfaces(interfaces: serde_json::Value) -> AgentCard {
+        serde_json::from_value(serde_json::json!({
+            "name": "URL Agent",
+            "description": "Advertised URL tests",
+            "version": "0.0.0",
+            "supportedInterfaces": interfaces,
+            "capabilities": {
+                "streaming": true,
+                "pushNotifications": false
+            },
+            "defaultInputModes": ["text/plain"],
+            "defaultOutputModes": ["text/plain"],
+            "skills": [
+                {"id": "x", "name": "x", "description": "x", "tags": ["x"]}
+            ]
+        }))
+        .unwrap()
+    }
+
+    #[tokio::test]
+    async fn advertised_agent_url_precedence() {
+        let table = [
+            (
+                "config wins over card",
+                "http://env/a2a",
+                serde_json::json!([{"url": "http://card/a2a", "protocolBinding": "JSONRPC", "protocolVersion": "1.0"}]),
+                "http://env/a2a",
+            ),
+            (
+                "card url kept",
+                "",
+                serde_json::json!([{"url": "http://card/a2a", "protocolBinding": "JSONRPC", "protocolVersion": "1.0"}]),
+                "http://card/a2a",
+            ),
+            (
+                "empty card url falls back to listener",
+                "",
+                serde_json::json!([{"url": "", "protocolBinding": "JSONRPC", "protocolVersion": "1.0"}]),
+                "http://localhost:9099/a2a",
+            ),
+            (
+                "no interfaces falls back to listener",
+                "",
+                serde_json::json!([]),
+                "http://localhost:9099/a2a",
+            ),
+        ];
+
+        for (name, config_url, interfaces, expected) in table {
+            let config = Config {
+                agent_url: config_url.to_string(),
+                server_config: ServerConfig {
+                    port: 9099,
+                    ..ServerConfig::default()
+                },
+                ..Config::default()
+            };
+
+            let server = A2AServerBuilder::new()
+                .with_config(config)
+                .with_agent_card(agent_card_with_interfaces(interfaces))
+                .with_default_task_handlers()
+                .build()
+                .await
+                .unwrap_or_else(|e| panic!("{name}: build failed: {e}"));
+
+            assert_eq!(
+                server.agent_card.unwrap().supported_interfaces[0].url,
+                expected,
+                "{name}"
+            );
+        }
+    }
 
     fn agent_card_with_streaming(streaming: bool) -> AgentCard {
         serde_json::from_value(serde_json::json!({
