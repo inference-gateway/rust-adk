@@ -102,3 +102,30 @@ pub(super) fn invalid_params_message(id: Value, detail: impl Into<String>) -> Js
         Some(Value::String(detail.into())),
     )
 }
+
+pub(super) fn internal_error(id: Value, detail: impl std::fmt::Display) -> Json<Value> {
+    json_rpc_error(
+        id,
+        jsonrpc_errors::INTERNAL_ERROR,
+        "Internal error",
+        Some(Value::String(detail.to_string())),
+    )
+}
+
+pub(super) fn task_not_found(id: Value, task_id: &str) -> Json<Value> {
+    json_rpc_error(
+        id,
+        jsonrpc_errors::TASK_NOT_FOUND,
+        "Task not found",
+        Some(Value::String(task_id.to_string())),
+    )
+}
+
+/// Serialize `result` into a JSON-RPC success envelope, falling back to an
+/// internal error when it is not representable as JSON.
+pub(super) fn json_rpc_result(id: Value, result: impl serde::Serialize) -> Json<Value> {
+    match serde_json::to_value(result) {
+        Ok(v) => json_rpc_success(id, v),
+        Err(e) => internal_error(id, e),
+    }
+}
