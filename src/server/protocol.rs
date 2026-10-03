@@ -133,7 +133,7 @@ pub(crate) async fn a2a_handler(
         }
     };
 
-    let params = payload.get("params").cloned().unwrap_or(Value::Null);
+    let params = camelize_keys(payload.get("params").cloned().unwrap_or(Value::Null));
 
     let Ok(a2a_method) = method.parse::<A2aMethod>() else {
         warn!("Unknown JSON-RPC method requested: {method}");
@@ -189,6 +189,48 @@ pub(crate) async fn a2a_handler(
                 .into_response()
         }
     }
+}
+
+/// Fields whose object values are caller-owned maps, so their keys must survive verbatim.
+const OPAQUE_PARAM_FIELDS: [&str; 4] = ["metadata", "data", "header", "params"];
+
+/// Accept the proto field names the A2A JSON binding allows alongside their
+/// lowerCamelCase form (spec 1.4) by rewriting request param keys to camelCase.
+fn camelize_keys(params: Value) -> Value {
+    match params {
+        Value::Object(map) => Value::Object(
+            map.into_iter()
+                .map(|(key, value)| {
+                    let value = if OPAQUE_PARAM_FIELDS.contains(&key.as_str()) {
+                        value
+                    } else {
+                        camelize_keys(value)
+                    };
+                    (to_lower_camel_case(&key), value)
+                })
+                .collect(),
+        ),
+        Value::Array(items) => Value::Array(items.into_iter().map(camelize_keys).collect()),
+        other => other,
+    }
+}
+
+fn to_lower_camel_case(key: &str) -> String {
+    let mut segments = key.split('_');
+    let Some(first) = segments.next() else {
+        return key.to_string();
+    };
+    segments.fold(first.to_string(), |mut out, segment| {
+        let mut chars = segment.chars();
+        match chars.next() {
+            Some(c) => {
+                out.extend(c.to_uppercase());
+                out.push_str(chars.as_str());
+            }
+            None => out.push('_'),
+        }
+        out
+    })
 }
 
 fn is_push_notification_config_method(method: A2aMethod) -> bool {
@@ -918,7 +960,46 @@ mod tests {
     use anyhow::Result;
     use axum::Router;
     use axum::routing::post;
+    use serde_json::json;
     use tokio::net::TcpListener;
+
+    #[test]
+    fn camelize_keys_accepts_proto_names_and_leaves_opaque_maps_alone() {
+        let cases = [
+            (json!({"page_size": 10}), json!({"pageSize": 10})),
+            (json!({"pageSize": 10}), json!({"pageSize": 10})),
+            (
+                json!({"status_timestamp_after": "now"}),
+                json!({"statusTimestampAfter": "now"}),
+            ),
+            (
+                json!({"message": {"message_id": "m1", "metadata": {"my_key": 1}}}),
+                json!({"message": {"messageId": "m1", "metadata": {"my_key": 1}}}),
+            ),
+            (
+                json!({"parts": [{"data": {"raw_key": true}}]}),
+                json!({"parts": [{"data": {"raw_key": true}}]}),
+            ),
+        ];
+
+        for (input, expected) in cases {
+            assert_eq!(camelize_keys(input.clone()), expected, "input: {input}");
+        }
+    }
+
+    #[test]
+    fn list_tasks_params_accept_proto_names_and_unknown_fields() {
+        let params = camelize_keys(json!({
+            "context_id": "ctx-1",
+            "page_size": 10,
+            "surprise": "ignored",
+        }));
+        let request: ListTasksRequest =
+            serde_json::from_value(params).expect("snake_case params parse");
+
+        assert_eq!(request.context_id.as_deref(), Some("ctx-1"));
+        assert_eq!(request.page_size, Some(10));
+    }
 
     #[tokio::test]
     async fn message_stream_emits_state_transitions_end_to_end() {

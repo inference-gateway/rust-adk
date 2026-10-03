@@ -29,6 +29,7 @@ tasks:
     desc: Generate the Rust ADK types from the A2A schema
     cmds:
       - cargo typify schema.json -o src/a2a_types.rs
+      - sed -i '/^#\[serde(deny_unknown_fields)\]$/d' src/a2a_types.rs
       - |
         {
           echo '#![allow(irrefutable_let_patterns)]'

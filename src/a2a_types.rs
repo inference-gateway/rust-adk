@@ -91,7 +91,6 @@ impl ::std::convert::TryFrom<::std::string::String> for A2aMethod {
 }
 #[doc = "Defines optional capabilities supported by an agent."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
-#[serde(deny_unknown_fields)]
 pub struct AgentCapabilities {
     #[doc = "Indicates if the agent supports providing an extended agent card when authenticated."]
     #[serde(
@@ -119,7 +118,6 @@ impl AgentCapabilities {
 }
 #[doc = "A self-describing manifest for an agent. It provides essential\n metadata including the agent's identity, capabilities, skills, supported\n communication methods, and security requirements.\n Next ID: 20"]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
-#[serde(deny_unknown_fields)]
 pub struct AgentCard {
     #[doc = "A2A Capability set supported by the agent."]
     pub capabilities: AgentCapabilities,
@@ -180,7 +178,6 @@ impl AgentCard {
 }
 #[doc = "AgentCardSignature represents a JWS signature of an AgentCard.\n This follows the JSON format of an RFC 7515 JSON Web Signature (JWS)."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
-#[serde(deny_unknown_fields)]
 pub struct AgentCardSignature {
     #[doc = "The unprotected JWS header values."]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
@@ -197,7 +194,6 @@ impl AgentCardSignature {
 }
 #[doc = "A declaration of a protocol extension supported by an Agent."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
-#[serde(deny_unknown_fields)]
 pub struct AgentExtension {
     #[doc = "A human-readable description of how this agent uses the extension."]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
@@ -219,7 +215,6 @@ impl AgentExtension {
 }
 #[doc = "Declares a combination of a target URL, transport and protocol version for interacting with the agent.\n This allows agents to expose the same functionality over multiple protocol binding mechanisms."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
-#[serde(deny_unknown_fields)]
 pub struct AgentInterface {
     #[doc = "The protocol binding supported at this URL. This is an open form string, to be\n easily extended for other protocol bindings. The core ones officially\n supported are `JSONRPC`, `GRPC` and `HTTP+JSON`."]
     #[serde(rename = "protocolBinding")]
@@ -240,7 +235,6 @@ impl AgentInterface {
 }
 #[doc = "Represents the service provider of an agent."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
-#[serde(deny_unknown_fields)]
 pub struct AgentProvider {
     #[doc = "The name of the agent provider's organization.\n Example: \"Google\""]
     pub organization: ::std::string::String,
@@ -254,7 +248,6 @@ impl AgentProvider {
 }
 #[doc = "Represents a distinct capability or function that an agent can perform."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
-#[serde(deny_unknown_fields)]
 pub struct AgentSkill {
     #[doc = "A detailed description of the skill."]
     pub description: ::std::string::String,
@@ -296,7 +289,6 @@ impl AgentSkill {
 }
 #[doc = "Defines a security scheme using an API key."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
-#[serde(deny_unknown_fields)]
 pub struct ApiKeySecurityScheme {
     #[doc = "An optional description for the security scheme."]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
@@ -313,7 +305,6 @@ impl ApiKeySecurityScheme {
 }
 #[doc = "Artifacts represent task outputs."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
-#[serde(deny_unknown_fields)]
 pub struct Artifact {
     #[doc = "Unique identifier (e.g. UUID) for the artifact. It must be unique within a task."]
     #[serde(rename = "artifactId")]
@@ -340,7 +331,6 @@ impl Artifact {
 }
 #[doc = "Defines authentication details, used for push notifications."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
-#[serde(deny_unknown_fields)]
 pub struct AuthenticationInfo {
     #[doc = "Push Notification credentials. Format depends on the scheme (e.g., token for Bearer)."]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
@@ -355,7 +345,6 @@ impl AuthenticationInfo {
 }
 #[doc = "Defines configuration details for the OAuth 2.0 Authorization Code flow."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
-#[serde(deny_unknown_fields)]
 pub struct AuthorizationCodeOAuthFlow {
     #[doc = "The authorization URL to be used for this flow."]
     #[serde(rename = "authorizationUrl")]
@@ -385,7 +374,6 @@ impl AuthorizationCodeOAuthFlow {
 }
 #[doc = "Represents a request for the `CancelTask` method."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
-#[serde(deny_unknown_fields)]
 pub struct CancelTaskRequest {
     #[doc = "The resource ID of the task to cancel."]
     pub id: ::std::string::String,
@@ -403,7 +391,6 @@ impl CancelTaskRequest {
 }
 #[doc = "Defines configuration details for the OAuth 2.0 Client Credentials flow."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
-#[serde(deny_unknown_fields)]
 pub struct ClientCredentialsOAuthFlow {
     #[doc = "The URL to be used for obtaining refresh tokens."]
     #[serde(
@@ -424,7 +411,6 @@ impl ClientCredentialsOAuthFlow {
 }
 #[doc = "Represents a request for the `DeleteTaskPushNotificationConfig` method."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
-#[serde(deny_unknown_fields)]
 pub struct DeleteTaskPushNotificationConfigRequest {
     #[doc = "The resource ID of the configuration to delete."]
     pub id: ::std::string::String,
@@ -442,7 +428,6 @@ impl DeleteTaskPushNotificationConfigRequest {
 }
 #[doc = "Defines configuration details for the OAuth 2.0 Device Code flow (RFC 8628).\n This flow is designed for input-constrained devices such as IoT devices,\n and CLI tools where the user authenticates on a separate device."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
-#[serde(deny_unknown_fields)]
 pub struct DeviceCodeOAuthFlow {
     #[doc = "The device authorization endpoint URL."]
     #[serde(rename = "deviceAuthorizationUrl")]
@@ -466,7 +451,6 @@ impl DeviceCodeOAuthFlow {
 }
 #[doc = "Represents a request for the `GetExtendedAgentCard` method."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
-#[serde(deny_unknown_fields)]
 pub struct GetExtendedAgentCardRequest {
     #[doc = "Optional. Opaque routing identifier. Must match the `tenant` value from\n the selected `AgentInterface` in the Agent Card when that field is set."]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
@@ -479,7 +463,6 @@ impl GetExtendedAgentCardRequest {
 }
 #[doc = "Represents a request for the `GetTaskPushNotificationConfig` method."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
-#[serde(deny_unknown_fields)]
 pub struct GetTaskPushNotificationConfigRequest {
     #[doc = "The resource ID of the configuration to retrieve."]
     pub id: ::std::string::String,
@@ -497,7 +480,6 @@ impl GetTaskPushNotificationConfigRequest {
 }
 #[doc = "Represents a request for the `GetTask` method."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
-#[serde(deny_unknown_fields)]
 pub struct GetTaskRequest {
     #[doc = "The maximum number of most recent messages from the task's history to retrieve. An\n unset value means the client does not impose any limit. A value of zero is\n a request to not include any messages. The server MUST NOT return more\n messages than the provided value, but MAY apply a lower limit."]
     #[serde(
@@ -518,7 +500,6 @@ impl GetTaskRequest {
 }
 #[doc = "Defines a security scheme using HTTP authentication."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
-#[serde(deny_unknown_fields)]
 pub struct HttpAuthSecurityScheme {
     #[doc = "A hint to the client to identify how the bearer token is formatted (e.g., \"JWT\").\n Primarily for documentation purposes."]
     #[serde(
@@ -539,7 +520,6 @@ impl HttpAuthSecurityScheme {
 }
 #[doc = "Deprecated: Use Authorization Code + PKCE instead."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
-#[serde(deny_unknown_fields)]
 pub struct ImplicitOAuthFlow {
     #[doc = "The authorization URL to be used for this flow. This MUST be in the\n form of a URL. The OAuth2 standard requires the use of TLS"]
     #[serde(
@@ -567,7 +547,6 @@ impl ImplicitOAuthFlow {
 }
 #[doc = "A JSON-RPC 2.0 error object; A2A error codes are mapped in spec section 5.4.\n Hand-written by inference-gateway, not part of the official a2a.proto, which does not model\n the JSON-RPC binding."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
-#[serde(deny_unknown_fields)]
 pub struct JsonrpcError {
     #[doc = "The error code, e.g. -32601 for an unknown method."]
     pub code: i32,
@@ -584,7 +563,6 @@ impl JsonrpcError {
 }
 #[doc = "A JSON-RPC 2.0 response reporting a failed A2A method call (A2A spec section 9.5).\n Hand-written by inference-gateway, not part of the official a2a.proto, which does not model\n the JSON-RPC binding."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
-#[serde(deny_unknown_fields)]
 pub struct JsonrpcErrorResponse {
     #[doc = "The error that occurred."]
     pub error: JsonrpcError,
@@ -600,7 +578,6 @@ impl JsonrpcErrorResponse {
 }
 #[doc = "A JSON-RPC 2.0 request to an A2A agent (A2A spec section 9.3).\n Hand-written by inference-gateway, not part of the official a2a.proto, which does not model\n the JSON-RPC binding."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
-#[serde(deny_unknown_fields)]
 pub struct JsonrpcRequest {
     #[doc = "The request id: a string, a number or null. Omitted for notifications."]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
@@ -620,7 +597,6 @@ impl JsonrpcRequest {
 }
 #[doc = "A JSON-RPC 2.0 response carrying the result of an A2A method (A2A spec section 9).\n Hand-written by inference-gateway, not part of the official a2a.proto, which does not model\n the JSON-RPC binding."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
-#[serde(deny_unknown_fields)]
 pub struct JsonrpcSuccessResponse {
     #[doc = "The id of the request this response answers."]
     pub id: Value,
@@ -636,7 +612,6 @@ impl JsonrpcSuccessResponse {
 }
 #[doc = "Represents a request for the `ListTaskPushNotificationConfigs` method."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
-#[serde(deny_unknown_fields)]
 pub struct ListTaskPushNotificationConfigsRequest {
     #[doc = "The maximum number of configurations to return."]
     #[serde(
@@ -664,7 +639,6 @@ impl ListTaskPushNotificationConfigsRequest {
 }
 #[doc = "Represents a successful response for the `ListTaskPushNotificationConfigs`\n method."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
-#[serde(deny_unknown_fields)]
 pub struct ListTaskPushNotificationConfigsResponse {
     #[doc = "The list of push notification configurations."]
     #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
@@ -683,7 +657,6 @@ impl ListTaskPushNotificationConfigsResponse {
 }
 #[doc = "Parameters for listing tasks with optional filtering criteria."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
-#[serde(deny_unknown_fields)]
 pub struct ListTasksRequest {
     #[doc = "Filter tasks by context ID to get tasks from a specific conversation or session."]
     #[serde(
@@ -735,7 +708,6 @@ impl ListTasksRequest {
 }
 #[doc = "Result object for `ListTasks` method containing an array of tasks and pagination information."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
-#[serde(deny_unknown_fields)]
 pub struct ListTasksResponse {
     #[doc = "A token to retrieve the next page of results, or empty if there are no more results in the list."]
     #[serde(rename = "nextPageToken")]
@@ -756,7 +728,6 @@ impl ListTasksResponse {
 }
 #[doc = "`Message` is one unit of communication between client and server. It can be\n associated with a context and/or a task. For server messages, `context_id` must\n be provided, and `task_id` only if a task was created. For client messages, both\n fields are optional, with the caveat that if both are provided, they have to\n match (the `context_id` has to be the one that is set on the task). If only\n `task_id` is provided, the server will infer `context_id` from it."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
-#[serde(deny_unknown_fields)]
 pub struct Message {
     #[doc = "Optional. The context id of the message. If set, the message will be associated with the given context."]
     #[serde(
@@ -798,7 +769,6 @@ impl Message {
 }
 #[doc = "Defines a security scheme using mTLS authentication."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
-#[serde(deny_unknown_fields)]
 pub struct MutualTlsSecurityScheme {
     #[doc = "An optional description for the security scheme."]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
@@ -811,7 +781,6 @@ impl MutualTlsSecurityScheme {
 }
 #[doc = "Defines a security scheme using OAuth 2.0."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
-#[serde(deny_unknown_fields)]
 pub struct OAuth2SecurityScheme {
     #[doc = "An optional description for the security scheme."]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
@@ -832,7 +801,6 @@ impl OAuth2SecurityScheme {
 }
 #[doc = "Defines the configuration for the supported OAuth 2.0 flows."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
-#[serde(deny_unknown_fields)]
 pub struct OAuthFlows {
     #[doc = "Configuration for the OAuth Authorization Code flow."]
     #[serde(
@@ -866,7 +834,6 @@ impl OAuthFlows {
 }
 #[doc = "Defines a security scheme using OpenID Connect."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
-#[serde(deny_unknown_fields)]
 pub struct OpenIdConnectSecurityScheme {
     #[doc = "An optional description for the security scheme."]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
@@ -882,7 +849,6 @@ impl OpenIdConnectSecurityScheme {
 }
 #[doc = "`Part` represents a container for a section of communication content.\n Parts can be purely textual, some sort of file (image, video, etc) or\n a structured data blob (i.e. JSON)."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
-#[serde(deny_unknown_fields)]
 pub struct Part {
     #[doc = "Arbitrary structured `data` as a JSON value (object, array, string, number, boolean, or null)."]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
@@ -968,7 +934,6 @@ impl<'de> ::serde::Deserialize<'de> for PartRaw {
 }
 #[doc = "Deprecated: Use Authorization Code + PKCE or Device Code."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
-#[serde(deny_unknown_fields)]
 pub struct PasswordOAuthFlow {
     #[doc = "The URL to be used for obtaining refresh tokens. This MUST be in the\n form of a URL. The OAuth2 standard requires the use of TLS."]
     #[serde(
@@ -1051,7 +1016,6 @@ impl ::std::convert::TryFrom<::std::string::String> for Role {
 }
 #[doc = "Defines the security requirements for an agent."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
-#[serde(deny_unknown_fields)]
 pub struct SecurityRequirement {
     #[doc = "A map of security schemes to the required scopes."]
     #[serde(
@@ -1067,7 +1031,6 @@ impl SecurityRequirement {
 }
 #[doc = "Defines a security scheme that can be used to secure an agent's endpoints.\n This is a discriminated union type based on the OpenAPI 3.2 Security Scheme Object.\n See: https://spec.openapis.org/oas/v3.2.0.html#security-scheme-object"]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
-#[serde(deny_unknown_fields)]
 pub struct SecurityScheme {
     #[doc = "API key-based authentication."]
     #[serde(
@@ -1107,7 +1070,6 @@ impl SecurityScheme {
 }
 #[doc = "Configuration of a send message request."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
-#[serde(deny_unknown_fields)]
 pub struct SendMessageConfiguration {
     #[doc = "A list of media types the client is prepared to accept for response parts.\n Agents SHOULD use this to tailor their output."]
     #[serde(
@@ -1142,7 +1104,6 @@ impl SendMessageConfiguration {
 }
 #[doc = "Represents a request for the `SendMessage` method."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
-#[serde(deny_unknown_fields)]
 pub struct SendMessageRequest {
     #[doc = "Configuration for the send request."]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
@@ -1163,7 +1124,6 @@ impl SendMessageRequest {
 }
 #[doc = "Represents the response for the `SendMessage` method."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
-#[serde(deny_unknown_fields)]
 pub struct SendMessageResponse {
     #[doc = "A message from the agent."]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
@@ -1179,7 +1139,6 @@ impl SendMessageResponse {
 }
 #[doc = "A wrapper object used in streaming operations to encapsulate different types of response data."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
-#[serde(deny_unknown_fields)]
 pub struct StreamResponse {
     #[doc = "An event indicating a task artifact update."]
     #[serde(
@@ -1207,7 +1166,6 @@ impl StreamResponse {
 }
 #[doc = "protolint:disable REPEATED_FIELD_NAMES_PLURALIZED\n A list of strings."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
-#[serde(deny_unknown_fields)]
 pub struct StringList {
     #[doc = "The individual string values."]
     #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
@@ -1244,7 +1202,6 @@ impl ::std::convert::From<::serde_json::Map<::std::string::String, ::serde_json:
 }
 #[doc = "Represents a request for the `SubscribeToTask` method."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
-#[serde(deny_unknown_fields)]
 pub struct SubscribeToTaskRequest {
     #[doc = "The resource ID of the task to subscribe to."]
     pub id: ::std::string::String,
@@ -1259,7 +1216,6 @@ impl SubscribeToTaskRequest {
 }
 #[doc = "`Task` is the core unit of action for A2A. It has a current status\n and when results are created for the task they are stored in the\n artifact. If there are multiple turns for a task, these are stored in\n history."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
-#[serde(deny_unknown_fields)]
 pub struct Task {
     #[doc = "A set of output artifacts for a `Task`."]
     #[serde(default, skip_serializing_if = "::std::vec::Vec::is_empty")]
@@ -1288,7 +1244,6 @@ impl Task {
 }
 #[doc = "A task delta where an artifact has been generated."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
-#[serde(deny_unknown_fields)]
 pub struct TaskArtifactUpdateEvent {
     #[doc = "If true, the content of this artifact should be appended to a previously\n sent artifact with the same ID."]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
@@ -1318,7 +1273,6 @@ impl TaskArtifactUpdateEvent {
 }
 #[doc = "A container associating a push notification configuration with a specific task."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
-#[serde(deny_unknown_fields)]
 pub struct TaskPushNotificationConfig {
     #[doc = "Authentication information required to send the notification."]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
@@ -1427,7 +1381,6 @@ impl ::std::convert::TryFrom<::std::string::String> for TaskState {
 }
 #[doc = "A container for the status of a task"]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
-#[serde(deny_unknown_fields)]
 pub struct TaskStatus {
     #[doc = "A message associated with the status."]
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
@@ -1445,7 +1398,6 @@ impl TaskStatus {
 }
 #[doc = "An event sent by the agent to notify the client of a change in a task's status."]
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
-#[serde(deny_unknown_fields)]
 pub struct TaskStatusUpdateEvent {
     #[doc = "The ID of the context that the task belongs to."]
     #[serde(rename = "contextId")]
