@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.16.0](https://github.com/inference-gateway/rust-adk/compare/0.15.0...0.16.0) (2026-10-03)
+
+### ✨ Features
+
+* rename a2a json-rpc methods to the v1.0.1 names ([#187](https://github.com/inference-gateway/rust-adk/issues/187)) ([95276cd](https://github.com/inference-gateway/rust-adk/commit/95276cd99560a1a25fd3f4b519fca072e9c74fd5)), closes [#185](https://github.com/inference-gateway/rust-adk/issues/185)
+
+### 🔧 Miscellaneous
+
+* **deps:** bump claude-code 2.1.283 -> 2.1.285 ([#184](https://github.com/inference-gateway/rust-adk/issues/184)) ([b0b2a73](https://github.com/inference-gateway/rust-adk/commit/b0b2a73ecf1d1748e8fd2317fe762bf1a8fd52e6))
+
 ## [0.15.0](https://github.com/inference-gateway/rust-adk/compare/0.14.0...0.15.0) (2026-10-01)
 
 ### ✨ Features
