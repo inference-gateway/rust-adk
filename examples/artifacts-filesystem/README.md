@@ -115,7 +115,7 @@ and assigns the result onto `Config::artifacts_config`:
 | `ARTIFACTS_STORAGE_PROVIDER` | `filesystem` | `filesystem` or `minio`. |
 | `ARTIFACTS_STORAGE_BASE_PATH` | `./artifacts` | Filesystem root for the filesystem provider. |
 | `ARTIFACTS_STORAGE_BASE_URL` | `http://localhost:8081` | Public URL prefix baked into file artifact URIs. |
-| `ARTIFACTS_RETENTION_MAX_ARTIFACTS` | `5` | Cap on retained artifacts. |
+| `ARTIFACTS_RETENTION_MAX_ARTIFACTS` | `5` | Cap on retained artifacts store-wide; `0` means unlimited. |
 | `ARTIFACTS_RETENTION_MAX_AGE` | `168h` | Maximum age before a blob is pruned. |
 | `ARTIFACTS_RETENTION_CLEANUP_INTERVAL` | `24h` | Frequency of the retention loop. |
 

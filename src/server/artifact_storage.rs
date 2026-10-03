@@ -64,7 +64,8 @@ pub trait ArtifactStorage: Send + Sync + std::fmt::Debug {
     async fn cleanup_expired(&self, max_age: Duration) -> Result<usize>;
 
     /// Trim the store down so at most `max_count` blobs remain, deleting
-    /// the oldest first. Returns the number removed.
+    /// the oldest first. `max_count == 0` means unlimited - nothing is
+    /// removed. Returns the number removed.
     async fn cleanup_oldest(&self, max_count: usize) -> Result<usize>;
 
     /// Enumerate every stored artifact. Used by retention and tests.
@@ -242,6 +243,9 @@ impl ArtifactStorage for FilesystemArtifactStorage {
     }
 
     async fn cleanup_oldest(&self, max_count: usize) -> Result<usize> {
+        if max_count == 0 {
+            return Ok(0);
+        }
         let mut entries = self.list().await?;
         if entries.len() <= max_count {
             return Ok(0);
@@ -472,6 +476,22 @@ mod tests {
         assert_eq!(removed, 3, "should remove 3 of 5 to leave 2");
         let remaining = store.list().await.expect("list");
         assert_eq!(remaining.len(), 2);
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[tokio::test]
+    async fn filesystem_cleanup_oldest_zero_means_unlimited() {
+        let root = tempdir("cleanup-oldest-zero");
+        let store = FilesystemArtifactStorage::new(&root, "http://localhost:8081");
+        for i in 0..3 {
+            store
+                .store(&format!("a{i}"), "f.bin", vec![i as u8])
+                .await
+                .expect("store");
+        }
+        let removed = store.cleanup_oldest(0).await.expect("cleanup_oldest");
+        assert_eq!(removed, 0, "max_count 0 must keep everything");
+        assert_eq!(store.list().await.expect("list").len(), 3);
         let _ = std::fs::remove_dir_all(&root);
     }
 

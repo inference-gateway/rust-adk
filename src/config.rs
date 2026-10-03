@@ -744,7 +744,8 @@ pub struct ArtifactsStorageConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct ArtifactRetentionConfig {
-    /// Maximum number of artifacts retained per the backend's view.
+    /// Cap on the number of artifacts kept store-wide, oldest pruned
+    /// first. `0` disables the cap.
     #[serde(
         rename = "retention_max_artifacts",
         deserialize_with = "de::usize::deserialize"
