@@ -13,7 +13,7 @@ use crate::a2a_types::{
     ListTaskPushNotificationConfigsRequest, ListTaskPushNotificationConfigsResponse,
     ListTasksRequest, ListTasksResponse, SendMessageRequest, SendMessageResponse, StreamResponse,
     SubscribeToTaskRequest, Task, TaskPushNotificationConfig, TaskState, TaskStatus,
-    TaskStatusUpdateEvent, Timestamp,
+    TaskStatusUpdateEvent,
 };
 use axum::{
     extract::State,
@@ -22,7 +22,7 @@ use axum::{
         sse::{Event, KeepAlive, Sse},
     },
 };
-use futures_util::stream::{Stream, StreamExt};
+use futures_util::stream::StreamExt;
 use serde_json::Value;
 use std::convert::Infallible;
 use std::sync::Arc;
@@ -344,11 +344,7 @@ fn build_task_from_request(req: &SendMessageRequest) -> Task {
         history,
         id: task_id,
         metadata: None,
-        status: TaskStatus {
-            message: None,
-            state: TaskState::TaskStateSubmitted,
-            timestamp: Some(Timestamp(chrono::Utc::now())),
-        },
+        status: TaskStatus::now(TaskState::TaskStateSubmitted, None),
     }
 }
 
@@ -391,11 +387,7 @@ fn continue_task(mut task: Task, message: &crate::a2a_types::Message) -> Task {
     }
     message.task_id = Some(task.id.clone());
     task.history.push(message);
-    task.status = TaskStatus {
-        message: None,
-        state: TaskState::TaskStateSubmitted,
-        timestamp: Some(Timestamp(chrono::Utc::now())),
-    };
+    task.status = TaskStatus::now(TaskState::TaskStateSubmitted, None);
     task
 }
 
@@ -426,6 +418,8 @@ fn trim_history(task: &mut Task, history_length: Option<i32>) {
 /// latest known state.
 const SETTLE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
 const SETTLE_POLL_INTERVAL: std::time::Duration = std::time::Duration::from_millis(25);
+/// How often `SubscribeToTask` re-reads the task to spot a state change.
+const RESUBSCRIBE_POLL_INTERVAL: std::time::Duration = std::time::Duration::from_millis(100);
 
 /// Poll storage until the task settles, the timeout elapses, or the task disappears.
 // ponytail: polling keeps the Storage trait unchanged; swap in a per-task notifier if
@@ -576,6 +570,35 @@ async fn handle_message_send(state: &Arc<AppState>, id: Value, params: Value) ->
     )
 }
 
+/// SSE response for an A2A streaming method: the task snapshot first, then
+/// every `StreamResponse` from `rx`, each in a JSON-RPC envelope.
+fn task_event_stream(id: Value, initial: Task, rx: mpsc::Receiver<StreamResponse>) -> Response {
+    let snapshot = StreamResponse {
+        artifact_update: None,
+        message: None,
+        status_update: None,
+        task: Some(initial),
+    };
+    let stream = futures_util::stream::once(async move { snapshot })
+        .chain(ReceiverStream::new(rx))
+        .map(move |response| {
+            let envelope = serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": id.clone(),
+                "result": response,
+            });
+            Ok::<_, Infallible>(
+                Event::default()
+                    .json_data(envelope)
+                    .unwrap_or_else(|e| Event::default().data(format!("serialization error: {e}"))),
+            )
+        });
+
+    Sse::new(stream)
+        .keep_alive(KeepAlive::default())
+        .into_response()
+}
+
 async fn handle_message_stream(state: Arc<AppState>, id: Value, params: Value) -> Response {
     let request: SendMessageRequest = match serde_json::from_value(params) {
         Ok(r) => r,
@@ -610,46 +633,18 @@ async fn handle_message_stream(state: Arc<AppState>, id: Value, params: Value) -
 
     let (tx, rx) = mpsc::channel::<StreamResponse>(32);
 
-    let initial = StreamResponse {
-        artifact_update: None,
-        message: None,
-        status_update: None,
-        task: Some(task.clone()),
-    };
-    if tx.send(initial).await.is_err() {
-        return internal_error(id, "stream receiver closed before initial event").into_response();
-    }
-
     let emitter = StreamEmitter::new(tx, Arc::clone(&state.server.storage))
         .with_artifact_service(state.server.artifact_service.clone());
     let task_id = task.id.clone();
     let message = Some(request.message);
+    let snapshot = task.clone();
     tokio::spawn(async move {
         if let Err(e) = handler.handle_streaming_task(task, message, emitter).await {
             error!("streaming task handler for task {task_id} failed: {e}");
         }
     });
 
-    let envelope_id = id.clone();
-    let stream = ReceiverStream::new(rx).map(move |response| {
-        let envelope = serde_json::json!({
-            "jsonrpc": "2.0",
-            "id": envelope_id.clone(),
-            "result": response,
-        });
-        Ok::<_, Infallible>(
-            Event::default()
-                .json_data(envelope)
-                .unwrap_or_else(|e| Event::default().data(format!("serialization error: {e}"))),
-        )
-    });
-
-    let stream: Box<dyn Stream<Item = Result<Event, Infallible>> + Send + Unpin> =
-        Box::new(Box::pin(stream));
-
-    Sse::new(stream)
-        .keep_alive(KeepAlive::default())
-        .into_response()
+    task_event_stream(id, snapshot, rx)
 }
 
 async fn handle_tasks_get(state: &Arc<AppState>, id: Value, params: Value) -> Json<Value> {
@@ -748,11 +743,7 @@ async fn handle_tasks_cancel(state: &Arc<AppState>, id: Value, params: Value) ->
     }
 
     let mut updated = existing;
-    updated.status = TaskStatus {
-        message: None,
-        state: TaskState::TaskStateCanceled,
-        timestamp: Some(Timestamp(chrono::Utc::now())),
-    };
+    updated.status = TaskStatus::now(TaskState::TaskStateCanceled, None);
     if let Err(e) = state.server.storage.store_dead_letter_task(&updated).await {
         return internal_error(id, e);
     }
@@ -877,16 +868,6 @@ async fn handle_tasks_resubscribe(state: Arc<AppState>, id: Value, params: Value
 
     let (tx, rx) = mpsc::channel::<StreamResponse>(32);
 
-    let initial = StreamResponse {
-        artifact_update: None,
-        message: None,
-        status_update: None,
-        task: Some(task.clone()),
-    };
-    if tx.send(initial).await.is_err() {
-        return internal_error(id, "stream receiver closed before initial event").into_response();
-    }
-
     let storage = Arc::clone(&state.server.storage);
     let initial_state = task.status.state;
     let task_id_for_poll = task_id.clone();
@@ -894,7 +875,7 @@ async fn handle_tasks_resubscribe(state: Arc<AppState>, id: Value, params: Value
     tokio::spawn(async move {
         let mut last_state = initial_state;
         loop {
-            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            tokio::time::sleep(RESUBSCRIBE_POLL_INTERVAL).await;
             if tx.is_closed() {
                 break;
             }
@@ -934,26 +915,7 @@ async fn handle_tasks_resubscribe(state: Arc<AppState>, id: Value, params: Value
         }
     });
 
-    let envelope_id = id.clone();
-    let stream = ReceiverStream::new(rx).map(move |response| {
-        let envelope = serde_json::json!({
-            "jsonrpc": "2.0",
-            "id": envelope_id.clone(),
-            "result": response,
-        });
-        Ok::<_, Infallible>(
-            Event::default()
-                .json_data(envelope)
-                .unwrap_or_else(|e| Event::default().data(format!("serialization error: {e}"))),
-        )
-    });
-
-    let stream: Box<dyn Stream<Item = Result<Event, Infallible>> + Send + Unpin> =
-        Box::new(Box::pin(stream));
-
-    Sse::new(stream)
-        .keep_alive(KeepAlive::default())
-        .into_response()
+    task_event_stream(id, task, rx)
 }
 
 /// `GetExtendedAgentCard` - return the authenticated extended
@@ -1371,11 +1333,7 @@ mod tests {
             history: vec![],
             id: task_id.clone(),
             metadata: None,
-            status: TaskStatus {
-                message: None,
-                state: TaskState::TaskStateCompleted,
-                timestamp: Some(Timestamp(chrono::Utc::now())),
-            },
+            status: TaskStatus::now(TaskState::TaskStateCompleted, None),
         };
         storage
             .create_active_task(&terminal_task)
@@ -1429,11 +1387,7 @@ mod tests {
             history: vec![],
             id: task_id.clone(),
             metadata: None,
-            status: TaskStatus {
-                message: None,
-                state: TaskState::TaskStateWorking,
-                timestamp: Some(Timestamp(chrono::Utc::now())),
-            },
+            status: TaskStatus::now(TaskState::TaskStateWorking, None),
         };
         storage
             .create_active_task(&initial_task)
@@ -1451,11 +1405,7 @@ mod tests {
                 history: vec![],
                 id: task_id_for_driver,
                 metadata: None,
-                status: TaskStatus {
-                    message: None,
-                    state: TaskState::TaskStateCompleted,
-                    timestamp: Some(Timestamp(chrono::Utc::now())),
-                },
+                status: TaskStatus::now(TaskState::TaskStateCompleted, None),
             };
             storage_for_driver.put_task(completed).await;
         });
@@ -1747,11 +1697,7 @@ mod tests {
             } else {
                 TaskState::TaskStateCompleted
             };
-            task.status = TaskStatus {
-                message: Some(build_agent_text_message(&task, "handled")),
-                state,
-                timestamp: Some(Timestamp(chrono::Utc::now())),
-            };
+            task.status = TaskStatus::now(state, Some(build_agent_text_message(&task, "handled")));
             Ok(task)
         }
 

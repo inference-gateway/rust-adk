@@ -29,6 +29,7 @@ use anyhow::{Context, Result, anyhow};
 use axum_server::accept::Accept;
 use rustls::RootCertStore;
 use rustls::ServerConfig as RustlsServerConfig;
+use rustls::pki_types::pem::{self, PemObject};
 use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use rustls::server::WebPkiClientVerifier;
 use serde::{Deserialize, Serialize};
@@ -90,8 +91,7 @@ pub(crate) fn load_certs(path: impl AsRef<Path>) -> Result<Vec<CertificateDer<'s
     let path = path.as_ref();
     let bytes = std::fs::read(path)
         .with_context(|| format!("failed to read TLS certificate file `{}`", path.display()))?;
-    let mut slice = bytes.as_slice();
-    let certs = rustls_pemfile::certs(&mut slice)
+    let certs = CertificateDer::pem_slice_iter(&bytes)
         .collect::<std::result::Result<Vec<_>, _>>()
         .with_context(|| format!("failed to parse PEM certificates in `{}`", path.display()))?;
     if certs.is_empty() {
@@ -106,10 +106,13 @@ pub(crate) fn load_private_key(path: impl AsRef<Path>) -> Result<PrivateKeyDer<'
     let path = path.as_ref();
     let bytes = std::fs::read(path)
         .with_context(|| format!("failed to read TLS key file `{}`", path.display()))?;
-    let mut slice = bytes.as_slice();
-    rustls_pemfile::private_key(&mut slice)
-        .with_context(|| format!("failed to parse PEM private key in `{}`", path.display()))?
-        .ok_or_else(|| anyhow!("no private key found in `{}`", path.display()))
+    PrivateKeyDer::from_pem_slice(&bytes).map_err(|e| match e {
+        pem::Error::NoItemsFound => anyhow!("no private key found in `{}`", path.display()),
+        other => anyhow::Error::new(other).context(format!(
+            "failed to parse PEM private key in `{}`",
+            path.display()
+        )),
+    })
 }
 
 /// Make sure a process-wide [`rustls::crypto::CryptoProvider`] is
@@ -294,6 +297,24 @@ mod tests {
         std::fs::write(&tmp, "").expect("write empty pem");
         let err = load_certs(&tmp).expect_err("must fail");
         assert!(err.to_string().contains("no certificates found"));
+        let _ = std::fs::remove_file(&tmp);
+    }
+
+    #[test]
+    fn load_private_key_errors_when_pem_is_empty() {
+        let tmp = tempdir_path("empty-key.pem");
+        std::fs::write(&tmp, "").expect("write empty pem");
+        let err = load_private_key(&tmp).expect_err("must fail");
+        assert!(err.to_string().contains("no private key found"));
+        let _ = std::fs::remove_file(&tmp);
+    }
+
+    #[test]
+    fn load_private_key_errors_on_malformed_pem() {
+        let tmp = tempdir_path("bad-key.pem");
+        std::fs::write(&tmp, "-----BEGIN PRIVATE KEY-----\nnot base64\n").expect("write bad pem");
+        let err = load_private_key(&tmp).expect_err("must fail");
+        assert!(err.to_string().contains("failed to parse PEM private key"));
         let _ = std::fs::remove_file(&tmp);
     }
 

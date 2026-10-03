@@ -53,6 +53,17 @@ impl a2a_types::Task {
     }
 }
 
+impl a2a_types::TaskStatus {
+    /// A status is stamped with the moment it was recorded.
+    pub(crate) fn now(state: a2a_types::TaskState, message: Option<a2a_types::Message>) -> Self {
+        Self {
+            message,
+            state,
+            timestamp: Some(a2a_types::Timestamp(chrono::Utc::now())),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     #[test]

@@ -4,7 +4,7 @@ use super::storage::Storage;
 use super::usage_tracker::UsageTracker;
 use crate::a2a_types::{
     Artifact, Message as A2AMessage, Part, Role, StreamResponse, Struct, Task,
-    TaskArtifactUpdateEvent, TaskState, TaskStatus, TaskStatusUpdateEvent, Timestamp,
+    TaskArtifactUpdateEvent, TaskState, TaskStatus, TaskStatusUpdateEvent,
 };
 use anyhow::{Result, anyhow};
 use futures_util::stream::StreamExt;
@@ -117,12 +117,7 @@ impl StreamEmitter {
         state: TaskState,
         message: Option<A2AMessage>,
     ) -> Result<()> {
-        let now = Timestamp(chrono::Utc::now());
-        let new_status = TaskStatus {
-            message: message.clone(),
-            state,
-            timestamp: Some(now),
-        };
+        let new_status = TaskStatus::now(state, message.clone());
 
         if let Some(mut task) = self.storage.get_task(task_id).await {
             task.status = new_status.clone();
@@ -664,11 +659,7 @@ impl TaskHandler for DefaultBackgroundTaskHandler {
 
         let reply = build_agent_text_message(&task, &reply_text);
         task.history.push(reply.clone());
-        task.status = TaskStatus {
-            message: Some(reply),
-            state: terminal_state,
-            timestamp: Some(Timestamp(chrono::Utc::now())),
-        };
+        task.status = TaskStatus::now(terminal_state, Some(reply));
 
         if self.enable_usage_metadata && tracker.has_usage() {
             merge_usage_metadata(&mut task, tracker.metadata());
