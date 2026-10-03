@@ -51,13 +51,15 @@ fn build_agent_message(task: &Task, text: &str) -> Message {
 }
 
 /// Explicit `SendMessage` handler. Returns the task in `Completed` with an
-/// echo of the user input attached as the final agent message.
+/// echo of the user input attached as the final agent message, after a short
+/// delay so `CancelTask` has a window to cancel it.
 #[derive(Debug, Default)]
 struct EchoBackgroundTaskHandler;
 
 #[async_trait::async_trait]
 impl TaskHandler for EchoBackgroundTaskHandler {
     async fn handle_task(&self, mut task: Task, message: Option<Message>) -> anyhow::Result<Task> {
+        tokio::time::sleep(Duration::from_millis(500)).await;
         let reply = build_agent_message(&task, &echo_text(&message));
         task.history.push(reply.clone());
         task.status = TaskStatus {

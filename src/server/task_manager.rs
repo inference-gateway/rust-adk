@@ -137,17 +137,28 @@ async fn run_worker(
         let task = queued.task;
         let task_id = task.id.clone();
 
+        if is_already_terminal(&storage, &task_id).await {
+            debug!(worker_id, task_id = %task_id, "task already terminal; skipping");
+            continue;
+        }
+
         if let Err(e) = storage.create_active_task(&task).await {
             debug!(worker_id, task_id = %task_id, error = %e, "create_active_task: continuing");
         }
 
         let last_message = task.history.last().cloned();
         let span = tracing::info_span!("task.process", task_id = %task_id);
-        match handler
+        let outcome = handler
             .handle_task(task.clone(), last_message)
             .instrument(span)
-            .await
-        {
+            .await;
+
+        if is_already_terminal(&storage, &task_id).await {
+            debug!(worker_id, task_id = %task_id, "task went terminal while running; dropping handler result");
+            continue;
+        }
+
+        match outcome {
             Ok(result) => route_terminal_or_active(&storage, worker_id, result).await,
             Err(e) => {
                 warn!(worker_id, task_id = %task_id, error = %e, "task handler failed");
@@ -164,6 +175,17 @@ async fn run_worker(
             }
         }
     }
+}
+
+/// True when storage already holds `task_id` in a terminal state, e.g. after a
+/// `CancelTask` landed while the task was queued or in flight, so the worker
+/// must not overwrite it. Check-then-write, not atomic: a cancel arriving in
+/// the instant between this check and the store can still be overwritten.
+async fn is_already_terminal(storage: &Arc<dyn Storage>, task_id: &str) -> bool {
+    storage
+        .get_task(task_id)
+        .await
+        .is_some_and(|t| t.status.state.is_terminal())
 }
 
 async fn route_terminal_or_active(
@@ -381,5 +403,51 @@ mod tests {
 
         runner.shutdown().await;
         assert_eq!(storage.get_stats().await.dead_letter_tasks, 0);
+    }
+
+    /// Signals when it starts, then completes only once released, so a test
+    /// can cancel the task while the handler is still running.
+    #[derive(Debug, Default)]
+    struct GatedHandler {
+        started: tokio::sync::Notify,
+        release: tokio::sync::Notify,
+    }
+
+    #[async_trait]
+    impl TaskHandler for GatedHandler {
+        async fn handle_task(&self, mut task: Task, _message: Option<A2AMessage>) -> Result<Task> {
+            self.started.notify_one();
+            self.release.notified().await;
+            task.status.state = TaskState::TaskStateCompleted;
+            Ok(task)
+        }
+    }
+
+    #[tokio::test]
+    async fn cancel_during_handler_is_not_overwritten_by_its_result() {
+        let storage: Arc<InMemoryStorage> = Arc::new(InMemoryStorage::new());
+        let handler = Arc::new(GatedHandler::default());
+        let manager = DefaultTaskManager::new(
+            storage.clone() as Arc<dyn Storage>,
+            handler.clone() as Arc<dyn TaskHandler>,
+            1,
+        );
+        let runner = manager.start();
+
+        let mut task = make_task("t4");
+        storage.create_active_task(&task).await.expect("create");
+        storage
+            .enqueue_task(task.clone(), serde_json::Value::Null)
+            .await
+            .expect("enqueue");
+        handler.started.notified().await;
+
+        task.status.state = TaskState::TaskStateCanceled;
+        storage.store_dead_letter_task(&task).await.expect("cancel");
+        handler.release.notify_one();
+        runner.shutdown().await;
+
+        let stored = storage.get_task("t4").await.expect("task stored");
+        assert_eq!(stored.status.state, TaskState::TaskStateCanceled);
     }
 }
