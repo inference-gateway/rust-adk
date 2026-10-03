@@ -79,8 +79,8 @@ pub trait ArtifactService: Send + Sync + std::fmt::Debug {
     /// Returns `Ok(0)` when no storage is configured.
     async fn cleanup_expired(&self, max_age: Duration) -> Result<usize>;
 
-    /// Trim to at most `max_count` blobs. Returns the number removed.
-    /// Returns `Ok(0)` when no storage is configured.
+    /// Trim to at most `max_count` blobs, `0` meaning unlimited. Returns
+    /// the number removed, `Ok(0)` when no storage is configured.
     async fn cleanup_oldest(&self, max_count: usize) -> Result<usize>;
 
     /// Optional access to the underlying storage. Used by the

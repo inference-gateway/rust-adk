@@ -1401,7 +1401,7 @@ See `examples/artifacts-filesystem/server/main.rs` for a runnable version.
 | `ARTIFACTS_STORAGE_BUCKET_NAME` | unset | MinIO bucket name. |
 | `ARTIFACTS_STORAGE_REGION` | unset | MinIO region. |
 | `ARTIFACTS_STORAGE_USE_SSL` | `false` | Whether to use TLS when talking to the MinIO endpoint. |
-| `ARTIFACTS_RETENTION_MAX_ARTIFACTS` | `5` | Cap on the total number of artifacts kept by the backend. |
+| `ARTIFACTS_RETENTION_MAX_ARTIFACTS` | `5` | Cap on the total number of artifacts kept by the backend, oldest pruned first; `0` means unlimited. Note: unlike the Go ADK, this cap is store-wide, not per `contextId`. |
 | `ARTIFACTS_RETENTION_MAX_AGE` | `168h` | Maximum age before an artifact is pruned. |
 | `ARTIFACTS_RETENTION_CLEANUP_INTERVAL` | `24h` | Frequency of the retention loop. |
 

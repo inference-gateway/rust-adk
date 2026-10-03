@@ -253,6 +253,9 @@ impl ArtifactStorage for MinioArtifactStorage {
     }
 
     async fn cleanup_oldest(&self, max_count: usize) -> Result<usize> {
+        if max_count == 0 {
+            return Ok(0);
+        }
         let mut entries = self.list().await?;
         if entries.len() <= max_count {
             return Ok(0);
