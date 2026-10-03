@@ -4,7 +4,7 @@
 //!
 //! ```bash
 //! cargo run -p a2a-methods-server
-//! cargo run -p a2a-methods-tasks-get
+//! cargo run -p a2a-methods-client --bin tasks-get
 //! ```
 
 use inference_gateway_adk::A2AClient;

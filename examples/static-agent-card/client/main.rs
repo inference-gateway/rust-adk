@@ -1,6 +1,6 @@
 use inference_gateway_adk::A2AClient;
 use inference_gateway_adk::a2a_types::{
-    GetTaskRequest, Message, Part, Role, SendMessageRequest, Task, TaskState,
+    GetTaskRequest, Message, Part, Role, SendMessageRequest, Task,
 };
 use std::env;
 use std::time::Duration;
@@ -74,12 +74,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             message_id: Uuid::new_v4().to_string(),
             metadata: None,
             parts: vec![Part {
-                data: None,
-                file: None,
-                metadata: None,
                 text: Some(
                     "Hello! I'm testing the A2A server with a JSON-loaded agent card.".to_string(),
                 ),
+                ..Default::default()
             }],
             reference_task_ids: vec![],
             role: Role::RoleUser,

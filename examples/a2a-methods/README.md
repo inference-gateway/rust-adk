@@ -69,17 +69,17 @@ cargo run -p a2a-methods-server
 In another terminal, run any of the per-method clients:
 
 ```bash
-cargo run -p a2a-methods-message-send
-cargo run -p a2a-methods-message-stream
-cargo run -p a2a-methods-tasks-get
-cargo run -p a2a-methods-tasks-list
-cargo run -p a2a-methods-tasks-cancel
-cargo run -p a2a-methods-tasks-resubscribe
-cargo run -p a2a-methods-push-config-set
-cargo run -p a2a-methods-push-config-get
-cargo run -p a2a-methods-push-config-list
-cargo run -p a2a-methods-push-config-delete
-cargo run -p a2a-methods-agent-authenticated-extended-card
+cargo run -p a2a-methods-client --bin message-send
+cargo run -p a2a-methods-client --bin message-stream
+cargo run -p a2a-methods-client --bin tasks-get
+cargo run -p a2a-methods-client --bin tasks-list
+cargo run -p a2a-methods-client --bin tasks-cancel
+cargo run -p a2a-methods-client --bin tasks-resubscribe
+cargo run -p a2a-methods-client --bin push-config-set
+cargo run -p a2a-methods-client --bin push-config-get
+cargo run -p a2a-methods-client --bin push-config-list
+cargo run -p a2a-methods-client --bin push-config-delete
+cargo run -p a2a-methods-client --bin agent-authenticated-extended-card
 ```
 
 The server listens on port `8085` by default (override with `SERVER_PORT=…`).

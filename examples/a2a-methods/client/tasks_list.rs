@@ -4,7 +4,7 @@
 //!
 //! ```bash
 //! cargo run -p a2a-methods-server
-//! cargo run -p a2a-methods-tasks-list
+//! cargo run -p a2a-methods-client --bin tasks-list
 //! ```
 
 use inference_gateway_adk::A2AClient;
@@ -54,7 +54,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             context_id: Some(String::new()),
             history_length: None,
             include_artifacts: None,
-            last_updated_after: Some(0),
+            status_timestamp_after: None,
             page_size: Some(10),
             page_token: Some(String::new()),
             status: Some(TaskState::TaskStateUnspecified),

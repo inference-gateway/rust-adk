@@ -1,6 +1,6 @@
 use inference_gateway_adk::A2AClient;
 use inference_gateway_adk::a2a_types::{
-    GetTaskRequest, Message, Part, Role, SendMessageRequest, Task, TaskState,
+    GetTaskRequest, Message, Part, Role, SendMessageRequest, Task,
 };
 use std::env;
 use std::time::{Duration, Instant};

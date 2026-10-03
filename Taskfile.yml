@@ -77,7 +77,7 @@ tasks:
 
   examples:static-agent-card-server:
     desc: Run the static-agent-card A2A server example (requires environment config and Inference Gateway)
-    dir: examples/static-agent-card
+    dir: examples/static-agent-card/server
     cmds:
       - cargo run -p static-agent-card-server
 
@@ -89,7 +89,7 @@ tasks:
 
   examples:ai-powered-server:
     desc: Run the AI-powered A2A server example with tools (requires Inference Gateway at localhost:8080)
-    dir: examples/ai-powered
+    dir: examples/ai-powered/server
     cmds:
       - cargo run -p ai-powered-server
 
@@ -113,7 +113,7 @@ tasks:
 
   examples:ai-powered-streaming-server:
     desc: Run the AI-powered streaming server example (requires Inference Gateway at localhost:8080)
-    dir: examples/ai-powered-streaming
+    dir: examples/ai-powered-streaming/server
     cmds:
       - cargo run -p ai-powered-streaming-server
 
@@ -137,7 +137,7 @@ tasks:
 
   examples:default-handlers-server:
     desc: Run the default-handlers server example (requires Inference Gateway at localhost:8080)
-    dir: examples/default-handlers
+    dir: examples/default-handlers/server
     cmds:
       - cargo run -p default-handlers-server
 
@@ -149,7 +149,7 @@ tasks:
 
   examples:streaming-server:
     desc: Run the streaming server example (no AI required)
-    dir: examples/streaming
+    dir: examples/streaming/server
     cmds:
       - cargo run -p streaming-server
 
@@ -161,7 +161,7 @@ tasks:
 
   examples:input-required-server:
     desc: Run the input-required server example (no AI required)
-    dir: examples/input-required
+    dir: examples/input-required/server
     cmds:
       - cargo run -p input-required-server
 
@@ -197,7 +197,7 @@ tasks:
 
   examples:queue-storage-server:
     desc: Run the queue-storage server example (in-memory by default; the queue-storage-server package already enables the ADK `redis` feature so A2A_QUEUE_PROVIDER=redis is available)
-    dir: examples/queue-storage
+    dir: examples/queue-storage/server
     cmds:
       - cargo run -p queue-storage-server
 
@@ -217,52 +217,52 @@ tasks:
     desc: Run the a2a-methods client for the `SendMessage` JSON-RPC method
     dir: examples/a2a-methods
     cmds:
-      - cargo run -p a2a-methods-message-send
+      - cargo run -p a2a-methods-client --bin message-send
 
   examples:a2a-methods-message-stream:
     desc: Run the a2a-methods client for the `SendStreamingMessage` JSON-RPC method
     dir: examples/a2a-methods
     cmds:
-      - cargo run -p a2a-methods-message-stream
+      - cargo run -p a2a-methods-client --bin message-stream
 
   examples:a2a-methods-tasks-get:
     desc: Run the a2a-methods client for the `GetTask` JSON-RPC method
     dir: examples/a2a-methods
     cmds:
-      - cargo run -p a2a-methods-tasks-get
+      - cargo run -p a2a-methods-client --bin tasks-get
 
   examples:a2a-methods-tasks-list:
     desc: Run the a2a-methods client for the `ListTasks` JSON-RPC method
     dir: examples/a2a-methods
     cmds:
-      - cargo run -p a2a-methods-tasks-list
+      - cargo run -p a2a-methods-client --bin tasks-list
 
   examples:a2a-methods-tasks-cancel:
     desc: Run the a2a-methods client for the `CancelTask` JSON-RPC method
     dir: examples/a2a-methods
     cmds:
-      - cargo run -p a2a-methods-tasks-cancel
+      - cargo run -p a2a-methods-client --bin tasks-cancel
 
   examples:a2a-methods-push-config-set:
     desc: Run the a2a-methods client for the `CreateTaskPushNotificationConfig` JSON-RPC method
     dir: examples/a2a-methods
     cmds:
-      - cargo run -p a2a-methods-push-config-set
+      - cargo run -p a2a-methods-client --bin push-config-set
 
   examples:a2a-methods-push-config-get:
     desc: Run the a2a-methods client for the `GetTaskPushNotificationConfig` JSON-RPC method
     dir: examples/a2a-methods
     cmds:
-      - cargo run -p a2a-methods-push-config-get
+      - cargo run -p a2a-methods-client --bin push-config-get
 
   examples:a2a-methods-push-config-list:
     desc: Run the a2a-methods client for the `ListTaskPushNotificationConfigs` JSON-RPC method
     dir: examples/a2a-methods
     cmds:
-      - cargo run -p a2a-methods-push-config-list
+      - cargo run -p a2a-methods-client --bin push-config-list
 
   examples:a2a-methods-push-config-delete:
     desc: Run the a2a-methods client for the `DeleteTaskPushNotificationConfig` JSON-RPC method
     dir: examples/a2a-methods
     cmds:
-      - cargo run -p a2a-methods-push-config-delete
+      - cargo run -p a2a-methods-client --bin push-config-delete

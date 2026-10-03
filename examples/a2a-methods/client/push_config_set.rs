@@ -7,7 +7,7 @@
 //!
 //! ```bash
 //! cargo run -p a2a-methods-server
-//! cargo run -p a2a-methods-push-config-set
+//! cargo run -p a2a-methods-client --bin push-config-set
 //! ```
 
 use inference_gateway_adk::A2AClient;
