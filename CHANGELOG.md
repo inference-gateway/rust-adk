@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.17.0](https://github.com/inference-gateway/rust-adk/compare/0.16.2...0.17.0) (2026-10-03)
+
+### ✨ Features
+
+* close the a2a v1.0.1 gaps the tck finds ([#202](https://github.com/inference-gateway/rust-adk/issues/202)) ([21a9e4d](https://github.com/inference-gateway/rust-adk/commit/21a9e4d113b586d2a29207eba4e7b53440f97b50))
+
+### ♻️ Improvements
+
+* add TaskStatus::now constructor ([#209](https://github.com/inference-gateway/rust-adk/issues/209)) ([2c02d93](https://github.com/inference-gateway/rust-adk/commit/2c02d935a05dc7624aa3a811bb2660b15284b4c3))
+* **artifacts:** scope paths and retention by contextId ([#215](https://github.com/inference-gateway/rust-adk/issues/215)) ([2056355](https://github.com/inference-gateway/rust-adk/commit/2056355654e13bfea9bc6f19dfc6a1a04fd6c75e))
+* drop rustls-pemfile for pki-types PemObject ([#210](https://github.com/inference-gateway/rust-adk/issues/210)) ([3cab09a](https://github.com/inference-gateway/rust-adk/commit/3cab09a923ab9cad22d1f3d2b4d83e3d3946b5e8))
+* extract json-rpc envelope helpers into errors.rs ([#211](https://github.com/inference-gateway/rust-adk/issues/211)) ([77dd3f6](https://github.com/inference-gateway/rust-adk/commit/77dd3f689a3893911abd4de359d72df40a1c9180))
+* share sse stream setup in protocol handlers ([#208](https://github.com/inference-gateway/rust-adk/issues/208)) ([e5f0535](https://github.com/inference-gateway/rust-adk/commit/e5f053569f526c6f0c2fd789519dba073ff931b9))
+
+### 🐛 Bug Fixes
+
+* **artifacts:** treat retention cap 0 as unlimited ([#213](https://github.com/inference-gateway/rust-adk/issues/213)) ([4f90513](https://github.com/inference-gateway/rust-adk/commit/4f90513b380e20dca6f51619e7e22c2688dccf73))
+
+### ✅ Miscellaneous
+
+* run the a2a tck in ci against a rust system under test ([#201](https://github.com/inference-gateway/rust-adk/issues/201)) ([05705f4](https://github.com/inference-gateway/rust-adk/commit/05705f47c13fba6d37c8513c36910269a613863e)), closes [#199](https://github.com/inference-gateway/rust-adk/issues/199), references [#200](https://github.com/inference-gateway/rust-adk/issues/200)
+
 ## [0.16.2](https://github.com/inference-gateway/rust-adk/compare/0.16.1...0.16.2) (2026-10-03)
 
 ### 🐛 Bug Fixes
