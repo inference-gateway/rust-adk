@@ -527,11 +527,7 @@ mod tests {
             history: vec![],
             id: id.to_string(),
             metadata: None,
-            status: TaskStatus {
-                message: None,
-                state: TaskState::TaskStateSubmitted,
-                timestamp: Some(Timestamp(Utc::now())),
-            },
+            status: TaskStatus::now(TaskState::TaskStateSubmitted, None),
         }
     }
 

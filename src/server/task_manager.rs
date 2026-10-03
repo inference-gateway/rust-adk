@@ -21,7 +21,7 @@
 use super::push;
 use super::storage::Storage;
 use super::task_handler::TaskHandler;
-use crate::a2a_types::{TaskState, TaskStatus, Timestamp};
+use crate::a2a_types::{TaskState, TaskStatus};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::task::JoinSet;
@@ -164,11 +164,8 @@ async fn run_worker(
             Err(e) => {
                 warn!(worker_id, task_id = %task_id, error = %e, "task handler failed");
                 let mut failed = task;
-                failed.status = TaskStatus {
-                    message: failed.status.message.clone(),
-                    state: TaskState::TaskStateFailed,
-                    timestamp: Some(Timestamp(chrono::Utc::now())),
-                };
+                failed.status =
+                    TaskStatus::now(TaskState::TaskStateFailed, failed.status.message.clone());
                 if let Err(store_err) = storage.store_dead_letter_task(&failed).await {
                     warn!(worker_id, task_id = %task_id, error = %store_err,
                         "store_dead_letter_task failed after handler error");
@@ -211,9 +208,7 @@ async fn route_terminal_or_active(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::a2a_types::{
-        Message as A2AMessage, Part, Role, Task, TaskState, TaskStatus, Timestamp,
-    };
+    use crate::a2a_types::{Message as A2AMessage, Part, Role, Task, TaskState, TaskStatus};
     use crate::server::storage::InMemoryStorage;
     use crate::server::task_handler::TaskHandler;
     use anyhow::Result;
@@ -239,11 +234,7 @@ mod tests {
             }],
             id: id.to_string(),
             metadata: None,
-            status: TaskStatus {
-                message: None,
-                state: TaskState::TaskStateSubmitted,
-                timestamp: Some(Timestamp(chrono::Utc::now())),
-            },
+            status: TaskStatus::now(TaskState::TaskStateSubmitted, None),
         }
     }
 
@@ -262,11 +253,7 @@ mod tests {
                 .lock()
                 .expect("mutex poisoned")
                 .push(task.id.clone());
-            task.status = TaskStatus {
-                message: None,
-                state: self.terminal_state,
-                timestamp: Some(Timestamp(chrono::Utc::now())),
-            };
+            task.status = TaskStatus::now(self.terminal_state, None);
             Ok(task)
         }
     }
