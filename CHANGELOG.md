@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.16.1](https://github.com/inference-gateway/rust-adk/compare/0.16.0...0.16.1) (2026-10-03)
+
+### 🐛 Bug Fixes
+
+* close the a2a v1.0.1 json-rpc protocol gaps found by the tck ([#190](https://github.com/inference-gateway/rust-adk/issues/190)) ([09d521c](https://github.com/inference-gateway/rust-adk/commit/09d521ce40b8cb59b1add8cfb84909bb9535f6ab)), references [#189](https://github.com/inference-gateway/rust-adk/issues/189)
+
+### 🔧 Miscellaneous
+
+* **deps:** bump xxhash-rust from 0.8.15 to 0.8.19 ([#188](https://github.com/inference-gateway/rust-adk/issues/188)) ([6974123](https://github.com/inference-gateway/rust-adk/commit/69741239db1a2943c50f9149b1713f27db175eb8))
+
 ## [0.16.0](https://github.com/inference-gateway/rust-adk/compare/0.15.0...0.16.0) (2026-10-03)
 
 ### ✨ Features
