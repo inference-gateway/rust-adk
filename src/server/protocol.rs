@@ -12,7 +12,7 @@ use crate::a2a_types::{
     ListTaskPushNotificationConfigsRequest, ListTaskPushNotificationConfigsResponse,
     ListTasksRequest, ListTasksResponse, SendMessageRequest, SendMessageResponse, StreamResponse,
     SubscribeToTaskRequest, Task, TaskPushNotificationConfig, TaskState, TaskStatus,
-    TaskStatusUpdateEvent, Timestamp,
+    TaskStatusUpdateEvent,
 };
 use axum::{
     extract::State,
@@ -343,11 +343,7 @@ fn build_task_from_request(req: &SendMessageRequest) -> Task {
         history,
         id: task_id,
         metadata: None,
-        status: TaskStatus {
-            message: None,
-            state: TaskState::TaskStateSubmitted,
-            timestamp: Some(Timestamp(chrono::Utc::now())),
-        },
+        status: TaskStatus::now(TaskState::TaskStateSubmitted, None),
     }
 }
 
@@ -390,11 +386,7 @@ fn continue_task(mut task: Task, message: &crate::a2a_types::Message) -> Task {
     }
     message.task_id = Some(task.id.clone());
     task.history.push(message);
-    task.status = TaskStatus {
-        message: None,
-        state: TaskState::TaskStateSubmitted,
-        timestamp: Some(Timestamp(chrono::Utc::now())),
-    };
+    task.status = TaskStatus::now(TaskState::TaskStateSubmitted, None);
     task
 }
 
@@ -819,11 +811,7 @@ async fn handle_tasks_cancel(state: &Arc<AppState>, id: Value, params: Value) ->
     }
 
     let mut updated = existing;
-    updated.status = TaskStatus {
-        message: None,
-        state: TaskState::TaskStateCanceled,
-        timestamp: Some(Timestamp(chrono::Utc::now())),
-    };
+    updated.status = TaskStatus::now(TaskState::TaskStateCanceled, None);
     if let Err(e) = state.server.storage.store_dead_letter_task(&updated).await {
         return json_rpc_error(
             id,
@@ -1474,11 +1462,7 @@ mod tests {
             history: vec![],
             id: task_id.clone(),
             metadata: None,
-            status: TaskStatus {
-                message: None,
-                state: TaskState::TaskStateCompleted,
-                timestamp: Some(Timestamp(chrono::Utc::now())),
-            },
+            status: TaskStatus::now(TaskState::TaskStateCompleted, None),
         };
         storage
             .create_active_task(&terminal_task)
@@ -1532,11 +1516,7 @@ mod tests {
             history: vec![],
             id: task_id.clone(),
             metadata: None,
-            status: TaskStatus {
-                message: None,
-                state: TaskState::TaskStateWorking,
-                timestamp: Some(Timestamp(chrono::Utc::now())),
-            },
+            status: TaskStatus::now(TaskState::TaskStateWorking, None),
         };
         storage
             .create_active_task(&initial_task)
@@ -1554,11 +1534,7 @@ mod tests {
                 history: vec![],
                 id: task_id_for_driver,
                 metadata: None,
-                status: TaskStatus {
-                    message: None,
-                    state: TaskState::TaskStateCompleted,
-                    timestamp: Some(Timestamp(chrono::Utc::now())),
-                },
+                status: TaskStatus::now(TaskState::TaskStateCompleted, None),
             };
             storage_for_driver.put_task(completed).await;
         });
@@ -1850,11 +1826,7 @@ mod tests {
             } else {
                 TaskState::TaskStateCompleted
             };
-            task.status = TaskStatus {
-                message: Some(build_agent_text_message(&task, "handled")),
-                state,
-                timestamp: Some(Timestamp(chrono::Utc::now())),
-            };
+            task.status = TaskStatus::now(state, Some(build_agent_text_message(&task, "handled")));
             Ok(task)
         }
 
