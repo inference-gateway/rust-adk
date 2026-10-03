@@ -770,7 +770,10 @@ Top-level shape:
 
 ```rust
 pub struct Config {
-    pub agent_url: String,
+    pub agent_url: String,                       // A2A_AGENT_URL; advertised in the card's
+                                                 // supportedInterfaces[0].url. Empty default
+                                                 // falls back to the card's own URL, then to
+                                                 // http(s)://localhost:<server_port>/a2a
     pub debug: bool,                             // inert; log level comes from RUST_LOG
     pub streaming_status_update_interval_secs: u64,
     pub agent_config: AgentConfig,               // A2A_AGENT_CLIENT_*
@@ -1473,6 +1476,10 @@ tags on `Config`.
 # Server
 A2A_SERVER_HOST="0.0.0.0"
 A2A_SERVER_PORT="8080"
+
+# URL advertised in the card's supportedInterfaces[0].url. Unset falls back to the
+# card's own URL, then to http(s)://localhost:<A2A_SERVER_PORT>/a2a
+A2A_AGENT_URL="https://my-agent.example.com/a2a"
 
 # Log verbosity is driven by RUST_LOG (tracing EnvFilter), not an A2A_* var
 RUST_LOG="info"
