@@ -159,4 +159,30 @@ mod tests {
         let storage: Arc<dyn Storage> = Arc::new(InMemoryStorage::new());
         notify(&storage, &task("t2")).await;
     }
+
+    #[test]
+    fn loggable_url_drops_credentials_query_and_fragment() {
+        let table = [
+            (
+                "credentials removed",
+                "https://user:s3cret@hook.example/notify",
+                "https://hook.example/notify",
+            ),
+            (
+                "password-only userinfo removed",
+                "https://:s3cret@hook.example/notify",
+                "https://hook.example/notify",
+            ),
+            (
+                "query and fragment removed",
+                "https://hook.example/notify?token=s3cret#s3cret",
+                "https://hook.example/notify",
+            ),
+            ("unparseable input", "not a url", "<invalid url>"),
+        ];
+
+        for (name, raw, expected) in table {
+            assert_eq!(loggable_url(raw), expected, "{name}");
+        }
+    }
 }
