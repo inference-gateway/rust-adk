@@ -48,4 +48,6 @@ pub use task_handler::{
 };
 pub use task_manager::{DefaultTaskManager, TaskManagerRunner};
 pub use tls::{ClientCertPrincipal, PeerCert};
-pub use usage_tracker::UsageTracker;
+pub use usage_tracker::{
+    EXECUTION_STATS_METADATA_KEY, USAGE_EXTENSION_URI, USAGE_METADATA_KEY, UsageTracker,
+};

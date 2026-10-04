@@ -2,6 +2,22 @@ use inference_gateway_sdk::CompletionUsage;
 use serde_json::{Map, Value, json};
 use std::sync::Mutex;
 
+macro_rules! usage_extension_uri {
+    () => {
+        "https://github.com/inference-gateway/schemas/tree/main/a2a/extensions/usage/v1"
+    };
+}
+
+/// Identifies the A2A extension that reports a task's token usage and execution stats in
+/// its metadata. It is inactive unless the client lists it in the `A2A-Extensions` header.
+pub const USAGE_EXTENSION_URI: &str = usage_extension_uri!();
+
+/// Task metadata key of the usage extension's token counts.
+pub const USAGE_METADATA_KEY: &str = concat!(usage_extension_uri!(), "/usage");
+
+/// Task metadata key of the usage extension's execution stats.
+pub const EXECUTION_STATS_METADATA_KEY: &str = concat!(usage_extension_uri!(), "/execution_stats");
+
 /// Accumulates token usage and execution statistics over a single task run.
 ///
 /// The default task handlers create one [`UsageTracker`] per task, thread it
@@ -95,7 +111,7 @@ impl UsageTracker {
         let mut map = Map::new();
         if s.llm_calls > 0 {
             map.insert(
-                "usage".to_string(),
+                USAGE_METADATA_KEY.to_string(),
                 json!({
                     "prompt_tokens": s.prompt_tokens,
                     "completion_tokens": s.completion_tokens,
@@ -104,7 +120,7 @@ impl UsageTracker {
             );
         }
         map.insert(
-            "execution_stats".to_string(),
+            EXECUTION_STATS_METADATA_KEY.to_string(),
             json!({
                 "iterations": s.iterations,
                 "messages": s.messages,
@@ -136,8 +152,8 @@ mod tests {
         assert!(!tracker.has_usage());
         // Only execution_stats is present, with all-zero counters.
         let meta = tracker.metadata();
-        assert!(!meta.contains_key("usage"));
-        let stats = &meta["execution_stats"];
+        assert!(!meta.contains_key(USAGE_METADATA_KEY));
+        let stats = &meta[EXECUTION_STATS_METADATA_KEY];
         assert_eq!(stats["iterations"], 0);
         assert_eq!(stats["messages"], 0);
         assert_eq!(stats["tool_calls"], 0);
@@ -152,7 +168,7 @@ mod tests {
 
         assert!(tracker.has_usage());
         let meta = tracker.metadata();
-        let usage_block = &meta["usage"];
+        let usage_block = &meta[USAGE_METADATA_KEY];
         assert_eq!(usage_block["prompt_tokens"], 30);
         assert_eq!(usage_block["completion_tokens"], 13);
         assert_eq!(usage_block["total_tokens"], 43);
@@ -170,7 +186,7 @@ mod tests {
         tracker.increment_failed_tools();
 
         assert!(tracker.has_usage());
-        let stats = &tracker.metadata()["execution_stats"];
+        let stats = &tracker.metadata()[EXECUTION_STATS_METADATA_KEY];
         assert_eq!(stats["iterations"], 2);
         assert_eq!(stats["messages"], 3);
         assert_eq!(stats["tool_calls"], 3);
@@ -186,8 +202,8 @@ mod tests {
 
         assert!(tracker.has_usage());
         let meta = tracker.metadata();
-        assert!(!meta.contains_key("usage"));
-        assert_eq!(meta["execution_stats"]["iterations"], 1);
+        assert!(!meta.contains_key(USAGE_METADATA_KEY));
+        assert_eq!(meta[EXECUTION_STATS_METADATA_KEY]["iterations"], 1);
     }
 
     #[test]
@@ -204,12 +220,12 @@ mod tests {
 
         let meta = Value::Object(tracker.metadata());
         let expected = json!({
-            "usage": {
+            USAGE_METADATA_KEY: {
                 "prompt_tokens": 123,
                 "completion_tokens": 45,
                 "total_tokens": 168,
             },
-            "execution_stats": {
+            EXECUTION_STATS_METADATA_KEY: {
                 "iterations": 2,
                 "messages": 7,
                 "tool_calls": 3,

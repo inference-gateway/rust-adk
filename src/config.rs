@@ -875,6 +875,9 @@ pub struct ClientConfig {
     pub base_url: String,
     pub timeout: Duration,
     pub max_retries: u32,
+    /// URIs of the A2A extensions every request activates through the `A2A-Extensions`
+    /// header, such as [`USAGE_EXTENSION_URI`](crate::USAGE_EXTENSION_URI).
+    pub extensions: Vec<String>,
 }
 
 impl ClientConfig {
@@ -883,6 +886,7 @@ impl ClientConfig {
             base_url: base_url.into(),
             timeout: Duration::from_secs(30),
             max_retries: 3,
+            extensions: Vec::new(),
         }
     }
 }

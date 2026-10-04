@@ -7,6 +7,7 @@ use super::server_core::A2AServer;
 use super::storage::TaskFilter;
 use super::task_handler::StreamEmitter;
 use super::tls::PeerCert;
+use super::usage_tracker::USAGE_EXTENSION_URI;
 use crate::a2a_types::{
     A2aMethod, CancelTaskRequest, DeleteTaskPushNotificationConfigRequest,
     GetExtendedAgentCardRequest, GetTaskPushNotificationConfigRequest, GetTaskRequest,
@@ -184,14 +185,23 @@ pub(crate) async fn a2a_handler(
         .into_response();
     }
 
-    match a2a_method {
-        A2aMethod::SendMessage => handle_message_send(&state, id, params)
+    let usage_active =
+        state.server.usage_extension && extension_requested(&headers, USAGE_EXTENSION_URI);
+
+    let mut response = match a2a_method {
+        A2aMethod::SendMessage => handle_message_send(&state, id, params, usage_active)
             .await
             .into_response(),
-        A2aMethod::SendStreamingMessage => handle_message_stream(state.clone(), id, params).await,
-        A2aMethod::GetTask => handle_tasks_get(&state, id, params).await.into_response(),
-        A2aMethod::ListTasks => handle_tasks_list(&state, id, params).await.into_response(),
-        A2aMethod::CancelTask => handle_tasks_cancel(&state, id, params)
+        A2aMethod::SendStreamingMessage => {
+            handle_message_stream(state.clone(), id, params, usage_active).await
+        }
+        A2aMethod::GetTask => handle_tasks_get(&state, id, params, usage_active)
+            .await
+            .into_response(),
+        A2aMethod::ListTasks => handle_tasks_list(&state, id, params, usage_active)
+            .await
+            .into_response(),
+        A2aMethod::CancelTask => handle_tasks_cancel(&state, id, params, usage_active)
             .await
             .into_response(),
         A2aMethod::CreateTaskPushNotificationConfig => handle_set_push_config(&state, id, params)
@@ -208,12 +218,42 @@ pub(crate) async fn a2a_handler(
                 .await
                 .into_response()
         }
-        A2aMethod::SubscribeToTask => handle_tasks_resubscribe(state.clone(), id, params).await,
+        A2aMethod::SubscribeToTask => {
+            handle_tasks_resubscribe(state.clone(), id, params, usage_active).await
+        }
         A2aMethod::GetExtendedAgentCard => {
             handle_get_authenticated_extended_card(&state, id, params)
                 .await
                 .into_response()
         }
+    };
+
+    if usage_active {
+        response.headers_mut().insert(
+            "A2A-Extensions",
+            axum::http::HeaderValue::from_static(USAGE_EXTENSION_URI),
+        );
+    }
+    response
+}
+
+/// Whether the `A2A-Extensions` request headers list `uri`, as one value or in a comma list.
+fn extension_requested(headers: &axum::http::HeaderMap, uri: &str) -> bool {
+    headers
+        .get_all("A2A-Extensions")
+        .iter()
+        .filter_map(|value| value.to_str().ok())
+        .flat_map(|value| value.split(','))
+        .any(|requested| requested.trim() == uri)
+}
+
+/// The task as the client may see it: without the usage extension's metadata unless the
+/// request activated it, since extensions are inactive by default.
+fn visible_task(task: Task, usage_active: bool) -> Task {
+    if usage_active {
+        task
+    } else {
+        task.without_extension(USAGE_EXTENSION_URI)
     }
 }
 
@@ -471,7 +511,12 @@ async fn register_inline_push_config(
         .await;
 }
 
-async fn handle_message_send(state: &Arc<AppState>, id: Value, params: Value) -> Json<Value> {
+async fn handle_message_send(
+    state: &Arc<AppState>,
+    id: Value,
+    params: Value,
+    usage_active: bool,
+) -> Json<Value> {
     let request: SendMessageRequest = match serde_json::from_value(params) {
         Ok(r) => r,
         Err(e) => return invalid_params(id, e),
@@ -565,7 +610,7 @@ async fn handle_message_send(state: &Arc<AppState>, id: Value, params: Value) ->
         id,
         SendMessageResponse {
             message: None,
-            task: Some(task),
+            task: Some(visible_task(task, usage_active)),
         },
     )
 }
@@ -599,7 +644,12 @@ fn task_event_stream(id: Value, initial: Task, rx: mpsc::Receiver<StreamResponse
         .into_response()
 }
 
-async fn handle_message_stream(state: Arc<AppState>, id: Value, params: Value) -> Response {
+async fn handle_message_stream(
+    state: Arc<AppState>,
+    id: Value,
+    params: Value,
+    usage_active: bool,
+) -> Response {
     let request: SendMessageRequest = match serde_json::from_value(params) {
         Ok(r) => r,
         Err(e) => return invalid_params(id, e).into_response(),
@@ -644,10 +694,15 @@ async fn handle_message_stream(state: Arc<AppState>, id: Value, params: Value) -
         }
     });
 
-    task_event_stream(id, snapshot, rx)
+    task_event_stream(id, visible_task(snapshot, usage_active), rx)
 }
 
-async fn handle_tasks_get(state: &Arc<AppState>, id: Value, params: Value) -> Json<Value> {
+async fn handle_tasks_get(
+    state: &Arc<AppState>,
+    id: Value,
+    params: Value,
+    usage_active: bool,
+) -> Json<Value> {
     let request: GetTaskRequest = match serde_json::from_value(params) {
         Ok(r) => r,
         Err(e) => return invalid_params(id, e),
@@ -658,13 +713,18 @@ async fn handle_tasks_get(state: &Arc<AppState>, id: Value, params: Value) -> Js
     match state.server.storage.get_task(task_id).await {
         Some(mut task) => {
             trim_history(&mut task, request.history_length);
-            json_rpc_result(id, task)
+            json_rpc_result(id, visible_task(task, usage_active))
         }
         None => task_not_found(id, task_id),
     }
 }
 
-async fn handle_tasks_list(state: &Arc<AppState>, id: Value, params: Value) -> Json<Value> {
+async fn handle_tasks_list(
+    state: &Arc<AppState>,
+    id: Value,
+    params: Value,
+    usage_active: bool,
+) -> Json<Value> {
     let request: ListTasksRequest = match serde_json::from_value(params) {
         Ok(r) => r,
         Err(e) => return invalid_params(id, e),
@@ -692,6 +752,7 @@ async fn handle_tasks_list(state: &Arc<AppState>, id: Value, params: Value) -> J
         .into_iter()
         .skip(offset)
         .take(page_size as usize)
+        .map(|task| visible_task(task, usage_active))
         .collect();
     let next = offset + page.len();
     let next_page_token = if next < total_size as usize {
@@ -718,7 +779,12 @@ fn parse_page_token(token: Option<&str>) -> Option<usize> {
     }
 }
 
-async fn handle_tasks_cancel(state: &Arc<AppState>, id: Value, params: Value) -> Json<Value> {
+async fn handle_tasks_cancel(
+    state: &Arc<AppState>,
+    id: Value,
+    params: Value,
+    usage_active: bool,
+) -> Json<Value> {
     let request: CancelTaskRequest = match serde_json::from_value(params) {
         Ok(r) => r,
         Err(e) => return invalid_params(id, e),
@@ -748,7 +814,7 @@ async fn handle_tasks_cancel(state: &Arc<AppState>, id: Value, params: Value) ->
         return internal_error(id, e);
     }
 
-    json_rpc_result(id, updated)
+    json_rpc_result(id, visible_task(updated, usage_active))
 }
 
 async fn handle_set_push_config(state: &Arc<AppState>, id: Value, params: Value) -> Json<Value> {
@@ -841,7 +907,12 @@ async fn handle_delete_push_config(state: &Arc<AppState>, id: Value, params: Val
 /// status update whenever the observed `state` changes. Custom
 /// `Storage` backends can rely on the same behaviour because the
 /// `Storage` trait does not require change-stream support.
-async fn handle_tasks_resubscribe(state: Arc<AppState>, id: Value, params: Value) -> Response {
+async fn handle_tasks_resubscribe(
+    state: Arc<AppState>,
+    id: Value,
+    params: Value,
+    usage_active: bool,
+) -> Response {
     let request: SubscribeToTaskRequest = match serde_json::from_value(params) {
         Ok(r) => r,
         Err(e) => return invalid_params(id, e).into_response(),
@@ -915,7 +986,7 @@ async fn handle_tasks_resubscribe(state: Arc<AppState>, id: Value, params: Value
         }
     });
 
-    task_event_stream(id, task, rx)
+    task_event_stream(id, visible_task(task, usage_active), rx)
 }
 
 /// `GetExtendedAgentCard` - return the authenticated extended
@@ -2042,6 +2113,77 @@ mod tests {
         assert_eq!(
             body["error"]["data"][0]["reason"],
             "CONTENT_TYPE_NOT_SUPPORTED"
+        );
+    }
+
+    #[tokio::test]
+    async fn usage_extension_metadata_reaches_only_requests_that_activate_it() {
+        use crate::server::usage_tracker::USAGE_METADATA_KEY;
+
+        let (addr, storage, _runner) = spawn_settling_server().await;
+        let task: Task = serde_json::from_value(json!({
+            "id": "usage-task",
+            "status": {"state": "TASK_STATE_COMPLETED"},
+            "metadata": {USAGE_METADATA_KEY: {"prompt_tokens": 7}, "other": true},
+        }))
+        .expect("task parses");
+        storage
+            .store_dead_letter_task(&task)
+            .await
+            .expect("task stored");
+
+        let cases = [
+            (None, false),
+            (Some(USAGE_EXTENSION_URI.to_string()), true),
+            (
+                Some(format!(
+                    "https://example.com/ext/other/v1, {USAGE_EXTENSION_URI}"
+                )),
+                true,
+            ),
+            (Some("https://example.com/ext/other/v1".to_string()), false),
+        ];
+        for (header, active) in cases {
+            let mut request = reqwest::Client::new()
+                .post(format!("http://{addr}/a2a"))
+                .json(&json!({
+                    "jsonrpc": "2.0",
+                    "id": "rpc-1",
+                    "method": "GetTask",
+                    "params": {"id": "usage-task"},
+                }));
+            if let Some(value) = header.as_deref() {
+                request = request.header("A2A-Extensions", value);
+            }
+            let response = request.send().await.expect("request sent");
+            let echoed = response
+                .headers()
+                .get("A2A-Extensions")
+                .and_then(|v| v.to_str().ok())
+                .map(str::to_string);
+            let body: Value = response.json().await.expect("json body");
+            let metadata = &body["result"]["metadata"];
+
+            assert_eq!(
+                metadata.get(USAGE_METADATA_KEY).is_some(),
+                active,
+                "header {header:?}"
+            );
+            assert_eq!(metadata["other"], true, "header {header:?}");
+            assert_eq!(
+                echoed.as_deref(),
+                active.then_some(USAGE_EXTENSION_URI),
+                "header {header:?}"
+            );
+        }
+
+        let stored = storage.get_task("usage-task").await.expect("stored task");
+        assert!(
+            stored
+                .metadata
+                .expect("metadata")
+                .0
+                .contains_key(USAGE_METADATA_KEY)
         );
     }
 }

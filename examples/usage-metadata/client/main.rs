@@ -1,6 +1,8 @@
-use inference_gateway_adk::A2AClient;
 use inference_gateway_adk::a2a_types::{
     GetTaskRequest, Message, Part, Role, SendMessageRequest, Task,
+};
+use inference_gateway_adk::{
+    A2AClient, ClientConfig, EXECUTION_STATS_METADATA_KEY, USAGE_EXTENSION_URI, USAGE_METADATA_KEY,
 };
 use std::env;
 use tokio::time::{Duration, sleep};
@@ -48,8 +50,8 @@ fn user_message(text: &str) -> SendMessageRequest {
     }
 }
 
-/// Render the `usage` and `execution_stats` blocks the server attaches to a
-/// terminal task's `metadata` when usage metadata is enabled.
+/// Render the usage extension's `usage` and `execution_stats` blocks the server
+/// attaches to a terminal task's `metadata` when usage metadata is enabled.
 fn render_usage_metadata(task: &Task) {
     let Some(meta) = task.metadata.as_ref() else {
         info!(
@@ -59,7 +61,7 @@ fn render_usage_metadata(task: &Task) {
         return;
     };
 
-    if let Some(usage) = meta.0.get("usage") {
+    if let Some(usage) = meta.0.get(USAGE_METADATA_KEY) {
         info!(
             "  token usage: prompt={}, completion={}, total={}",
             usage
@@ -77,7 +79,7 @@ fn render_usage_metadata(task: &Task) {
         );
     }
 
-    if let Some(stats) = meta.0.get("execution_stats") {
+    if let Some(stats) = meta.0.get(EXECUTION_STATS_METADATA_KEY) {
         info!(
             "  execution stats: iterations={}, messages={}, tool_calls={}, failed_tools={}",
             stats
@@ -102,7 +104,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt().init();
 
     let server_url = env::var("SERVER_URL").unwrap_or_else(|_| "http://localhost:8080".to_string());
-    let client = A2AClient::new(&server_url)?;
+    let mut config = ClientConfig::new(&server_url);
+    config.extensions = vec![USAGE_EXTENSION_URI.to_string()];
+    let client = A2AClient::with_config(config)?;
 
     info!("usage-metadata A2A client connecting to {server_url}");
 

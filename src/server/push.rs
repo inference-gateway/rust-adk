@@ -1,4 +1,5 @@
 use super::storage::Storage;
+use super::usage_tracker::USAGE_EXTENSION_URI;
 use crate::a2a_types::{StreamResponse, Task};
 use std::sync::Arc;
 use std::time::Duration;
@@ -17,7 +18,7 @@ pub(super) async fn notify(storage: &Arc<dyn Storage>, task: &Task) {
     }
 
     let payload = StreamResponse {
-        task: Some(task.clone()),
+        task: Some(task.clone().without_extension(USAGE_EXTENSION_URI)),
         ..Default::default()
     };
     let client = reqwest::Client::new();

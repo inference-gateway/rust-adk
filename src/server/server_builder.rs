@@ -9,7 +9,8 @@ use super::task_handler::{
     DefaultBackgroundTaskHandler, DefaultStreamingTaskHandler, StreamableTaskHandler, TaskHandler,
 };
 use super::task_manager::DefaultTaskManager;
-use crate::a2a_types::{AgentCard, AgentInterface};
+use super::usage_tracker::USAGE_EXTENSION_URI;
+use crate::a2a_types::{AgentCard, AgentExtension, AgentInterface};
 use crate::config::{ArtifactsStorageProvider, Config};
 use anyhow::{Result, anyhow};
 use std::sync::Arc;
@@ -252,14 +253,25 @@ impl A2AServerBuilder {
             reject_interface_credentials("agent card", card)?;
         }
 
-        if let Some(ref card) = self.extended_agent_card {
+        let mut extended_agent_card = self.extended_agent_card;
+        if let Some(ref card) = extended_agent_card {
             reject_interface_credentials("extended agent card", card)?;
         }
 
-        if self.extended_agent_card.is_some()
+        if extended_agent_card.is_some()
             && let Some(ref mut card) = agent_card
         {
             card.capabilities.extended_agent_card = Some(true);
+        }
+
+        let usage_extension = config.agent_config.enable_usage_metadata;
+        if usage_extension {
+            for card in [agent_card.as_mut(), extended_agent_card.as_mut()]
+                .into_iter()
+                .flatten()
+            {
+                declare_usage_extension(card);
+            }
         }
 
         let gateway_url = self
@@ -418,7 +430,7 @@ impl A2AServerBuilder {
         Ok(A2AServer {
             config,
             agent_card,
-            extended_agent_card: self.extended_agent_card,
+            extended_agent_card,
             agent: self.agent,
             gateway_url,
             storage,
@@ -427,8 +439,30 @@ impl A2AServerBuilder {
             task_manager,
             auth_verifier,
             artifact_service,
+            usage_extension,
         })
     }
+}
+
+/// Lists the usage extension in the card's capabilities unless the card already does.
+/// The extension only adds data, so it is never required.
+fn declare_usage_extension(card: &mut AgentCard) {
+    let declared = card
+        .capabilities
+        .extensions
+        .iter()
+        .any(|ext| ext.uri.as_deref() == Some(USAGE_EXTENSION_URI));
+    if declared {
+        return;
+    }
+    card.capabilities.extensions.push(AgentExtension {
+        description: Some(
+            "Reports the task's token usage and execution stats in its metadata.".to_string(),
+        ),
+        params: None,
+        required: Some(false),
+        uri: Some(USAGE_EXTENSION_URI.to_string()),
+    });
 }
 
 fn non_empty(value: String) -> Option<String> {
@@ -769,5 +803,33 @@ mod tests {
             server.is_ok(),
             "with_default_task_handlers should satisfy validation"
         );
+    }
+
+    #[tokio::test]
+    async fn usage_extension_is_declared_while_usage_metadata_is_enabled() {
+        let plain = serde_json::json!([{"url": "http://card/a2a", "protocolBinding": "JSONRPC", "protocolVersion": "1.0"}]);
+        for enabled in [true, false] {
+            let mut config = Config::default();
+            config.agent_config.enable_usage_metadata = enabled;
+            let server = A2AServerBuilder::new()
+                .with_config(config)
+                .with_agent_card(agent_card_with_interfaces(plain.clone()))
+                .with_default_streaming_task_handler()
+                .build()
+                .await
+                .expect("server builds");
+
+            let declared: Vec<AgentExtension> = server
+                .agent_card
+                .expect("card")
+                .capabilities
+                .extensions
+                .into_iter()
+                .filter(|ext| ext.uri.as_deref() == Some(USAGE_EXTENSION_URI))
+                .collect();
+            assert_eq!(declared.len(), usize::from(enabled), "enabled={enabled}");
+            assert!(declared.iter().all(|ext| ext.required == Some(false)));
+            assert_eq!(server.usage_extension, enabled);
+        }
     }
 }

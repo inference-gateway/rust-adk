@@ -30,6 +30,7 @@ pub use server::{
     TaskManagerRunner, ToolHandler, UsageTracker, create_storage, infer_mime_type,
     spawn_retention_task,
 };
+pub use server::{EXECUTION_STATS_METADATA_KEY, USAGE_EXTENSION_URI, USAGE_METADATA_KEY};
 
 impl a2a_types::TaskState {
     /// A terminal task never changes state again; A2A v1.0 dropped the `final` flag,
@@ -50,6 +51,19 @@ impl a2a_types::Task {
     /// creates; the field is optional only because A2A v1.0 made it so on the wire.
     pub fn context_id_str(&self) -> &str {
         self.context_id.as_deref().unwrap_or_default()
+    }
+
+    /// The task without the metadata keys of the extension identified by `uri`, and without
+    /// metadata once none is left. A request that did not activate an extension gets this.
+    pub fn without_extension(mut self, uri: &str) -> Self {
+        let prefix = format!("{uri}/");
+        if let Some(metadata) = self.metadata.as_mut() {
+            metadata.0.retain(|key, _| !key.starts_with(&prefix));
+        }
+        if self.metadata.as_ref().is_some_and(|m| m.0.is_empty()) {
+            self.metadata = None;
+        }
+        self
     }
 }
 
@@ -92,5 +106,41 @@ mod tests {
         assert!(serialized.contains("\"role\":\"ROLE_USER\""));
 
         let _deserialized: Message = serde_json::from_str(&serialized).expect("Should deserialize");
+    }
+
+    #[test]
+    fn without_extension_drops_only_that_extensions_keys() {
+        use crate::a2a_types::Task;
+        let task = |metadata: serde_json::Value| -> Task {
+            serde_json::from_value(serde_json::json!({
+                "id": "t1",
+                "status": {"state": "TASK_STATE_COMPLETED"},
+                "metadata": metadata,
+            }))
+            .expect("task parses")
+        };
+        let uri = "https://example.com/ext/usage/v1";
+
+        let mixed = task(serde_json::json!({
+            "https://example.com/ext/usage/v1/usage": 1,
+            "https://example.com/ext/usage/v1-other/key": 2,
+            "plain": 3,
+        }))
+        .without_extension(uri);
+        let keys: Vec<_> = mixed
+            .metadata
+            .expect("metadata kept")
+            .0
+            .into_iter()
+            .map(|(k, _)| k)
+            .collect();
+        assert_eq!(
+            keys,
+            ["https://example.com/ext/usage/v1-other/key", "plain"]
+        );
+
+        let only_extension = task(serde_json::json!({"https://example.com/ext/usage/v1/usage": 1}))
+            .without_extension(uri);
+        assert!(only_extension.metadata.is_none());
     }
 }
