@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.18.0](https://github.com/inference-gateway/rust-adk/compare/0.17.1...0.18.0) (2026-10-04)
+
+### ✨ Features
+
+* **server:** publish task usage as an A2A extension ([#227](https://github.com/inference-gateway/rust-adk/issues/227)) ([d244b43](https://github.com/inference-gateway/rust-adk/commit/d244b43150116d2ff0587b7bb581915b2399c365)), references [inference-gateway/cli#1526](https://github.com/inference-gateway/cli/issues/1526)
+
+### 📚 Documentation
+
+* **agents:** add code readability guidelines ([#222](https://github.com/inference-gateway/rust-adk/issues/222)) ([41d9b80](https://github.com/inference-gateway/rust-adk/commit/41d9b80e693a128498d8168724cdf5c69bd3973c))
+* align health, mTLS and TOC docs with code ([#224](https://github.com/inference-gateway/rust-adk/issues/224)) ([935e7db](https://github.com/inference-gateway/rust-adk/commit/935e7dbc08367739e497ee51816e602e5a288990))
+* **readme:** correct push notification delivery docs ([#223](https://github.com/inference-gateway/rust-adk/issues/223)) ([ae7106e](https://github.com/inference-gateway/rust-adk/commit/ae7106ef14d5c921a24613d68a969e5d66f961fb))
+* **readme:** fix inert and unapplied config knobs ([#225](https://github.com/inference-gateway/rust-adk/issues/225)) ([40ae2da](https://github.com/inference-gateway/rust-adk/commit/40ae2da3dbd1d8509d13128cb52e3ba9098d6a80))
+* **readme:** fix install pin and v1.0.1 type snippets ([#226](https://github.com/inference-gateway/rust-adk/issues/226)) ([5ecd0f9](https://github.com/inference-gateway/rust-adk/commit/5ecd0f98958a36bd710adca64b03f2d77b78888a))
+
 ## [0.17.1](https://github.com/inference-gateway/rust-adk/compare/0.17.0...0.17.1) (2026-10-03)
 
 ### 🐛 Bug Fixes
