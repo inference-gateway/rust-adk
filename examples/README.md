@@ -40,7 +40,7 @@ override via `.env` to use any other provider supported by the gateway
 | [`ai-powered/`](./ai-powered) | LLM agent with custom function tools (weather, math, search) |
 | [`ai-powered-streaming/`](./ai-powered-streaming) | LLM agent streamed over `SendStreamingMessage` |
 | [`mcp/`](./mcp) | LLM agent that discovers/invokes MCP tools via `mcp_list_tools` / `mcp_call_tool` selector tools (`MCP_ENABLED`, `MCP_SERVERS`) |
-| [`usage-metadata/`](./usage-metadata) | Default handlers attach token `usage` + `execution_stats` to `task.metadata` on terminal states |
+| [`usage-metadata/`](./usage-metadata) | Default handlers attach token `usage` + `execution_stats` to `task.metadata` on terminal states, through the usage extension |
 
 ### Storage & Protocol
 

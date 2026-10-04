@@ -940,6 +940,7 @@ mod tests {
     use crate::server::agent_builder::AgentBuilder;
     use crate::server::protocol::{AppState, a2a_handler};
     use crate::server::server_builder::A2AServerBuilder;
+    use crate::server::usage_tracker::{EXECUTION_STATS_METADATA_KEY, USAGE_METADATA_KEY};
     use axum::Router;
     use axum::extract::State;
     use axum::response::Json;
@@ -1628,10 +1629,10 @@ mod tests {
         let meta = task
             .metadata
             .expect("usage metadata attached on completion");
-        assert_eq!(meta.0["usage"]["prompt_tokens"], 11);
-        assert_eq!(meta.0["usage"]["completion_tokens"], 4);
-        assert_eq!(meta.0["usage"]["total_tokens"], 15);
-        let stats = &meta.0["execution_stats"];
+        assert_eq!(meta.0[USAGE_METADATA_KEY]["prompt_tokens"], 11);
+        assert_eq!(meta.0[USAGE_METADATA_KEY]["completion_tokens"], 4);
+        assert_eq!(meta.0[USAGE_METADATA_KEY]["total_tokens"], 15);
+        let stats = &meta.0[EXECUTION_STATS_METADATA_KEY];
         assert_eq!(stats["iterations"], 1);
         assert_eq!(stats["messages"], 0);
         assert_eq!(stats["tool_calls"], 0);
@@ -1702,11 +1703,11 @@ mod tests {
         let meta = stored
             .metadata
             .expect("usage metadata attached to the stored task");
-        assert_eq!(meta.0["usage"]["prompt_tokens"], 7);
-        assert_eq!(meta.0["usage"]["completion_tokens"], 2);
-        assert_eq!(meta.0["usage"]["total_tokens"], 9);
+        assert_eq!(meta.0[USAGE_METADATA_KEY]["prompt_tokens"], 7);
+        assert_eq!(meta.0[USAGE_METADATA_KEY]["completion_tokens"], 2);
+        assert_eq!(meta.0[USAGE_METADATA_KEY]["total_tokens"], 9);
         // The streaming tail counts as one iteration even without a tool loop.
-        assert_eq!(meta.0["execution_stats"]["iterations"], 1);
+        assert_eq!(meta.0[EXECUTION_STATS_METADATA_KEY]["iterations"], 1);
     }
 
     #[tokio::test]

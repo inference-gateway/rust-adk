@@ -39,6 +39,11 @@ fn build_http_client(config: &ClientConfig) -> Result<reqwest::Client> {
         "A2A-Version",
         reqwest::header::HeaderValue::from_static(crate::A2A_PROTOCOL_VERSION),
     );
+    if !config.extensions.is_empty() {
+        let extensions = reqwest::header::HeaderValue::from_str(&config.extensions.join(", "))
+            .map_err(|e| anyhow!("invalid A2A-Extensions header: {e}"))?;
+        headers.insert("A2A-Extensions", extensions);
+    }
     reqwest::Client::builder()
         .timeout(config.timeout)
         .default_headers(headers)
@@ -477,5 +482,57 @@ mod tests {
         assert_eq!(config.base_url, "http://example.com");
         assert_eq!(config.timeout, std::time::Duration::from_secs(30));
         assert_eq!(config.max_retries, 3);
+    }
+
+    #[tokio::test]
+    async fn configured_extensions_are_activated_on_every_request() {
+        use axum::{Json, Router, http::HeaderMap, routing::post};
+        use std::sync::{Arc, Mutex};
+
+        let seen = Arc::new(Mutex::new(None::<String>));
+        let recorder = Arc::clone(&seen);
+        let app = Router::new().route(
+            "/a2a",
+            post(move |headers: HeaderMap| async move {
+                *recorder.lock().unwrap() = headers
+                    .get("A2A-Extensions")
+                    .and_then(|v| v.to_str().ok())
+                    .map(str::to_string);
+                Json(serde_json::json!({
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "result": {"id": "t1", "status": {"state": "TASK_STATE_COMPLETED"}},
+                }))
+            }),
+        );
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move { axum::serve(listener, app).await.ok() });
+
+        let mut config = ClientConfig::new(format!("http://{addr}"));
+        config.extensions = vec![
+            crate::USAGE_EXTENSION_URI.to_string(),
+            "https://example.com/ext/other/v1".to_string(),
+        ];
+        let client = A2AClient::with_config(config).unwrap();
+        client
+            .get_task(GetTaskRequest {
+                history_length: None,
+                id: "t1".to_string(),
+                tenant: None,
+            })
+            .await
+            .unwrap();
+
+        assert_eq!(
+            seen.lock().unwrap().as_deref(),
+            Some(
+                format!(
+                    "{}, https://example.com/ext/other/v1",
+                    crate::USAGE_EXTENSION_URI
+                )
+                .as_str()
+            )
+        );
     }
 }

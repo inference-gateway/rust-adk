@@ -435,6 +435,7 @@ let config = ClientConfig {
     base_url: "http://localhost:8080".to_string(),
     timeout: Duration::from_secs(45),
     max_retries: 5,
+    extensions: vec![USAGE_EXTENSION_URI.to_string()], // sent as the A2A-Extensions header
 };
 let client = A2AClient::with_config(config)?;
 
@@ -1439,19 +1440,32 @@ bundled handlers can tally token usage and agent-loop statistics across a
 task's lifetime and attach them to `task.metadata` on the **terminal**
 transition (`completed` / `failed` / `cancelled`) - never mid-flight. Both
 the background (`SendMessage`) and streaming (`SendStreamingMessage`) default
-handlers emit the same two blocks:
+handlers emit the same two blocks, under keys namespaced by the
+[usage extension](https://github.com/inference-gateway/schemas/tree/main/a2a/extensions/usage/v1)
+URI (`USAGE_METADATA_KEY` and `EXECUTION_STATS_METADATA_KEY`):
 
 ```jsonc
 {
-  "usage": { "prompt_tokens": 123, "completion_tokens": 45, "total_tokens": 168 },
-  "execution_stats": { "iterations": 2, "messages": 1, "tool_calls": 1, "failed_tools": 0 }
+  "https://github.com/inference-gateway/schemas/tree/main/a2a/extensions/usage/v1/usage": { "prompt_tokens": 123, "completion_tokens": 45, "total_tokens": 168 },
+  "https://github.com/inference-gateway/schemas/tree/main/a2a/extensions/usage/v1/execution_stats": { "iterations": 2, "messages": 1, "tool_calls": 1, "failed_tools": 0 }
 }
 ```
 
-- `usage` sums the gateway's `CompletionUsage` responses over every chat
+The server declares the extension in its agent card and returns these keys only to a
+request that activates it with the `A2A-Extensions` header, as A2A extensions are
+inactive by default. Push notifications never carry them. `A2AClient` activates it
+through `ClientConfig::extensions`:
+
+```rust
+let mut config = ClientConfig::new("http://localhost:8080");
+config.extensions = vec![USAGE_EXTENSION_URI.to_string()];
+let client = A2AClient::with_config(config)?;
+```
+
+- The usage block sums the gateway's `CompletionUsage` responses over every chat
   completion the agent loop issues (omitted when the gateway returns no
   usage at all).
-- `execution_stats` counts the agent loop itself: `iterations` (chat
+- The execution stats block counts the agent loop itself: `iterations` (chat
   completion round-trips), `messages` (tool-result messages fed back),
   `tool_calls`, and `failed_tools` (handler errors or calls with no
   registered handler).
@@ -1471,7 +1485,7 @@ let agent = AgentBuilder::new()
 
 `A2AServerBuilder` forwards the resolved flag to the default handlers, so a
 server built from a `Config` with `enable_usage_metadata = false` attaches
-no metadata. See [`examples/usage-metadata/`](./examples/usage-metadata/)
+no metadata and does not declare the extension. See [`examples/usage-metadata/`](./examples/usage-metadata/)
 for a runnable demo that sends a tool-triggering prompt, polls the task to
 terminal, and prints both blocks client-side.
 

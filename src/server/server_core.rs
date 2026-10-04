@@ -51,6 +51,9 @@ pub struct A2AServer {
     /// true, [`serve`](Self::serve) spawns a dedicated artifacts HTTP
     /// server alongside the main A2A listener.
     pub(super) artifact_service: Option<Arc<dyn ArtifactService>>,
+    /// Whether the server serves the usage extension, declared in its cards and
+    /// activated per request through the `A2A-Extensions` header.
+    pub(super) usage_extension: bool,
 }
 
 impl A2AServer {

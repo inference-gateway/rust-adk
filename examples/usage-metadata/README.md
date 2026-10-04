@@ -28,14 +28,18 @@ usage-metadata/
   `task.metadata` *only* on the terminal transition, never mid-flight.
 - **The emitted shape** - a `usage` block (summed across the gateway's
   `CompletionUsage` responses) plus an `execution_stats` block counting the
-  agent loop:
+  agent loop, under keys namespaced by the
+  [usage extension](https://github.com/inference-gateway/schemas/tree/main/a2a/extensions/usage/v1) URI:
 
   ```jsonc
   {
-    "usage": { "prompt_tokens": 123, "completion_tokens": 45, "total_tokens": 168 },
-    "execution_stats": { "iterations": 2, "messages": 1, "tool_calls": 1, "failed_tools": 0 }
+    "https://github.com/inference-gateway/schemas/tree/main/a2a/extensions/usage/v1/usage": { "prompt_tokens": 123, "completion_tokens": 45, "total_tokens": 168 },
+    "https://github.com/inference-gateway/schemas/tree/main/a2a/extensions/usage/v1/execution_stats": { "iterations": 2, "messages": 1, "tool_calls": 1, "failed_tools": 0 }
   }
   ```
+- **Activation** - the extension is inactive by default. The client lists
+  `USAGE_EXTENSION_URI` in `ClientConfig::extensions`, which sends it as the
+  `A2A-Extensions` header, so the server returns the blocks.
 
 Both the background (`SendMessage`) and streaming (`SendStreamingMessage`) default
 handlers attach the same blocks; this example demonstrates the background path
