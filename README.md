@@ -375,7 +375,7 @@ Build A2A servers with custom configurations using a fluent interface. See
 
 | Method | Purpose |
 | --- | --- |
-| `with_config(Config)` | Apply a fully-loaded `Config` (port, TLS, auth, queue, telemetry). |
+| `with_config(Config)` | Apply a fully-loaded `Config`. The builder consumes the agent-card URL fallback, TLS, auth, queue, the usage-metadata flag and artifacts. `server_config.port` only feeds the default advertised URL `http(s)://localhost:<port>/a2a` - it never binds a listener - and `telemetry_config` is read only by `telemetry::init`, which you call yourself. |
 | `with_agent(Agent)` | Attach an LLM-backed agent built via `AgentBuilder`. |
 | `with_agent_card(AgentCard)` / `with_agent_card_from_file(path, overrides)` | Configure the card served at `/.well-known/agent-card.json` (with `Cache-Control`, `ETag` and `Last-Modified`; conditional requests get `304`). |
 | `with_storage(Arc<dyn Storage>)` | Swap the task store (`InMemoryStorage` default, `RedisStorage` behind the `redis` feature). |
@@ -1390,8 +1390,8 @@ See `examples/artifacts-filesystem/server/main.rs` for a runnable version.
 | `ARTIFACTS_ENABLED` | `false` | Master switch — when `true`, `A2AServer::serve(...)` spawns the artifacts server and retention loop. |
 | `ARTIFACTS_SERVER_HOST` | `0.0.0.0` | Bind address of the artifacts HTTP server. |
 | `ARTIFACTS_SERVER_PORT` | `8081` | Port of the artifacts HTTP server. |
-| `ARTIFACTS_SERVER_READ_TIMEOUT` | `30s` | Per-request read timeout. Accepts Go-style durations (`30s`, `5m`, `2h`, `7d`) or bare seconds. |
-| `ARTIFACTS_SERVER_WRITE_TIMEOUT` | `30s` | Per-response write timeout. |
+| `ARTIFACTS_SERVER_READ_TIMEOUT` | `30s` | Parsed but not yet applied - `ArtifactsServer` sets no read timeout. Accepts Go-style durations (`30s`, `5m`, `2h`, `7d`) or bare seconds. |
+| `ARTIFACTS_SERVER_WRITE_TIMEOUT` | `30s` | Parsed but not yet applied - `ArtifactsServer` sets no write timeout. |
 | `ARTIFACTS_STORAGE_PROVIDER` | `filesystem` | `filesystem` or `minio`. The `minio` provider requires the crate to be built with the `minio` Cargo feature; without it, requests fall back to filesystem storage with a `warn!` log. |
 | `ARTIFACTS_STORAGE_BASE_PATH` | `./artifacts` | On-disk root for the `filesystem` provider. |
 | `ARTIFACTS_STORAGE_BASE_URL` | `http://localhost:8081` | Public URL prefix baked into file artifact URIs - point this at wherever the artifacts server (or MinIO endpoint) is externally reachable. |
@@ -1501,7 +1501,7 @@ tags on `Config`.
 
 ```bash
 # Server
-A2A_SERVER_HOST="0.0.0.0"
+A2A_SERVER_HOST="0.0.0.0"                        # inert; the bind address comes from the SocketAddr passed to A2AServer::serve
 A2A_SERVER_PORT="8080"
 
 # URL advertised in the card's supportedInterfaces[0].url. Unset falls back to the
@@ -1543,7 +1543,9 @@ A2A_AUTH_CLIENT_SECRET="your-secret"                                      # requ
 A2A_SERVER_TLS_ENABLED="false"                   # when true, A2AServer::serve binds an HTTPS listener via axum-server + rustls
 A2A_SERVER_TLS_CERT_PATH="/path/to/cert.pem"    # PEM-encoded server certificate chain
 A2A_SERVER_TLS_KEY_PATH="/path/to/key.pem"      # PEM-encoded private key (PKCS#1, PKCS#8, or SEC1)
-A2A_SERVER_TLS_CLIENT_CA_PATH=""                # optional: when set, the server requires mTLS and trusts client certs signed by the CAs in this PEM bundle
+# A2A_SERVER_TLS_CLIENT_CA_PATH="/path/to/ca.pem" # optional: leave unset for plain TLS. Any value - including an empty string -
+                                                 # makes TlsConfig::client_ca_path Some(..) and turns on mTLS, so the server
+                                                 # then requires client certs signed by the CAs in this PEM bundle
 
 # Telemetry (optional, OpenTelemetry). Standard OTEL_* env vars (e.g.
 # OTEL_EXPORTER_OTLP_ENDPOINT) are honored by the SDK as usual.
