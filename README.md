@@ -59,8 +59,7 @@
   - [Custom Task Handlers](#custom-task-handlers)
   - [Push Notifications](#push-notifications)
   - [Agent Metadata](#agent-metadata)
-    - [Build-Time Metadata (Recommended)](#build-time-metadata-recommended)
-    - [Runtime Metadata Configuration](#runtime-metadata-configuration)
+    - [Overriding Card Fields](#overriding-card-fields)
   - [Authentication](#authentication)
   - [TLS and mTLS](#tls-and-mtls)
   - [Artifacts](#artifacts)
@@ -68,6 +67,7 @@
     - [Quick start](#quick-start-1)
   - [Usage Metadata](#usage-metadata)
   - [Environment Configuration](#environment-configuration)
+  - [Telemetry (OTLP trace export)](#telemetry-otlp-trace-export)
 - [A2A Ecosystem](#a2a-ecosystem)
   - [Related Projects](#related-projects)
   - [A2A Agents](#a2a-agents)
@@ -263,8 +263,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         match client.get_health().await {
             Ok(health) => match health.status.as_str() {
                 "healthy" => info!("[{}] Agent is healthy", chrono::Utc::now().format("%H:%M:%S")),
-                "degraded" => info!("[{}] Agent is degraded - some functionality may be limited", chrono::Utc::now().format("%H:%M:%S")),
-                "unhealthy" => info!("[{}] Agent is unhealthy - may not be able to process requests", chrono::Utc::now().format("%H:%M:%S")),
+                "degraded" => info!("[{}] Agent is degraded - the inference gateway is unreachable", chrono::Utc::now().format("%H:%M:%S")),
                 _ => info!("[{}] Unknown health status: {}", chrono::Utc::now().format("%H:%M:%S"), health.status),
             },
             Err(e) => error!("Health check failed: {}", e),
@@ -721,17 +720,23 @@ let health = client.get_health().await?;
 // Process health status
 match health.status.as_str() {
     "healthy" => println!("Agent is healthy"),
-    "degraded" => println!("Agent is degraded - some functionality may be limited"),
-    "unhealthy" => println!("Agent is unhealthy - may not be able to process requests"),
+    "degraded" => println!("Agent is degraded - the inference gateway is unreachable"),
     _ => println!("Unknown health status: {}", health.status),
 }
 ```
 
 **Health Status Values:**
 
-- `healthy`: Agent is fully operational
-- `degraded`: Agent is partially operational (some functionality may be limited)
-- `unhealthy`: Agent is not operational or experiencing significant issues
+`GET /health` returns only two statuses:
+
+- `healthy`: no agent is registered, or an agent is registered and its
+  inference gateway health check passes
+- `degraded`: an agent is registered but the gateway health check fails
+
+The gateway probed is the builder's `gateway_url` (default
+`http://gateway:8080/v1`, set with `A2AServerBuilder::with_gateway_url`), not
+`A2A_AGENT_CLIENT_BASE_URL`. The response also carries a `details` object with
+`has_agent`, `gateway_healthy`, and `version`.
 
 **Use Cases:**
 
@@ -1287,22 +1292,15 @@ us programmatic access to the negotiated `ServerConnection`, which is
 what makes the mTLS subject extraction below tractable.
 
 When mTLS is enabled, the server's TLS acceptor parses the peer's leaf
-certificate and exposes it to handlers as an `axum::Extension<PeerCert>`
-extension - the same plumbing pattern the bearer-token auth middleware
-uses for `AuthenticatedPrincipal`. The wrapped `ClientCertPrincipal`
-carries the subject DN, the Common Name (when present), the issuer DN,
-and the raw DER bytes of the leaf:
+certificate into a `PeerCert` request extension wrapping a
+`ClientCertPrincipal` - the subject DN, the Common Name (when present), the
+issuer DN, and the raw DER bytes of the leaf.
 
-```rust
-use axum::Extension;
-use inference_gateway_adk::PeerCert;
-
-async fn my_handler(Extension(peer): Extension<PeerCert>) {
-    if let Some(p) = peer.0 {
-        tracing::info!("authenticated client: {} (issued by {})", p.subject, p.issuer);
-    }
-}
-```
+Today only the built-in `POST /a2a` handler reads it, and only to log the
+client certificate subject at debug level. `A2AServer` exposes no router hook,
+so your own axum handlers cannot be mounted, and `TaskHandler` /
+`StreamableTaskHandler` receive no client principal - there is currently no way
+to authorize a task on the mTLS identity.
 
 For plain HTTPS (no `A2A_SERVER_TLS_CLIENT_CA_PATH`) the `PeerCert` is still
 injected, but its inner `Option` is `None` because the client did not
