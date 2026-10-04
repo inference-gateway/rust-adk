@@ -1097,7 +1097,8 @@ On every task update the server POSTs the task to each configured webhook as a
 `StreamResponse` body, sending `Authorization: <scheme> <credentials>` when the
 config carries `authentication` and `X-A2A-Notification-Token` when it carries a
 `token`. Delivery is best-effort and at most once: failures are logged, not
-retried.
+retried. Updates go out after each background `SendMessage` task is handled and
+on each streaming status update.
 
 #### Storing a webhook configuration
 
@@ -1158,23 +1159,12 @@ client
     .await?;
 ```
 
-> **Webhook delivery is still in development.** The four control-plane
-> methods above (set/get/list/delete) are fully wired up and durably stored
-> by the server, but the HTTP _sender_ that fans state changes out to the
-> configured URLs is tracked in a follow-up ticket. Configurations attached
-> today are picked up automatically once that sender lands.
+#### Webhook payload
 
-#### Expected webhook payload
-
-When the sender lands, each task state transition will POST a payload of
-roughly this shape to the configured `url`:
+The body is a `StreamResponse` with only its `task` field set:
 
 ```json
 {
-  "type": "task_update",
-  "taskId": "task-123",
-  "state": "TASK_STATE_COMPLETED",
-  "timestamp": "2026-05-11T10:30:00Z",
   "task": {
     "id": "task-123",
     "contextId": "context-456",
