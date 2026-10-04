@@ -102,7 +102,7 @@ Add the ADK to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-inference-gateway-adk = "0.12"
+inference-gateway-adk = "0.17"
 ```
 
 ### Basic Usage (Minimal Server)
@@ -242,7 +242,7 @@ use tracing::{info, error};
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize tracing
-    tracing_subscriber::init();
+    tracing_subscriber::fmt().init();
 
     // Create client
     let client = A2AClient::new("http://localhost:8080")?;
@@ -487,10 +487,8 @@ let response = client
             message_id: uuid::Uuid::new_v4().to_string(),
             metadata: None,
             parts: vec![Part {
-                data: None,
-                file: None,
-                metadata: None,
                 text: Some("Hello via SendMessage".to_string()),
+                ..Default::default()
             }],
             reference_task_ids: vec![],
             role: Role::RoleUser,
@@ -583,6 +581,7 @@ use inference_gateway_adk::a2a_types::CancelTaskRequest;
 let cancelled = client
     .cancel_task(CancelTaskRequest {
         id: task_id.to_string(),
+        metadata: None,
         tenant: Some("example".to_string()),
     })
     .await?;
@@ -1029,15 +1028,13 @@ impl TaskHandler for EchoHandler {
             .unwrap_or_default();
 
         let reply = Message {
-            context_id: Some(task.context_id.clone()),
+            context_id: task.context_id.clone(),
             extensions: vec![],
             message_id: uuid::Uuid::new_v4().to_string(),
             metadata: None,
             parts: vec![Part {
-                data: None,
-                file: None,
-                metadata: None,
                 text: Some(reply_text),
+                ..Default::default()
             }],
             reference_task_ids: vec![],
             role: Role::RoleAgent,
