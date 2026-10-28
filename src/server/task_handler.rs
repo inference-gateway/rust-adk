@@ -2021,7 +2021,6 @@ mod tests {
         let handler = DefaultBackgroundTaskHandler::new(Some(Arc::new(agent)));
 
         let task = submitted_usage_task("hi");
-        // Mirror the `task.process` span the task manager wraps handlers in.
         let parent = tracing::info_span!("task.process", task_id = %task.id);
         let task = handler
             .handle_task(task, None)
