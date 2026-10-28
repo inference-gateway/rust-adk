@@ -1210,9 +1210,6 @@ mod tests {
                 }
             }
         }
-        // The response is keyed on the request body, not a call counter, so
-        // a retried first call still yields the tool call instead of
-        // skipping over it to the final answer.
         if tool_result_seen {
             Json(final_answer_response_json("12 is the tool result"))
         } else {
