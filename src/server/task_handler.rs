@@ -1143,9 +1143,9 @@ mod tests {
 
     // ----- tool-dispatch coverage -------------------------------------------
 
+    /// Mock gateway state, keyed on the bodies of the requests it served.
     #[derive(Clone, Default)]
     struct ToolMockState {
-        non_streaming_calls: std::sync::Arc<std::sync::atomic::AtomicUsize>,
         captured_tool_results: std::sync::Arc<std::sync::Mutex<Vec<String>>>,
     }
 
@@ -1196,33 +1196,34 @@ mod tests {
         State(state): State<std::sync::Arc<ToolMockState>>,
         body: Value,
     ) -> Json<Value> {
+        let mut tool_result_seen = false;
         if let Some(msgs) = body.get("messages").and_then(|v| v.as_array()) {
             for m in msgs {
                 if m.get("role").and_then(|v| v.as_str()) == Some("tool")
                     && let Some(text) = m.get("content").and_then(|v| v.as_str())
                 {
-                    state
-                        .captured_tool_results
-                        .lock()
-                        .expect("mutex poisoned")
-                        .push(text.to_string());
+                    tool_result_seen = true;
+                    let mut captured = state.captured_tool_results.lock().expect("mutex poisoned");
+                    if !captured.iter().any(|seen| seen == text) {
+                        captured.push(text.to_string());
+                    }
                 }
             }
         }
-        let call_index = state
-            .non_streaming_calls
-            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-        if call_index == 0 {
-            Json(tool_call_response_json())
-        } else {
+        // The response is keyed on the request body, not a call counter, so
+        // a retried first call still yields the tool call instead of
+        // skipping over it to the final answer.
+        if tool_result_seen {
             Json(final_answer_response_json("12 is the tool result"))
+        } else {
+            Json(tool_call_response_json())
         }
     }
 
-    /// Single dispatcher: the tool loop is non-streaming end-to-end (since
-    /// the inference gateway's OpenAI surface only exposes
-    /// `CreateChatCompletion`), so this mock only needs to serve the two
-    /// non-streaming responses in order.
+    /// Single dispatcher: the tool loop is non-streaming end-to-end (the
+    /// inference gateway's OpenAI surface only exposes
+    /// `CreateChatCompletion`), so each response is keyed on the request
+    /// body alone.
     async fn mock_chat_completions(
         State(state): State<std::sync::Arc<ToolMockState>>,
         body: axum::body::Bytes,
@@ -1955,17 +1956,40 @@ mod tests {
         let task = submitted_usage_task("hi");
         // Mirror the `task.process` span the task manager wraps handlers in.
         let parent = tracing::info_span!("task.process", task_id = %task.id);
-        handler
+        let task = handler
             .handle_task(task, None)
             .instrument(parent.clone())
             .await
             .expect("handle_task");
 
         let spans = capture.spans.lock().expect("mutex poisoned").clone();
+        let captured_names: Vec<String> = spans.iter().map(|(name, _, _)| name.clone()).collect();
+        let reply_text = task
+            .status
+            .message
+            .as_ref()
+            .map(|m| {
+                m.parts
+                    .iter()
+                    .filter_map(|p| p.text.clone())
+                    .collect::<String>()
+            })
+            .unwrap_or_default();
+        assert_eq!(
+            task.status.state,
+            TaskState::TaskStateCompleted,
+            "tool loop did not complete (reply {reply_text:?}); captured spans: {captured_names:?}"
+        );
+
         let (_, parent_name, fields) = spans
-            .iter()
+            .into_iter()
             .find(|(name, _, _)| name == "tool")
-            .expect("tool span should be recorded for the dispatched tool call");
+            .unwrap_or_else(|| {
+                panic!(
+                    "tool span should be recorded for the dispatched tool call; captured: {:?}",
+                    captured_names
+                )
+            });
         assert_eq!(
             fields.get("otel.name").map(String::as_str),
             Some("tool.echo_arg"),
