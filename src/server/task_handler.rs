@@ -1944,12 +1944,12 @@ mod tests {
         let gateway_addr = gateway_listener.local_addr().expect("addr");
         let gateway_app = Router::new()
             .route("/chat/completions", post(mock_chat_completions))
-            .with_state(mock_state);
+            .with_state(std::sync::Arc::clone(&mock_state));
         tokio::spawn(async move {
             axum::serve(gateway_listener, gateway_app).await.ok();
         });
 
-        let (agent, _recorded) =
+        let (agent, recorded) =
             build_echo_agent_with_recorder(format!("http://{gateway_addr}")).await;
         let handler = DefaultBackgroundTaskHandler::new(Some(Arc::new(agent)));
 
@@ -1986,8 +1986,14 @@ mod tests {
             .find(|(name, _, _)| name == "tool")
             .unwrap_or_else(|| {
                 panic!(
-                    "tool span should be recorded for the dispatched tool call; captured: {:?}",
-                    captured_names
+                    "tool span should be recorded for the dispatched tool call; \
+                         reply: {reply_text:?}; echoed args: {:?}; mock saw results: {:?}; \
+                         captured spans: {captured_names:?}",
+                    recorded.lock().expect("mutex poisoned"),
+                    mock_state
+                        .captured_tool_results
+                        .lock()
+                        .expect("mutex poisoned"),
                 )
             });
         assert_eq!(
