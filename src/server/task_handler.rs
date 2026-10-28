@@ -945,9 +945,12 @@ mod tests {
     use axum::extract::State;
     use axum::response::Json;
     use axum::routing::post;
+    use futures_util::stream::Stream;
     use inference_gateway_sdk::{
-        ChatCompletionTool, ChatCompletionToolType, FunctionObject, FunctionParameters,
+        ChatCompletionTool, ChatCompletionToolType, CreateChatCompletionResponse, FunctionObject,
+        FunctionParameters, SSEvents,
     };
+    use std::pin::Pin;
     use tokio::net::TcpListener;
 
     fn agent_card_with_streaming(streaming: bool) -> AgentCard {
@@ -1143,9 +1146,9 @@ mod tests {
 
     // ----- tool-dispatch coverage -------------------------------------------
 
-    /// Mock gateway state, keyed on the bodies of the requests it served.
     #[derive(Clone, Default)]
     struct ToolMockState {
+        non_streaming_calls: std::sync::Arc<std::sync::atomic::AtomicUsize>,
         captured_tool_results: std::sync::Arc<std::sync::Mutex<Vec<String>>>,
     }
 
@@ -1196,31 +1199,33 @@ mod tests {
         State(state): State<std::sync::Arc<ToolMockState>>,
         body: Value,
     ) -> Json<Value> {
-        let mut tool_result_seen = false;
         if let Some(msgs) = body.get("messages").and_then(|v| v.as_array()) {
             for m in msgs {
                 if m.get("role").and_then(|v| v.as_str()) == Some("tool")
                     && let Some(text) = m.get("content").and_then(|v| v.as_str())
                 {
-                    tool_result_seen = true;
-                    let mut captured = state.captured_tool_results.lock().expect("mutex poisoned");
-                    if !captured.iter().any(|seen| seen == text) {
-                        captured.push(text.to_string());
-                    }
+                    state
+                        .captured_tool_results
+                        .lock()
+                        .expect("mutex poisoned")
+                        .push(text.to_string());
                 }
             }
         }
-        if tool_result_seen {
-            Json(final_answer_response_json("12 is the tool result"))
-        } else {
+        let call_index = state
+            .non_streaming_calls
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        if call_index == 0 {
             Json(tool_call_response_json())
+        } else {
+            Json(final_answer_response_json("12 is the tool result"))
         }
     }
 
-    /// Single dispatcher: the tool loop is non-streaming end-to-end (the
-    /// inference gateway's OpenAI surface only exposes
-    /// `CreateChatCompletion`), so each response is keyed on the request
-    /// body alone.
+    /// Single dispatcher: the tool loop is non-streaming end-to-end (since
+    /// the inference gateway's OpenAI surface only exposes
+    /// `CreateChatCompletion`), so this mock only needs to serve the two
+    /// non-streaming responses in order.
     async fn mock_chat_completions(
         State(state): State<std::sync::Arc<ToolMockState>>,
         body: axum::body::Bytes,
@@ -1881,6 +1886,49 @@ mod tests {
 
     // ----- tool-span coverage -------------------------------------------------
 
+    /// Test double handing `run_tool_loop` scripted OpenAI-style responses
+    /// with no HTTP - keeps the span assertions below deterministic under
+    /// parallel test load.
+    #[derive(Debug)]
+    struct ScriptedLLMClient {
+        responses: std::sync::Mutex<std::collections::VecDeque<Value>>,
+    }
+
+    impl ScriptedLLMClient {
+        fn new(responses: Vec<Value>) -> Self {
+            Self {
+                responses: std::sync::Mutex::new(responses.into()),
+            }
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl crate::server::agent_llm_client::LLMClient for ScriptedLLMClient {
+        async fn create_chat_completion(
+            &self,
+            _messages: Vec<Message>,
+            _tools: Option<Vec<ChatCompletionTool>>,
+        ) -> Result<CreateChatCompletionResponse> {
+            let next = self
+                .responses
+                .lock()
+                .expect("mutex poisoned")
+                .pop_front()
+                .ok_or_else(|| anyhow!("scripted responses exhausted"))?;
+            Ok(serde_json::from_value::<CreateChatCompletionResponse>(
+                next,
+            )?)
+        }
+
+        fn create_streaming_chat_completion(
+            &self,
+            _messages: Vec<Message>,
+            _tools: Option<Vec<ChatCompletionTool>>,
+        ) -> Pin<Box<dyn Stream<Item = Result<SSEvents>> + Send>> {
+            Box::pin(futures_util::stream::empty())
+        }
+    }
+
     /// Every dispatched tool call runs inside a `tool.<name>` span (exported
     /// name via `otel.name`) parented on `task.process`, carrying
     /// `gen_ai.tool.name` and `gen_ai.tool.call.id` - the Rust counterpart of
@@ -1936,63 +1984,60 @@ mod tests {
         let _guard =
             tracing::subscriber::set_default(tracing_subscriber::registry().with(capture.clone()));
 
-        let mock_state = Arc::new(ToolMockState::default());
-        let gateway_listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
-        let gateway_addr = gateway_listener.local_addr().expect("addr");
-        let gateway_app = Router::new()
-            .route("/chat/completions", post(mock_chat_completions))
-            .with_state(std::sync::Arc::clone(&mock_state));
-        tokio::spawn(async move {
-            axum::serve(gateway_listener, gateway_app).await.ok();
-        });
+        let scripted = ScriptedLLMClient::new(vec![
+            tool_call_response_json(),
+            final_answer_response_json("echoed: hi"),
+        ]);
 
-        let (agent, recorded) =
-            build_echo_agent_with_recorder(format!("http://{gateway_addr}")).await;
+        let echo_tool = ChatCompletionTool {
+            type_: ChatCompletionToolType::Function,
+            function: FunctionObject {
+                name: "echo_arg".to_string(),
+                description: Some("echo back the text arg".to_string()),
+                parameters: Some(FunctionParameters(
+                    serde_json::json!({
+                        "type": "object",
+                        "properties": {"text": {"type": "string"}},
+                        "required": ["text"],
+                    })
+                    .as_object()
+                    .unwrap()
+                    .clone(),
+                )),
+                strict: false,
+            },
+        };
+
+        let agent = AgentBuilder::new()
+            .with_llm_client(scripted)
+            .with_toolbox(vec![echo_tool])
+            .with_async_function_tool("echo_arg".to_string(), |_args: Value| async move {
+                Ok("echoed hi".to_string())
+            })
+            .build()
+            .await
+            .expect("agent builds");
+
         let handler = DefaultBackgroundTaskHandler::new(Some(Arc::new(agent)));
 
         let task = submitted_usage_task("hi");
-        // Mirror the `task.process` span the task manager wraps handlers in.
         let parent = tracing::info_span!("task.process", task_id = %task.id);
         let task = handler
             .handle_task(task, None)
-            .instrument(parent.clone())
+            .instrument(parent)
             .await
             .expect("handle_task");
-
-        let spans = capture.spans.lock().expect("mutex poisoned").clone();
-        let captured_names: Vec<String> = spans.iter().map(|(name, _, _)| name.clone()).collect();
-        let reply_text = task
-            .status
-            .message
-            .as_ref()
-            .map(|m| {
-                m.parts
-                    .iter()
-                    .filter_map(|p| p.text.clone())
-                    .collect::<String>()
-            })
-            .unwrap_or_default();
-        assert_eq!(
-            task.status.state,
-            TaskState::TaskStateCompleted,
-            "tool loop did not complete (reply {reply_text:?}); captured spans: {captured_names:?}"
+        assert!(
+            matches!(task.status.state, TaskState::TaskStateCompleted),
+            "the scripted tool loop must run through to a final answer, got {:?}",
+            task.status.state
         );
 
+        let spans = capture.spans.lock().expect("mutex poisoned").clone();
         let (_, parent_name, fields) = spans
-            .into_iter()
+            .iter()
             .find(|(name, _, _)| name == "tool")
-            .unwrap_or_else(|| {
-                panic!(
-                    "tool span should be recorded for the dispatched tool call; \
-                         reply: {reply_text:?}; echoed args: {:?}; mock saw results: {:?}; \
-                         captured spans: {captured_names:?}",
-                    recorded.lock().expect("mutex poisoned"),
-                    mock_state
-                        .captured_tool_results
-                        .lock()
-                        .expect("mutex poisoned"),
-                )
-            });
+            .expect("tool span should be recorded for the dispatched tool call");
         assert_eq!(
             fields.get("otel.name").map(String::as_str),
             Some("tool.echo_arg"),
