@@ -15,7 +15,10 @@ categories = ["api-bindings", "development-tools"]
 [features]
 default = []
 redis = ["dep:redis"]
-minio = ["dep:minio", "dep:bytes"]
+s3 = ["dep:minio", "dep:bytes"]
+# `minio` predates the vendor-neutral `s3` provider and stays as a
+# feature-level alias of `s3`.
+minio = ["s3"]
 telemetry = [
     "dep:opentelemetry",
     "dep:opentelemetry_sdk",
@@ -63,9 +66,12 @@ rcgen = { version = "0.14.8", default-features = false, features = ["pem", "ring
 envy = "0.4.2"
 tower = { version = "0.5.3", features = ["util"] }
 
-# The artifacts examples are root-crate `[[example]]` targets (rather than workspace
-# members) so the `minio` variant can be gated behind the crate's `minio` feature via
-# `required-features`. They reuse the crate's own dependencies plus the `envy` dev-dep.
+# The artifacts-filesystem example is a root-crate `[[example]]` target (rather
+# than a workspace member) so it reuses the crate's own dependencies plus the
+# `envy` dev-dep. The artifacts-s3 example is instead a bundled workspace
+# member, letting its docker build run `cargo build --release -p
+# artifacts-s3-server` with the `s3` feature declared in the example's own
+# `Cargo.toml`.
 [[example]]
 name = "artifacts-filesystem-server"
 path = "examples/artifacts-filesystem/server/main.rs"
@@ -73,15 +79,6 @@ path = "examples/artifacts-filesystem/server/main.rs"
 [[example]]
 name = "artifacts-filesystem-client"
 path = "examples/artifacts-filesystem/client/main.rs"
-
-[[example]]
-name = "artifacts-minio-server"
-path = "examples/artifacts-minio/server/main.rs"
-required-features = ["minio"]
-
-[[example]]
-name = "artifacts-minio-client"
-path = "examples/artifacts-minio/client/main.rs"
 
 # The bundled examples are full workspace members under `examples/<name>/{server,client}/`.
 # Each declares its own dependencies in its own `Cargo.toml`, so a reader can see at a
@@ -91,6 +88,8 @@ path = "examples/artifacts-minio/client/main.rs"
 members = [
     "examples/minimal/server",
     "examples/minimal/client",
+    "examples/artifacts-s3/server",
+    "examples/artifacts-s3/client",
     "examples/static-agent-card/server",
     "examples/static-agent-card/client",
     "examples/ai-powered/server",

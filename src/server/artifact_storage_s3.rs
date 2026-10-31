@@ -1,17 +1,21 @@
-//! MinIO-backed implementation of [`ArtifactStorage`].
+//! S3-compatible object store implementation of [`ArtifactStorage`].
 //!
-//! Gated by the `minio` Cargo feature. Wraps the official [`minio`] crate
-//! to talk to a MinIO server (the on-premises object store).
+//! Gated by the `s3` Cargo feature. Wraps the [`minio`] crate (minio-rs),
+//! kept as the S3 client after measuring the linked-binary cost of the AWS
+//! SDK alternative (see the client-choice note in
+//! `examples/artifacts-s3/README.md`). The client speaks plain S3, so the
+//! backend works against RustFS, MinIO, AWS S3, or any other
+//! S3-compatible endpoint.
 //!
 //! ## URL shape
 //!
 //! Generated URIs use path-style addressing:
 //! `<base_url>/<bucket>/<context_id>/<artifact_id>/<filename>`. Configure
 //! [`ArtifactsStorageConfig::base_url`] to point at whichever host the
-//! object can actually be read from — typically the MinIO endpoint when
-//! the bucket has an anonymous-read policy attached, or the
-//! [`ArtifactsServer`] host if you want the artifacts HTTP server to
-//! proxy reads through [`ArtifactStorage::retrieve`].
+//! object can actually be read from - either the [`ArtifactsServer`]
+//! host, which proxies reads through [`ArtifactStorage::retrieve`], or
+//! the object store endpoint when the bucket carries an anonymous-read
+//! policy.
 //!
 //! [`ArtifactsServer`]: super::artifacts_server::ArtifactsServer
 //! [`ArtifactsStorageConfig::base_url`]: crate::config::ArtifactsStorageConfig::base_url
@@ -37,49 +41,50 @@ use super::artifact_storage::{
     ArtifactStorage, StoredArtifactInfo, sanitize_segment, surplus_per_context, urlencode_segment,
 };
 
-/// MinIO-backed [`ArtifactStorage`].
-///
-/// Objects are written at `<context_id>/<artifact_id>/<filename>` inside
-/// the configured bucket. Generated URLs use path-style addressing
+/// S3-backed [`ArtifactStorage`], usable with any S3-compatible object
+/// store (RustFS included). Objects are written at
+/// `<context_id>/<artifact_id>/<filename>` inside the configured bucket
+/// and generated URLs use path-style addressing
 /// (`<base_url>/<bucket>/<context_id>/<artifact_id>/<filename>`).
-pub struct MinioArtifactStorage {
+pub struct S3ArtifactStorage {
     client: Arc<MinioClient>,
     bucket: String,
     base_url: String,
 }
 
-impl std::fmt::Debug for MinioArtifactStorage {
+impl std::fmt::Debug for S3ArtifactStorage {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("MinioArtifactStorage")
+        f.debug_struct("S3ArtifactStorage")
             .field("bucket", &self.bucket)
             .field("base_url", &self.base_url)
             .finish()
     }
 }
 
-impl MinioArtifactStorage {
-    /// Construct a new MinIO-backed store. Connects to the endpoint,
-    /// creates the bucket if it doesn't already exist, and returns the
-    /// wired-up storage handle.
+impl S3ArtifactStorage {
+    /// Construct a new S3-backed store. Connects to the endpoint and
+    /// creates the bucket if it doesn't already exist, so a fresh store
+    /// needs no out-of-band bootstrap.
     ///
     /// Required fields on `cfg`:
-    /// - `endpoint` — MinIO endpoint host (e.g. `minio:9000`).
-    /// - `access_key`, `secret_key` — static credentials.
-    /// - `bucket_name` — target bucket.
+    /// - `endpoint` - S3-compatible endpoint host (e.g. `rustfs:9000`).
+    /// - `access_key`, `secret_key` - static credentials.
+    /// - `bucket_name` - target bucket.
     ///
     /// `use_ssl` selects http vs https for the endpoint scheme.
     pub async fn from_config(cfg: &ArtifactsStorageConfig) -> Result<Self> {
-        let endpoint = cfg.endpoint.as_deref().ok_or_else(|| {
-            anyhow!("ARTIFACTS_STORAGE_ENDPOINT must be set for the minio provider")
-        })?;
+        let endpoint = cfg
+            .endpoint
+            .as_deref()
+            .ok_or_else(|| anyhow!("ARTIFACTS_STORAGE_ENDPOINT must be set for the s3 provider"))?;
         let access_key = cfg.access_key.as_deref().ok_or_else(|| {
-            anyhow!("ARTIFACTS_STORAGE_ACCESS_KEY must be set for the minio provider")
+            anyhow!("ARTIFACTS_STORAGE_ACCESS_KEY must be set for the s3 provider")
         })?;
         let secret_key = cfg.secret_key.as_deref().ok_or_else(|| {
-            anyhow!("ARTIFACTS_STORAGE_SECRET_KEY must be set for the minio provider")
+            anyhow!("ARTIFACTS_STORAGE_SECRET_KEY must be set for the s3 provider")
         })?;
         let bucket = cfg.bucket_name.as_deref().ok_or_else(|| {
-            anyhow!("ARTIFACTS_STORAGE_BUCKET_NAME must be set for the minio provider")
+            anyhow!("ARTIFACTS_STORAGE_BUCKET_NAME must be set for the s3 provider")
         })?;
 
         let scheme = if cfg.use_ssl { "https" } else { "http" };
@@ -101,7 +106,7 @@ impl MinioArtifactStorage {
 
         let provider = StaticProvider::new(access_key, secret_key, None);
         let client = MinioClient::new(base_url, Some(provider), None, None)
-            .map_err(|e| anyhow!("failed to build MinIO client: {e}"))?;
+            .map_err(|e| anyhow!("failed to build S3 client: {e}"))?;
 
         let exists = client
             .bucket_exists(bucket)
@@ -111,7 +116,7 @@ impl MinioArtifactStorage {
             .await
             .map_err(|e| anyhow!("bucket_exists({bucket}) failed: {e}"))?;
         if !exists.exists() {
-            info!(bucket, "creating MinIO bucket");
+            info!(bucket, "creating S3 bucket");
             client
                 .create_bucket(bucket)
                 .map_err(|e| anyhow!("invalid bucket name `{bucket}`: {e}"))?
@@ -135,6 +140,15 @@ impl MinioArtifactStorage {
         Ok(format!("{context}/{id}/{name}"))
     }
 }
+
+/// Legacy name for [`S3ArtifactStorage`]. The backend speaks plain S3
+/// (RustFS included) and no longer implies a MinIO server, but existing
+/// callers keep compiling with a deprecation nudge.
+#[deprecated(
+    since = "0.19.0",
+    note = "renamed to `S3ArtifactStorage` - works against any S3-compatible store (RustFS included)"
+)]
+pub type MinioArtifactStorage = S3ArtifactStorage;
 
 /// Split a `<context_id>/<artifact_id>/<filename>` object key. Keys that
 /// don't match that shape (legacy two-segment keys, stray objects) are
@@ -160,7 +174,7 @@ fn is_no_such_key(err: &MinioError) -> bool {
 }
 
 #[async_trait]
-impl ArtifactStorage for MinioArtifactStorage {
+impl ArtifactStorage for S3ArtifactStorage {
     async fn store(
         &self,
         context_id: &str,
@@ -185,7 +199,7 @@ impl ArtifactStorage for MinioArtifactStorage {
             bytes = bytes_len,
             bucket = %self.bucket,
             key = %key,
-            "stored artifact in minio",
+            "stored artifact in S3 storage",
         );
         Ok(self.url(context_id, artifact_id, filename))
     }

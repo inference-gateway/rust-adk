@@ -300,6 +300,7 @@ suggested learning path.
 - **[Auth](./examples/auth/)** - Bearer-token authentication on `POST /a2a` with public `/health` and `/.well-known/agent-card.json`
 - **[TLS / mTLS](./examples/tls/)** - TLS termination via `axum-server` + `rustls`, optional mTLS with client-cert subject as principal
 - **[Artifacts (filesystem)](./examples/artifacts-filesystem/)** - Streaming handler emits a file part whose `url` is served by the standalone artifacts HTTP server, backed by an on-disk store
+- **[Artifacts (S3)](./examples/artifacts-s3/)** - Same shape with `S3ArtifactStorage` against an S3-compatible object store (RustFS in Compose); downloads proxy through the artifacts HTTP server
 - **[Health Check Example](#health-check-example)** - Monitor agent health status
 
 ## Key Features
@@ -1378,15 +1379,15 @@ See `examples/artifacts-filesystem/server/main.rs` for a runnable version.
 | `ARTIFACTS_SERVER_PORT` | `8081` | Port of the artifacts HTTP server. |
 | `ARTIFACTS_SERVER_READ_TIMEOUT` | `30s` | Parsed but not yet applied - `ArtifactsServer` sets no read timeout. Accepts Go-style durations (`30s`, `5m`, `2h`, `7d`) or bare seconds. |
 | `ARTIFACTS_SERVER_WRITE_TIMEOUT` | `30s` | Parsed but not yet applied - `ArtifactsServer` sets no write timeout. |
-| `ARTIFACTS_STORAGE_PROVIDER` | `filesystem` | `filesystem` or `minio`. The `minio` provider requires the crate to be built with the `minio` Cargo feature; without it, requests fall back to filesystem storage with a `warn!` log. |
+| `ARTIFACTS_STORAGE_PROVIDER` | `filesystem` | `filesystem` or `s3`. The `s3` provider requires the crate to be built with the `s3` Cargo feature and works with any S3-compatible store (RustFS, MinIO, AWS S3); `minio` is accepted as a legacy alias of `s3`. Without the feature, requests fall back to filesystem storage with a `warn!` log. |
 | `ARTIFACTS_STORAGE_BASE_PATH` | `./artifacts` | On-disk root for the `filesystem` provider. |
-| `ARTIFACTS_STORAGE_BASE_URL` | `http://localhost:8081` | Public URL prefix baked into file artifact URIs - point this at wherever the artifacts server (or MinIO endpoint) is externally reachable. |
-| `ARTIFACTS_STORAGE_ENDPOINT` | unset | MinIO endpoint URL. |
-| `ARTIFACTS_STORAGE_ACCESS_KEY` | unset | MinIO access key. |
-| `ARTIFACTS_STORAGE_SECRET_KEY` | unset | MinIO secret key. |
-| `ARTIFACTS_STORAGE_BUCKET_NAME` | unset | MinIO bucket name. |
-| `ARTIFACTS_STORAGE_REGION` | unset | MinIO region. |
-| `ARTIFACTS_STORAGE_USE_SSL` | `false` | Whether to use TLS when talking to the MinIO endpoint. |
+| `ARTIFACTS_STORAGE_BASE_URL` | `http://localhost:8081` | Public URL prefix baked into file artifact URIs - point this at wherever the artifacts server (or S3-compatible endpoint) is externally reachable. |
+| `ARTIFACTS_STORAGE_ENDPOINT` | unset | S3-compatible object store endpoint URL. Path-style addressing; the bucket is created when missing. |
+| `ARTIFACTS_STORAGE_ACCESS_KEY` | unset | Static access key for the S3-compatible store. |
+| `ARTIFACTS_STORAGE_SECRET_KEY` | unset | Static secret key for the S3-compatible store. |
+| `ARTIFACTS_STORAGE_BUCKET_NAME` | unset | Target bucket name. |
+| `ARTIFACTS_STORAGE_REGION` | unset | Optional region hint for the object store. |
+| `ARTIFACTS_STORAGE_USE_SSL` | `false` | Whether to use TLS when talking to the object store endpoint. |
 | `ARTIFACTS_RETENTION_MAX_ARTIFACTS` | `5` | Cap on the number of artifacts kept per `contextId`, oldest pruned first; `0` means unlimited. |
 | `ARTIFACTS_RETENTION_MAX_AGE` | `168h` | Maximum age before an artifact is pruned. |
 | `ARTIFACTS_RETENTION_CLEANUP_INTERVAL` | `24h` | Frequency of the retention loop. |

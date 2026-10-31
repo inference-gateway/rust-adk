@@ -8,7 +8,7 @@
 //! The bundled default is [`FilesystemArtifactStorage`], which lays
 //! artifacts out under `<base_path>/<context_id>/<artifact_id>/<filename>`
 //! with path-traversal sanitization. Production deployments can implement
-//! [`ArtifactStorage`] themselves to wire in MinIO, GCS, or any other
+//! [`ArtifactStorage`] themselves to wire in S3, GCS, or any other
 //! object store.
 //!
 //! [`ArtifactService`]: super::artifact_service::ArtifactService

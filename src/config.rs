@@ -682,7 +682,9 @@ pub struct ArtifactsServerConfig {
 pub enum ArtifactsStorageProvider {
     #[default]
     Filesystem,
-    Minio,
+    /// Any S3-compatible object store (RustFS, MinIO, AWS S3, ...), gated
+    /// by the `s3` Cargo feature.
+    S3,
 }
 
 impl FromStr for ArtifactsStorageProvider {
@@ -691,17 +693,20 @@ impl FromStr for ArtifactsStorageProvider {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
             "filesystem" | "" => Ok(ArtifactsStorageProvider::Filesystem),
-            "minio" => Ok(ArtifactsStorageProvider::Minio),
+            "s3" => Ok(ArtifactsStorageProvider::S3),
+            // Legacy alias: the provider was called `minio` before the
+            // backend went vendor-neutral.
+            "minio" => Ok(ArtifactsStorageProvider::S3),
             other => Err(format!(
-                "ARTIFACTS_STORAGE_PROVIDER must be `filesystem` or `minio` (got {other:?})"
+                "ARTIFACTS_STORAGE_PROVIDER must be `filesystem` or `s3` (got {other:?})"
             )),
         }
     }
 }
 
-/// Storage backend configuration. The full MinIO surface is included
+/// Storage backend configuration. The full S3 surface is included
 /// here so callers can express the intent via env vars even when the
-/// `minio` feature is not compiled in.
+/// `s3` feature is not compiled in.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct ArtifactsStorageConfig {
@@ -717,7 +722,7 @@ pub struct ArtifactsStorageConfig {
     #[serde(rename = "storage_base_url")]
     pub base_url: String,
 
-    /// Endpoint URL of the MinIO server.
+    /// Endpoint URL of the S3-compatible object store (RustFS, MinIO, AWS S3, ...).
     #[serde(rename = "storage_endpoint")]
     pub endpoint: Option<String>,
 
@@ -911,10 +916,10 @@ mod tests {
             ("ARTIFACTS_ENABLED", "true"),
             ("ARTIFACTS_SERVER_HOST", "127.0.0.1"),
             ("ARTIFACTS_SERVER_PORT", "9099"),
-            ("ARTIFACTS_STORAGE_PROVIDER", "minio"),
+            ("ARTIFACTS_STORAGE_PROVIDER", "s3"),
             ("ARTIFACTS_STORAGE_BASE_PATH", "/data/artifacts"),
             ("ARTIFACTS_STORAGE_BASE_URL", "http://server:8088"),
-            ("ARTIFACTS_STORAGE_ENDPOINT", "http://minio:9000"),
+            ("ARTIFACTS_STORAGE_ENDPOINT", "http://rustfs:9000"),
             ("ARTIFACTS_STORAGE_USE_SSL", "true"),
             ("ARTIFACTS_RETENTION_MAX_ARTIFACTS", "7"),
             ("ARTIFACTS_RETENTION_MAX_AGE", "168h"),
@@ -924,10 +929,10 @@ mod tests {
         assert!(cfg.enable);
         assert_eq!(cfg.server.host, "127.0.0.1");
         assert_eq!(cfg.server.port, 9099);
-        assert_eq!(cfg.storage.provider, ArtifactsStorageProvider::Minio);
+        assert_eq!(cfg.storage.provider, ArtifactsStorageProvider::S3);
         assert_eq!(cfg.storage.base_path, "/data/artifacts");
         assert_eq!(cfg.storage.base_url, "http://server:8088");
-        assert_eq!(cfg.storage.endpoint.as_deref(), Some("http://minio:9000"));
+        assert_eq!(cfg.storage.endpoint.as_deref(), Some("http://rustfs:9000"));
         assert!(cfg.storage.use_ssl);
         assert_eq!(cfg.retention.max_artifacts, 7);
         assert_eq!(cfg.retention.max_age, Duration::from_secs(168 * 60 * 60));
@@ -935,6 +940,12 @@ mod tests {
             cfg.retention.cleanup_interval,
             Duration::from_secs(24 * 60 * 60)
         );
+    }
+
+    #[test]
+    fn artifacts_config_provider_minio_is_legacy_alias_of_s3() {
+        let cfg = load(&[("ARTIFACTS_STORAGE_PROVIDER", "minio")]);
+        assert_eq!(cfg.storage.provider, ArtifactsStorageProvider::S3);
     }
 
     #[test]

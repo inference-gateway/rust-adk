@@ -15,10 +15,13 @@ pub use config::{
     Config, McpConfig, QueueConfig, QueueProvider, ServerConfig, TelemetryConfig, TlsConfig,
     TracesExporter,
 };
-#[cfg(feature = "minio")]
+#[cfg(feature = "s3")]
+#[allow(deprecated)]
 pub use server::MinioArtifactStorage;
 #[cfg(feature = "redis")]
 pub use server::RedisStorage;
+#[cfg(feature = "s3")]
+pub use server::S3ArtifactStorage;
 pub use server::{
     A2AServer, A2AServerBuilder, Agent, AgentBuilder, AgentCardOverrides, ArtifactService,
     ArtifactStorage, ArtifactsServer, AsyncFunctionToolHandler, AuthError, AuthVerifier,
