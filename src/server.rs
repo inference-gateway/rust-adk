@@ -5,8 +5,8 @@ mod agent_llm_client;
 mod agent_toolbox;
 mod artifact_service;
 mod artifact_storage;
-#[cfg(feature = "minio")]
-mod artifact_storage_minio;
+#[cfg(feature = "s3")]
+mod artifact_storage_s3;
 mod artifacts_server;
 mod auth;
 mod errors;
@@ -30,8 +30,11 @@ pub use agent_llm_client::{LLMClient, OpenAICompatibleLLMClient};
 pub use agent_toolbox::{AsyncFunctionToolHandler, FunctionToolHandler, ToolHandler};
 pub use artifact_service::{ArtifactService, DefaultArtifactService, infer_mime_type};
 pub use artifact_storage::{ArtifactStorage, FilesystemArtifactStorage, StoredArtifactInfo};
-#[cfg(feature = "minio")]
-pub use artifact_storage_minio::MinioArtifactStorage;
+#[cfg(feature = "s3")]
+#[allow(deprecated)]
+pub use artifact_storage_s3::MinioArtifactStorage;
+#[cfg(feature = "s3")]
+pub use artifact_storage_s3::S3ArtifactStorage;
 pub use artifacts_server::{ArtifactsServer, spawn_retention_task};
 pub use auth::{
     AuthError, AuthVerifier, AuthenticatedPrincipal, OidcJwtVerifier, oidc_security_schemes,

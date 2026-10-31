@@ -93,7 +93,7 @@ not from the repo root or `examples/<scenario>/`.
   load it via `envy::prefixed("A2A_")`. The string-or-native deserializers in
   `src/config.rs` (the `de` module) are load-bearing - don't simplify them
   without re-checking env-driven examples.
-- Cargo features `redis`, `minio`, `telemetry` are off by default. Enable them
+- Cargo features `redis`, `s3`, `telemetry` are off by default. Enable them
   explicitly in packages that need them.
 - Table-driven tests with isolated per-case mocks/servers (see
   `tests/a2a_server_test.rs`, `src/server/server_builder.rs` tests), not a
