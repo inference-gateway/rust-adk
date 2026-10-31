@@ -112,7 +112,7 @@ and assigns the result onto `Config::artifacts_config`:
 | `ARTIFACTS_ENABLED` | `false` | Master switch for the subsystem. |
 | `ARTIFACTS_SERVER_HOST` | `0.0.0.0` | Bind address of the artifacts HTTP server. |
 | `ARTIFACTS_SERVER_PORT` | `8081` | Port of the artifacts HTTP server. |
-| `ARTIFACTS_STORAGE_PROVIDER` | `filesystem` | `filesystem` or `minio`. |
+| `ARTIFACTS_STORAGE_PROVIDER` | `filesystem` | `filesystem` or `s3` (`minio` is accepted as a legacy alias of `s3`). |
 | `ARTIFACTS_STORAGE_BASE_PATH` | `./artifacts` | Filesystem root for the filesystem provider. |
 | `ARTIFACTS_STORAGE_BASE_URL` | `http://localhost:8081` | Public URL prefix baked into file artifact URIs. |
 | `ARTIFACTS_RETENTION_MAX_ARTIFACTS` | `5` | Cap on retained artifacts per `contextId`; `0` means unlimited. |
