@@ -183,17 +183,17 @@ tasks:
     cmds:
       - cargo run --example artifacts-filesystem-client
 
-  examples:artifacts-minio-server:
-    desc: Run the artifacts-minio server example (requires MinIO at localhost:9000; built with the `minio` feature)
-    dir: examples/artifacts-minio/server
+  examples:artifacts-s3-server:
+    desc: Run the artifacts-s3 server example (requires RustFS or any S3-compatible store at localhost:9000)
+    dir: examples/artifacts-s3/server
     cmds:
-      - cargo run --features minio --example artifacts-minio-server
+      - cargo run -p artifacts-s3-server
 
-  examples:artifacts-minio-client:
-    desc: Run the artifacts-minio client example (requires the server at localhost:8089)
-    dir: examples/artifacts-minio
+  examples:artifacts-s3-client:
+    desc: Run the artifacts-s3 client example (requires the server at localhost:8089)
+    dir: examples/artifacts-s3/client
     cmds:
-      - cargo run --example artifacts-minio-client
+      - cargo run -p artifacts-s3-client
 
   examples:queue-storage-server:
     desc: Run the queue-storage server example (in-memory by default; the queue-storage-server package already enables the ADK `redis` feature so A2A_QUEUE_PROVIDER=redis is available)

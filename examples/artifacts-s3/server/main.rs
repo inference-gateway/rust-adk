@@ -1,20 +1,21 @@
-//! MinIO-backed artifacts example server.
+//! S3-backed artifacts example server (RustFS in the docker-compose stack).
 //!
 //! Spawns the A2A server on `:8089` and the artifacts server on `:8090`.
 //! The streaming task handler produces a small text report as a file
-//! artifact (`report.txt`) whose URI clients can fetch directly from
-//! MinIO over HTTP (the bucket is configured with anonymous read in the
-//! compose `createbucket` init step).
+//! artifact (`report.txt`). The URI baked into the file part points at
+//! the artifacts HTTP server, which proxies the download from the
+//! (private) S3 bucket - so no anonymous-read policy is required.
 //!
 //! Run with:
 //!
 //! ```bash
-//! cd examples/artifacts-minio/server
-//! cargo run --features minio --example artifacts-minio-server
+//! cd examples/artifacts-s3/server
+//! cargo run -p artifacts-s3-server
+//! # or: task examples:artifacts-s3-server
 //! ```
 //!
-//! Requires a running MinIO instance — see `docker-compose.yaml` in the
-//! example root.
+//! Requires a running S3-compatible store (RustFS by default) - see
+//! `docker-compose.yaml` in the example root.
 
 use inference_gateway_adk::a2a_types::{Message as A2AMessage, Task, TaskState};
 use inference_gateway_adk::{
@@ -26,7 +27,7 @@ use tracing::{error, info};
 
 /// Streaming handler that emits a fixed text report as a downloadable
 /// file artifact. Demonstrates the `emit_file_artifact` helper backed by
-/// MinIO storage.
+/// S3 storage.
 #[derive(Debug)]
 struct ReportHandler;
 
@@ -48,7 +49,7 @@ impl StreamableTaskHandler for ReportHandler {
             .await?;
 
         let report = format!(
-            "# Generated Report\n\nTask id: {}\nContext id: {}\nGenerated at: {}\nBackend: MinIO\n",
+            "# Generated Report\n\nTask id: {}\nContext id: {}\nGenerated at: {}\nBackend: S3 (RustFS)\n",
             task.id,
             task.context_id_str(),
             chrono::Utc::now().to_rfc3339(),
@@ -79,16 +80,17 @@ impl StreamableTaskHandler for ReportHandler {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt().init();
 
-    // MinIO connection settings load from the `ARTIFACTS_STORAGE_*` env
-    // surface (see docker-compose.yaml). This example always runs the
-    // MinIO backend on :8090; anything the env surface leaves unset falls
-    // back to a local-friendly default so `cargo run` works out of the box.
+    // S3 connection settings load from the `ARTIFACTS_STORAGE_*` env
+    // surface (see docker-compose.yaml). This example runs the S3 backend
+    // with the artifacts HTTP server on :8090; anything the env surface
+    // leaves unset falls back to a local-friendly default so `cargo run`
+    // works out of the box.
     let mut artifacts_config = envy::prefixed("ARTIFACTS_")
         .from_env::<ArtifactsConfig>()
         .map_err(|e| format!("failed to load ARTIFACTS_* config: {e}"))?;
     artifacts_config.enable = true;
     artifacts_config.server.port = 8090;
-    artifacts_config.storage.provider = ArtifactsStorageProvider::Minio;
+    artifacts_config.storage.provider = ArtifactsStorageProvider::S3;
 
     let storage = &mut artifacts_config.storage;
     let endpoint = storage
@@ -97,10 +99,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .clone();
     storage
         .access_key
-        .get_or_insert_with(|| "minioadmin".to_string());
+        .get_or_insert_with(|| "rustfsadmin".to_string());
     storage
         .secret_key
-        .get_or_insert_with(|| "minioadmin".to_string());
+        .get_or_insert_with(|| "rustfsadmin".to_string());
     let bucket_name = storage
         .bucket_name
         .get_or_insert_with(|| "artifacts".to_string())
@@ -109,7 +111,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .region
         .get_or_insert_with(|| "us-east-1".to_string());
     if env::var_os("ARTIFACTS_STORAGE_BASE_URL").is_none() {
-        storage.base_url = "http://localhost:9000".to_string();
+        // Proxy mode: URIs point at the artifacts HTTP server, which
+        // streams the object via ArtifactStorage::retrieve.
+        storage.base_url = "http://localhost:8090".to_string();
     }
     storage.use_ssl = endpoint.starts_with("https://");
 
@@ -126,12 +130,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await?;
 
     let addr = "0.0.0.0:8089".parse()?;
-    info!("artifacts-minio A2A server listening on {addr}");
-    info!("artifacts-minio HTTP server listening on http://localhost:8090");
+    info!("artifacts-s3 A2A server listening on {addr}");
+    info!("artifacts-s3 HTTP server listening on http://localhost:8090");
     info!(
         bucket = %bucket_name,
         endpoint = %endpoint,
-        "MinIO storage configured",
+        "S3 storage configured",
     );
 
     if let Err(e) = server.serve(addr).await {

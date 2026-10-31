@@ -1,0 +1,107 @@
+---
+services:
+  # RustFS is an S3-compatible object store: https://github.com/rustfs/rustfs
+  # API on 9000, web console on 9001. The ADK creates the 'artifacts' bucket
+  # on startup when it is missing.
+  rustfs:
+    image: rustfs/rustfs:1.0.4
+    security_opt:
+      - "no-new-privileges:true"
+    ports:
+      - "9000:9000"  # S3 API
+      - "9001:9001"  # RustFS Console
+    environment:
+      RUSTFS_VOLUMES: /data
+      RUSTFS_ADDRESS: 0.0.0.0:9000
+      RUSTFS_CONSOLE_ADDRESS: 0.0.0.0:9001
+      RUSTFS_CONSOLE_ENABLE: "true"
+      RUSTFS_ACCESS_KEY: rustfsadmin
+      RUSTFS_SECRET_KEY: rustfsadmin
+    volumes:
+      - rustfs-data:/data
+    networks:
+      - a2a-network
+    depends_on:
+      volume-permission-helper:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - --fail
+        - --silent
+        - http://127.0.0.1:9000/health
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # RustFS runs as UID/GID 10001 (10001:10001) - named volumes must be
+  # writable by that user (see the RustFS docker-compose-simple.yml reference)
+  volume-permission-helper:
+    image: alpine
+    volumes:
+      - rustfs-data:/data
+    command: sh -c "chown -R 10001:10001 /data && echo 'Volume Permissions fixed' && exit 0"
+    restart: "no"
+
+  server:
+    build:
+      context: ../..
+      dockerfile: examples/Dockerfile.server
+      args:
+        BIN_NAME: artifacts-s3-server
+        EXAMPLE_PATH: examples/artifacts-s3
+    ports:
+      - "8089:8089"   # A2A JSON-RPC
+      - "8090:8090"   # Artifacts HTTP (proxies downloads from RustFS)
+    depends_on:
+      rustfs:
+        condition: service_healthy
+    environment:
+      RUST_LOG: info
+      ARTIFACTS_STORAGE_ENDPOINT: http://rustfs:9000
+      ARTIFACTS_STORAGE_ACCESS_KEY: rustfsadmin
+      ARTIFACTS_STORAGE_SECRET_KEY: rustfsadmin
+      ARTIFACTS_STORAGE_BUCKET_NAME: artifacts
+      # Baked into the file part `url`: the artifacts HTTP server proxies
+      # every download through ArtifactStorage::retrieve, so the bucket can
+      # stay private. Point this at http://rustfs:9000 instead (plus an
+      # anonymous-read policy on the bucket) to download straight from
+      # RustFS in the client.
+      ARTIFACTS_STORAGE_BASE_URL: http://server:8090
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - --fail
+        - --silent
+        - http://localhost:8089/health
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    networks:
+      - a2a-network
+
+  client:
+    build:
+      context: ../..
+      dockerfile: examples/Dockerfile.client
+      args:
+        BIN_NAME: artifacts-s3-client
+    depends_on:
+      server:
+        condition: service_healthy
+    environment:
+      RUST_LOG: info
+      SERVER_URL: http://server:8089
+    networks:
+      - a2a-network
+
+volumes:
+  rustfs-data:
+
+networks:
+  a2a-network:
+    driver: bridge
