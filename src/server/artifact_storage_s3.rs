@@ -145,7 +145,7 @@ impl S3ArtifactStorage {
 /// (RustFS included) and no longer implies a MinIO server, but existing
 /// callers keep compiling with a deprecation nudge.
 #[deprecated(
-    since = "0.19.0",
+    since = "0.18.1",
     note = "renamed to `S3ArtifactStorage` - works against any S3-compatible store (RustFS included)"
 )]
 pub type MinioArtifactStorage = S3ArtifactStorage;

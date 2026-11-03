@@ -683,7 +683,7 @@ pub enum ArtifactsStorageProvider {
     #[default]
     Filesystem,
     /// Any S3-compatible object store (RustFS, MinIO, AWS S3, ...), gated
-    /// by the `s3` Cargo feature.
+    /// by the `s3` Cargo feature. `minio` is accepted as a legacy alias.
     S3,
 }
 
@@ -693,10 +693,7 @@ impl FromStr for ArtifactsStorageProvider {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
             "filesystem" | "" => Ok(ArtifactsStorageProvider::Filesystem),
-            "s3" => Ok(ArtifactsStorageProvider::S3),
-            // Legacy alias: the provider was called `minio` before the
-            // backend went vendor-neutral.
-            "minio" => Ok(ArtifactsStorageProvider::S3),
+            "s3" | "minio" => Ok(ArtifactsStorageProvider::S3),
             other => Err(format!(
                 "ARTIFACTS_STORAGE_PROVIDER must be `filesystem` or `s3` (got {other:?})"
             )),

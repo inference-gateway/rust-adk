@@ -5,6 +5,8 @@
 //! artifact (`report.txt`). The URI baked into the file part points at
 //! the artifacts HTTP server, which proxies the download from the
 //! (private) S3 bucket - so no anonymous-read policy is required.
+//! Connection settings load from the `ARTIFACTS_STORAGE_*` env surface
+//! and fall back to local-friendly defaults so `cargo run` works as is.
 //!
 //! Run with:
 //!
@@ -80,11 +82,6 @@ impl StreamableTaskHandler for ReportHandler {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt().init();
 
-    // S3 connection settings load from the `ARTIFACTS_STORAGE_*` env
-    // surface (see docker-compose.yaml). This example runs the S3 backend
-    // with the artifacts HTTP server on :8090; anything the env surface
-    // leaves unset falls back to a local-friendly default so `cargo run`
-    // works out of the box.
     let mut artifacts_config = envy::prefixed("ARTIFACTS_")
         .from_env::<ArtifactsConfig>()
         .map_err(|e| format!("failed to load ARTIFACTS_* config: {e}"))?;
@@ -111,11 +108,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .region
         .get_or_insert_with(|| "us-east-1".to_string());
     if env::var_os("ARTIFACTS_STORAGE_BASE_URL").is_none() {
-        // Proxy mode: URIs point at the artifacts HTTP server, which
-        // streams the object via ArtifactStorage::retrieve.
         storage.base_url = "http://localhost:8090".to_string();
     }
-    storage.use_ssl = endpoint.starts_with("https://");
 
     let config = Config {
         artifacts_config,
