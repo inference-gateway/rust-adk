@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.18.1](https://github.com/inference-gateway/rust-adk/compare/0.18.0...0.18.1) (2026-11-03)
+
+### ♻️ Improvements
+
+* **artifacts:** replace MinIO artifact storage with a vendor-neutral S3 provider running RustFS ([#242](https://github.com/inference-gateway/rust-adk/issues/242)) ([939ef39](https://github.com/inference-gateway/rust-adk/commit/939ef392c73bff1485ddb9131d09f55ae79a21a6))
+
+### 👷 CI
+
+* **release:** label issues and PRs shipped in an rc with rc ([#240](https://github.com/inference-gateway/rust-adk/issues/240)) ([8f2c4d4](https://github.com/inference-gateway/rust-adk/commit/8f2c4d450a4cdeab68e049e50bd7ccc564c61b64))
+
+### 🔧 Miscellaneous
+
+* **deps:** bump actions/create-github-app-token ([#235](https://github.com/inference-gateway/rust-adk/issues/235)) ([26415be](https://github.com/inference-gateway/rust-adk/commit/26415be4a587e5566c89950a1498b619d683df8e))
+* **deps:** bump claude-code 2.1.285 -> 2.1.289 ([#228](https://github.com/inference-gateway/rust-adk/issues/228)) ([8cdb739](https://github.com/inference-gateway/rust-adk/commit/8cdb739f567c603bb40840221da86f7ac74639ee))
+* **deps:** bump claude-code 2.1.289 -> 2.1.296 ([#233](https://github.com/inference-gateway/rust-adk/issues/233)) ([29b4239](https://github.com/inference-gateway/rust-adk/commit/29b4239457a201c55bc44c57fa294778c2fca7a6))
+* **deps:** bump claude-code 2.1.296 -> 2.1.308 ([#237](https://github.com/inference-gateway/rust-adk/issues/237)) ([83d7f90](https://github.com/inference-gateway/rust-adk/commit/83d7f90a07e111524a977a071fbbe352ae2c5efe))
+* **deps:** bump infer CLI v0.221.1 -> v0.226.0 ([#229](https://github.com/inference-gateway/rust-adk/issues/229)) ([a365578](https://github.com/inference-gateway/rust-adk/commit/a3655786378c1dfe3793d1cb24ef1bf4f1f2db63))
+* **deps:** bump infer CLI v0.226.0 -> v0.231.1 ([#234](https://github.com/inference-gateway/rust-adk/issues/234)) ([c93830b](https://github.com/inference-gateway/rust-adk/commit/c93830b6d8bf4849e6ef3421daf7fd9ec123d057))
+* **deps:** bump the cargo group with 10 updates ([#232](https://github.com/inference-gateway/rust-adk/issues/232)) ([9f5e4f5](https://github.com/inference-gateway/rust-adk/commit/9f5e4f51cf20304a463f1951ad0d0a25011aa3f5))
+* **deps:** bump the cargo group with 6 updates ([#230](https://github.com/inference-gateway/rust-adk/issues/230)) ([b676c38](https://github.com/inference-gateway/rust-adk/commit/b676c38e26e43953252092965df7599c356b83aa))
+* **deps:** bump the cargo group with 6 updates ([#236](https://github.com/inference-gateway/rust-adk/issues/236)) ([40e7789](https://github.com/inference-gateway/rust-adk/commit/40e77890b877ed3dd5a2bfa9870d195d30efbeba))
+* **deps:** bump the cargo group with 7 updates ([#239](https://github.com/inference-gateway/rust-adk/issues/239)) ([d47b8c8](https://github.com/inference-gateway/rust-adk/commit/d47b8c865ffb89832d60393bd7a0c18e41262b82))
+* **deps:** bump the github-actions group with 2 updates ([#231](https://github.com/inference-gateway/rust-adk/issues/231)) ([a161707](https://github.com/inference-gateway/rust-adk/commit/a1617073c108f13ae87f9a9c4c121700ad902112))
+* **deps:** bump the github-actions group with 2 updates ([#238](https://github.com/inference-gateway/rust-adk/issues/238)) ([95465ba](https://github.com/inference-gateway/rust-adk/commit/95465baf45b8158170c374bcd872a7f0d0b628d4))
+
 ## [0.18.0](https://github.com/inference-gateway/rust-adk/compare/0.17.1...0.18.0) (2026-10-04)
 
 ### ✨ Features
