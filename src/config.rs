@@ -683,7 +683,7 @@ pub enum ArtifactsStorageProvider {
     #[default]
     Filesystem,
     /// Any S3-compatible object store (RustFS, MinIO, AWS S3, ...), gated
-    /// by the `s3` Cargo feature. `minio` is accepted as a legacy alias.
+    /// by the `s3` Cargo feature.
     S3,
 }
 
@@ -693,7 +693,7 @@ impl FromStr for ArtifactsStorageProvider {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
             "filesystem" | "" => Ok(ArtifactsStorageProvider::Filesystem),
-            "s3" | "minio" => Ok(ArtifactsStorageProvider::S3),
+            "s3" => Ok(ArtifactsStorageProvider::S3),
             other => Err(format!(
                 "ARTIFACTS_STORAGE_PROVIDER must be `filesystem` or `s3` (got {other:?})"
             )),
@@ -937,12 +937,6 @@ mod tests {
             cfg.retention.cleanup_interval,
             Duration::from_secs(24 * 60 * 60)
         );
-    }
-
-    #[test]
-    fn artifacts_config_provider_minio_is_legacy_alias_of_s3() {
-        let cfg = load(&[("ARTIFACTS_STORAGE_PROVIDER", "minio")]);
-        assert_eq!(cfg.storage.provider, ArtifactsStorageProvider::S3);
     }
 
     #[test]

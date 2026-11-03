@@ -141,15 +141,6 @@ impl S3ArtifactStorage {
     }
 }
 
-/// Legacy name for [`S3ArtifactStorage`]. The backend speaks plain S3
-/// (RustFS included) and no longer implies a MinIO server, but existing
-/// callers keep compiling with a deprecation nudge.
-#[deprecated(
-    since = "0.18.1",
-    note = "renamed to `S3ArtifactStorage` - works against any S3-compatible store (RustFS included)"
-)]
-pub type MinioArtifactStorage = S3ArtifactStorage;
-
 /// Split a `<context_id>/<artifact_id>/<filename>` object key. Keys that
 /// don't match that shape (legacy two-segment keys, stray objects) are
 /// skipped by the caller.

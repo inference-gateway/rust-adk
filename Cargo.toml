@@ -16,9 +16,6 @@ categories = ["api-bindings", "development-tools"]
 default = []
 redis = ["dep:redis"]
 s3 = ["dep:minio", "dep:bytes"]
-# `minio` predates the vendor-neutral `s3` provider and stays as a
-# feature-level alias of `s3`.
-minio = ["s3"]
 telemetry = [
     "dep:opentelemetry",
     "dep:opentelemetry_sdk",

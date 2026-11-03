@@ -15,9 +15,6 @@ pub use config::{
     Config, McpConfig, QueueConfig, QueueProvider, ServerConfig, TelemetryConfig, TlsConfig,
     TracesExporter,
 };
-#[cfg(feature = "s3")]
-#[allow(deprecated)]
-pub use server::MinioArtifactStorage;
 #[cfg(feature = "redis")]
 pub use server::RedisStorage;
 #[cfg(feature = "s3")]

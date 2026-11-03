@@ -1379,7 +1379,7 @@ See `examples/artifacts-filesystem/server/main.rs` for a runnable version.
 | `ARTIFACTS_SERVER_PORT` | `8081` | Port of the artifacts HTTP server. |
 | `ARTIFACTS_SERVER_READ_TIMEOUT` | `30s` | Parsed but not yet applied - `ArtifactsServer` sets no read timeout. Accepts Go-style durations (`30s`, `5m`, `2h`, `7d`) or bare seconds. |
 | `ARTIFACTS_SERVER_WRITE_TIMEOUT` | `30s` | Parsed but not yet applied - `ArtifactsServer` sets no write timeout. |
-| `ARTIFACTS_STORAGE_PROVIDER` | `filesystem` | `filesystem` or `s3`. The `s3` provider requires the crate to be built with the `s3` Cargo feature and works with any S3-compatible store (RustFS, MinIO, AWS S3); `minio` is accepted as a legacy alias of `s3`. Without the feature, requests fall back to filesystem storage with a `warn!` log. |
+| `ARTIFACTS_STORAGE_PROVIDER` | `filesystem` | `filesystem` or `s3`. The `s3` provider requires the crate to be built with the `s3` Cargo feature and works with any S3-compatible store (RustFS, MinIO, AWS S3). Without the feature, requests fall back to filesystem storage with a `warn!` log. |
 | `ARTIFACTS_STORAGE_BASE_PATH` | `./artifacts` | On-disk root for the `filesystem` provider. |
 | `ARTIFACTS_STORAGE_BASE_URL` | `http://localhost:8081` | Public URL prefix baked into file artifact URIs - point this at wherever the artifacts server (or S3-compatible endpoint) is externally reachable. |
 | `ARTIFACTS_STORAGE_ENDPOINT` | unset | S3-compatible object store endpoint URL. Path-style addressing; the bucket is created when missing. |

@@ -31,9 +31,6 @@ pub use agent_toolbox::{AsyncFunctionToolHandler, FunctionToolHandler, ToolHandl
 pub use artifact_service::{ArtifactService, DefaultArtifactService, infer_mime_type};
 pub use artifact_storage::{ArtifactStorage, FilesystemArtifactStorage, StoredArtifactInfo};
 #[cfg(feature = "s3")]
-#[allow(deprecated)]
-pub use artifact_storage_s3::MinioArtifactStorage;
-#[cfg(feature = "s3")]
 pub use artifact_storage_s3::S3ArtifactStorage;
 pub use artifacts_server::{ArtifactsServer, spawn_retention_task};
 pub use auth::{
