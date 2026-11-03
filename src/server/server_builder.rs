@@ -391,27 +391,26 @@ impl A2AServerBuilder {
                             storage_cfg.base_url.clone(),
                         ))
                     }
-                    ArtifactsStorageProvider::Minio => {
-                        #[cfg(feature = "minio")]
+                    ArtifactsStorageProvider::S3 => {
+                        #[cfg(feature = "s3")]
                         {
                             info!(
                                 endpoint = storage_cfg.endpoint.as_deref().unwrap_or(""),
                                 bucket = storage_cfg.bucket_name.as_deref().unwrap_or(""),
                                 base_url = %storage_cfg.base_url,
-                                "wiring minio artifact storage",
+                                "wiring s3 artifact storage",
                             );
-                            let minio =
-                                super::artifact_storage_minio::MinioArtifactStorage::from_config(
-                                    storage_cfg,
-                                )
-                                .await?;
-                            Arc::new(minio) as Arc<dyn ArtifactStorage>
+                            let s3 = super::artifact_storage_s3::S3ArtifactStorage::from_config(
+                                storage_cfg,
+                            )
+                            .await?;
+                            Arc::new(s3) as Arc<dyn ArtifactStorage>
                         }
-                        #[cfg(not(feature = "minio"))]
+                        #[cfg(not(feature = "s3"))]
                         {
                             warn!(
-                                "ARTIFACTS_STORAGE_PROVIDER=minio was requested but the crate was \
-                                 built without the `minio` feature; falling back to filesystem \
+                                "ARTIFACTS_STORAGE_PROVIDER=s3 was requested but the crate was \
+                                 built without the `s3` feature; falling back to filesystem \
                                  storage at `{}`",
                                 storage_cfg.base_path,
                             );

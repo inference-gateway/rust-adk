@@ -1,8 +1,9 @@
-//! Client for the MinIO-backed artifacts example.
+//! Client for the S3-backed artifacts example.
 //!
-//! Streams a task against the artifacts-minio example server, collects
-//! the emitted file artifact's URI (which points directly at MinIO),
-//! then downloads the artifact via HTTP and prints its contents.
+//! Streams a task against the artifacts-s3 example server, collects the
+//! emitted file artifact's URI (which points at the artifacts HTTP server
+//! proxying RustFS), then downloads the artifact via HTTP and prints its
+//! contents.
 
 use futures::StreamExt;
 use inference_gateway_adk::A2AClient;
@@ -28,7 +29,7 @@ fn user_message(text: &str) -> SendMessageRequest {
             task_id: None,
         },
         metadata: None,
-        tenant: Some("artifacts-minio-demo".to_string()),
+        tenant: Some("artifacts-s3-demo".to_string()),
     }
 }
 
@@ -39,7 +40,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let server_url = env::var("SERVER_URL").unwrap_or_else(|_| "http://localhost:8089".to_string());
     let client = A2AClient::new(&server_url)?;
 
-    info!("artifacts-minio client → {server_url}");
+    info!("artifacts-s3 client → {server_url}");
 
     let stream = client
         .stream_message(user_message("generate a report"))

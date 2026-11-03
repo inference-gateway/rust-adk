@@ -1,6 +1,6 @@
 {
-  "name": "Rust A2A MinIO Artifacts Agent",
-  "description": "A2A server demonstrating the artifacts subsystem with a MinIO-backed store. Streaming task handler emits a downloadable file artifact whose URI points directly at the MinIO endpoint (anonymous-read bucket).",
+  "name": "Rust A2A S3 Artifacts Agent",
+  "description": "A2A server demonstrating the artifacts subsystem with an S3-compatible object store (RustFS). Streaming task handler emits a downloadable file artifact served through the artifacts HTTP server, which proxies reads from the private bucket.",
   "version": "0.1.0",
   "supportedInterfaces": [{"url": "http://localhost:8089", "protocolBinding": "JSONRPC", "protocolVersion": "1.0"}],
   "capabilities": {
@@ -15,8 +15,8 @@
     {
       "id": "generate-report",
       "name": "generate-report",
-      "description": "Generate a downloadable text report as a file artifact stored in MinIO",
-      "tags": ["artifacts", "minio", "demo"]
+      "description": "Generate a downloadable text report as a file artifact stored in S3-compatible object storage (RustFS)",
+      "tags": ["artifacts", "s3", "rustfs", "demo"]
     }
   ],
   "defaultInputModes": ["text/plain"],

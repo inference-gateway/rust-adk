@@ -55,7 +55,7 @@ override via `.env` to use any other provider supported by the gateway
 | Example | What it shows |
 |---|---|
 | [`artifacts-filesystem/`](./artifacts-filesystem) | Streaming handler emits a downloadable file artifact; standalone artifacts HTTP server backed by the filesystem provider |
-| [`artifacts-minio/`](./artifacts-minio) | Same shape, but with the `minio` Cargo feature wiring `MinioArtifactStorage` against a MinIO container; URIs go direct to MinIO |
+| [`artifacts-s3/`](./artifacts-s3) | Same shape, but with the `s3` Cargo feature wiring `S3ArtifactStorage` against an S3-compatible store (RustFS); downloads proxy through the artifacts HTTP server |
 
 ## Running
 
@@ -121,13 +121,12 @@ Notes per scenario:
   artifacts server is also published on host `:8088` for debugging.
   Produced files are bind-mounted to `server/artifacts-data/`. No
   provider keys required.
-- **`artifacts-minio/`** adds a `minio/minio` service plus a one-shot
-  `minio/mc` init container that creates an `artifacts` bucket with an
-  anonymous-download policy. The server is built with
-  `CARGO_FEATURES=minio` so the `minio` crate is compiled in, and
-  `ARTIFACTS_STORAGE_BASE_URL=http://minio:9000` makes
-  the file part `url` point at MinIO directly — the client downloads
-  bypass the artifacts HTTP server entirely. No provider keys
+- **`artifacts-s3/`** adds a `rustfs/rustfs` service (an S3-compatible
+  object store - the ADK creates the `artifacts` bucket on startup, so
+  no init container is needed). The example declares the `s3` feature
+  in its own `Cargo.toml` and `ARTIFACTS_STORAGE_BASE_URL=http://server:8090`
+  makes the file part `url` point at the artifacts HTTP server, which
+  proxies the download from the (private) bucket. No provider keys
   required.
 
 ## Configuration
@@ -170,6 +169,6 @@ the top-level [README](../README.md) for the full env var reference.
     specification, exercised one client at a time.
 13. **`artifacts-filesystem/`** — produce file artifacts via the
     standalone artifacts HTTP server with a filesystem-backed store.
-14. **`artifacts-minio/`** — same shape with `MinioArtifactStorage`
-    against a MinIO container; demonstrates the `minio` Cargo feature
-    and direct-to-MinIO downloads.
+14. **`artifacts-s3/`** — same shape with `S3ArtifactStorage`
+    against a RustFS (S3-compatible) container; demonstrates the `s3`
+    Cargo feature and proxy downloads through the artifacts HTTP server.
