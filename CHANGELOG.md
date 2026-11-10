@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.18.2](https://github.com/inference-gateway/rust-adk/compare/0.18.1...0.18.2) (2026-11-10)
+
+### 🔧 Miscellaneous
+
+* **deps:** bump astral-sh/setup-uv ([#243](https://github.com/inference-gateway/rust-adk/issues/243)) ([8abb508](https://github.com/inference-gateway/rust-adk/commit/8abb50873b816547b09d65fd1e5676a2780c5c97))
+* **deps:** bump the cargo group with 5 updates ([#244](https://github.com/inference-gateway/rust-adk/issues/244)) ([bf30644](https://github.com/inference-gateway/rust-adk/commit/bf30644db38cf44b137352f09525447d0a0683ac))
+
 ## [0.18.1](https://github.com/inference-gateway/rust-adk/compare/0.18.0...0.18.1) (2026-11-03)
 
 ### ♻️ Improvements
