@@ -25,7 +25,7 @@ jobs:
       - name: Install Rust
         uses: actions-rust-lang/setup-rust-toolchain@v2.0.1
         with:
-          toolchain: 1.95.0
+          toolchain: 1.99.1
           components: clippy, rustfmt
 
       - name: Lint
@@ -57,7 +57,7 @@ jobs:
       - name: Install Rust
         uses: actions-rust-lang/setup-rust-toolchain@v2.0.1
         with:
-          toolchain: 1.95.0
+          toolchain: 1.99.1
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v10.3.3

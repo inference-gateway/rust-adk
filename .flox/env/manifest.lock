@@ -5,689 +5,70 @@
     "install": {
       "cargo": {
         "pkg-path": "cargo",
-        "version": "^1.95.0"
+        "version": "^1.99.1"
       },
       "claude-code": {
         "pkg-path": "claude-code",
         "pkg-group": "claude-code",
-        "version": "^2.1.318"
+        "version": "^2.1.321"
       },
       "clippy": {
         "pkg-path": "clippy",
-        "version": "^1.95.0"
+        "version": "^1.99.1"
       },
       "codex": {
         "pkg-path": "codex",
         "pkg-group": "codex",
-        "version": "^0.135.0"
+        "version": "^0.167.1"
       },
       "go-task": {
         "pkg-path": "go-task",
-        "version": "3.48.0"
+        "version": "3.53.1"
       },
       "infer": {
         "flake": "github:inference-gateway/cli/v0.231.1"
       },
       "markdownlint-cli": {
         "pkg-path": "markdownlint-cli",
-        "version": "0.48.0"
+        "version": "0.50.0"
       },
       "rustc": {
         "pkg-path": "rustc",
-        "version": "^1.95.0"
+        "version": "^1.99.1"
       },
       "rustfmt": {
         "pkg-path": "rustfmt",
-        "version": "^1.95.0"
+        "version": "^1.99.1"
       }
     },
     "options": {}
   },
   "packages": [
     {
-      "attr_path": "codex",
-      "broken": false,
-      "derivation": "/nix/store/gzs0s2pjs6r703d5ckzpp15z2z9mh4yx-codex-0.135.0.drv",
-      "description": "Lightweight coding agent that runs in your terminal",
-      "install_id": "codex",
-      "license": "Apache-2.0",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=331800de5053fcebacf6813adb5db9c9dca22a0c",
-      "name": "codex-0.135.0",
-      "pname": "codex",
-      "rev": "331800de5053fcebacf6813adb5db9c9dca22a0c",
-      "rev_count": 1008282,
-      "rev_date": "2026-05-31T16:09:29Z",
-      "scrape_date": "2026-06-02T08:55:40.294021Z",
-      "stabilities": [
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "0.135.0",
-      "outputs_to_install": [
-        "out"
-      ],
-      "outputs": {
-        "out": "/nix/store/l6p2maazc8iljiz8iv34dkppk7lvk7ni-codex-0.135.0"
-      },
-      "system": "aarch64-darwin",
-      "group": "codex",
-      "priority": 5
-    },
-    {
-      "attr_path": "codex",
-      "broken": false,
-      "derivation": "/nix/store/djxbjp6sx9xwmkgf9yy41vik8kdyhix5-codex-0.135.0.drv",
-      "description": "Lightweight coding agent that runs in your terminal",
-      "install_id": "codex",
-      "license": "Apache-2.0",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=331800de5053fcebacf6813adb5db9c9dca22a0c",
-      "name": "codex-0.135.0",
-      "pname": "codex",
-      "rev": "331800de5053fcebacf6813adb5db9c9dca22a0c",
-      "rev_count": 1008282,
-      "rev_date": "2026-05-31T16:09:29Z",
-      "scrape_date": "2026-06-02T09:40:19.446424Z",
-      "stabilities": [
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "0.135.0",
-      "outputs_to_install": [
-        "out"
-      ],
-      "outputs": {
-        "out": "/nix/store/ywsap0cn6xx7pawpa07bcc7yxlvmfl0r-codex-0.135.0"
-      },
-      "system": "aarch64-linux",
-      "group": "codex",
-      "priority": 5
-    },
-    {
-      "attr_path": "codex",
-      "broken": false,
-      "derivation": "/nix/store/swrcc8r0z2kp41ga0j6jf6ig10kli5qv-codex-0.135.0.drv",
-      "description": "Lightweight coding agent that runs in your terminal",
-      "install_id": "codex",
-      "license": "Apache-2.0",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=331800de5053fcebacf6813adb5db9c9dca22a0c",
-      "name": "codex-0.135.0",
-      "pname": "codex",
-      "rev": "331800de5053fcebacf6813adb5db9c9dca22a0c",
-      "rev_count": 1008282,
-      "rev_date": "2026-05-31T16:09:29Z",
-      "scrape_date": "2026-06-02T11:06:43.030616Z",
-      "stabilities": [
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "0.135.0",
-      "outputs_to_install": [
-        "out"
-      ],
-      "outputs": {
-        "out": "/nix/store/q1j9qd6h3cvbbi24q6mr5b5x4ia5q0kd-codex-0.135.0"
-      },
-      "system": "x86_64-linux",
-      "group": "codex",
-      "priority": 5
-    },
-    {
-      "attr_path": "cargo",
-      "broken": false,
-      "derivation": "/nix/store/04ili1yy79h13xnpghs37y28vns8r69x-cargo-1.95.0.drv",
-      "description": "Downloads your Rust project's dependencies and builds your project",
-      "install_id": "cargo",
-      "license": "[ MIT, Apache-2.0 ]",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=29916453413845e54a65b8a1cf996842300cd299",
-      "name": "cargo-1.95.0",
-      "pname": "cargo",
-      "rev": "29916453413845e54a65b8a1cf996842300cd299",
-      "rev_count": 1003640,
-      "rev_date": "2026-05-23T03:54:30Z",
-      "scrape_date": "2026-05-24T07:05:50.468865Z",
-      "stabilities": [
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "1.95.0",
-      "outputs_to_install": [
-        "out"
-      ],
-      "outputs": {
-        "out": "/nix/store/2vdxz4xwplgb5rgfhqr0jr85fd7qqgmb-cargo-1.95.0"
-      },
-      "system": "aarch64-darwin",
-      "group": "toplevel",
-      "priority": 5
-    },
-    {
-      "attr_path": "cargo",
-      "broken": false,
-      "derivation": "/nix/store/ddzw6symm08w2hn3nghsi3gmvgyzjphb-cargo-1.95.0.drv",
-      "description": "Downloads your Rust project's dependencies and builds your project",
-      "install_id": "cargo",
-      "license": "[ MIT, Apache-2.0 ]",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=29916453413845e54a65b8a1cf996842300cd299",
-      "name": "cargo-1.95.0",
-      "pname": "cargo",
-      "rev": "29916453413845e54a65b8a1cf996842300cd299",
-      "rev_count": 1003640,
-      "rev_date": "2026-05-23T03:54:30Z",
-      "scrape_date": "2026-05-24T07:34:04.263354Z",
-      "stabilities": [
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "1.95.0",
-      "outputs_to_install": [
-        "out"
-      ],
-      "outputs": {
-        "out": "/nix/store/f8rxcxfwk1qhazprqnfji401x08xp9dr-cargo-1.95.0"
-      },
-      "system": "aarch64-linux",
-      "group": "toplevel",
-      "priority": 5
-    },
-    {
-      "attr_path": "cargo",
-      "broken": false,
-      "derivation": "/nix/store/f61lsy7bpya0azm8z6cxw05nj79g2dn9-cargo-1.95.0.drv",
-      "description": "Downloads your Rust project's dependencies and builds your project",
-      "install_id": "cargo",
-      "license": "[ MIT, Apache-2.0 ]",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=29916453413845e54a65b8a1cf996842300cd299",
-      "name": "cargo-1.95.0",
-      "pname": "cargo",
-      "rev": "29916453413845e54a65b8a1cf996842300cd299",
-      "rev_count": 1003640,
-      "rev_date": "2026-05-23T03:54:30Z",
-      "scrape_date": "2026-05-24T08:31:55.496300Z",
-      "stabilities": [
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "1.95.0",
-      "outputs_to_install": [
-        "out"
-      ],
-      "outputs": {
-        "out": "/nix/store/z480b23kymbmrijrl49246mrzyphli15-cargo-1.95.0"
-      },
-      "system": "x86_64-linux",
-      "group": "toplevel",
-      "priority": 5
-    },
-    {
-      "attr_path": "clippy",
-      "broken": false,
-      "derivation": "/nix/store/5isy9w2vfi8fawwfyrpa5ym7zqbz2qfb-clippy-1.95.0.drv",
-      "description": "Bunch of lints to catch common mistakes and improve your Rust code",
-      "install_id": "clippy",
-      "license": "[ MIT, Apache-2.0 ]",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=29916453413845e54a65b8a1cf996842300cd299",
-      "name": "clippy-1.95.0",
-      "pname": "clippy",
-      "rev": "29916453413845e54a65b8a1cf996842300cd299",
-      "rev_count": 1003640,
-      "rev_date": "2026-05-23T03:54:30Z",
-      "scrape_date": "2026-05-24T07:05:50.730841Z",
-      "stabilities": [
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "1.95.0",
-      "outputs_to_install": [
-        "out"
-      ],
-      "outputs": {
-        "out": "/nix/store/zzzj3civ800ml2hv9czssyzsbfxl2ss7-clippy-1.95.0"
-      },
-      "system": "aarch64-darwin",
-      "group": "toplevel",
-      "priority": 5
-    },
-    {
-      "attr_path": "clippy",
-      "broken": false,
-      "derivation": "/nix/store/01cf8xvhif784a2lkklk6ba8vabls7x0-clippy-1.95.0.drv",
-      "description": "Bunch of lints to catch common mistakes and improve your Rust code",
-      "install_id": "clippy",
-      "license": "[ MIT, Apache-2.0 ]",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=29916453413845e54a65b8a1cf996842300cd299",
-      "name": "clippy-1.95.0",
-      "pname": "clippy",
-      "rev": "29916453413845e54a65b8a1cf996842300cd299",
-      "rev_count": 1003640,
-      "rev_date": "2026-05-23T03:54:30Z",
-      "scrape_date": "2026-05-24T07:34:04.509864Z",
-      "stabilities": [
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "1.95.0",
-      "outputs_to_install": [
-        "out"
-      ],
-      "outputs": {
-        "debug": "/nix/store/a9j78978hxxwwbr7nbbmwl110ljsv192-clippy-1.95.0-debug",
-        "out": "/nix/store/03g145gvrijz5wryc6538m3ayzgbmlq0-clippy-1.95.0"
-      },
-      "system": "aarch64-linux",
-      "group": "toplevel",
-      "priority": 5
-    },
-    {
-      "attr_path": "clippy",
-      "broken": false,
-      "derivation": "/nix/store/60ir1zyzn8dj2fgn2zhy1pbgyhmf5gl5-clippy-1.95.0.drv",
-      "description": "Bunch of lints to catch common mistakes and improve your Rust code",
-      "install_id": "clippy",
-      "license": "[ MIT, Apache-2.0 ]",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=29916453413845e54a65b8a1cf996842300cd299",
-      "name": "clippy-1.95.0",
-      "pname": "clippy",
-      "rev": "29916453413845e54a65b8a1cf996842300cd299",
-      "rev_count": 1003640,
-      "rev_date": "2026-05-23T03:54:30Z",
-      "scrape_date": "2026-05-24T08:31:55.755712Z",
-      "stabilities": [
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "1.95.0",
-      "outputs_to_install": [
-        "out"
-      ],
-      "outputs": {
-        "debug": "/nix/store/clml4f18gybrzp40n0mhq8kv0rw98rmq-clippy-1.95.0-debug",
-        "out": "/nix/store/42vpa7gg09gs6x9v4y7aizmxwmrc35ac-clippy-1.95.0"
-      },
-      "system": "x86_64-linux",
-      "group": "toplevel",
-      "priority": 5
-    },
-    {
-      "attr_path": "go-task",
-      "broken": false,
-      "derivation": "/nix/store/hblj7ll86md16hkhkciq92msl7gb1hm3-go-task-3.48.0.drv",
-      "description": "Task runner / simpler Make alternative written in Go",
-      "install_id": "go-task",
-      "license": "MIT",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=29916453413845e54a65b8a1cf996842300cd299",
-      "name": "go-task-3.48.0",
-      "pname": "go-task",
-      "rev": "29916453413845e54a65b8a1cf996842300cd299",
-      "rev_count": 1003640,
-      "rev_date": "2026-05-23T03:54:30Z",
-      "scrape_date": "2026-05-24T07:05:51.779830Z",
-      "stabilities": [
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "3.48.0",
-      "outputs_to_install": [
-        "out"
-      ],
-      "outputs": {
-        "out": "/nix/store/hg0sx6ah2pinw09i8s3gwicq1x54gbvn-go-task-3.48.0"
-      },
-      "system": "aarch64-darwin",
-      "group": "toplevel",
-      "priority": 5
-    },
-    {
-      "attr_path": "go-task",
-      "broken": false,
-      "derivation": "/nix/store/4c7ijxx1kjjx0dal2n90yh0581gkazli-go-task-3.48.0.drv",
-      "description": "Task runner / simpler Make alternative written in Go",
-      "install_id": "go-task",
-      "license": "MIT",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=29916453413845e54a65b8a1cf996842300cd299",
-      "name": "go-task-3.48.0",
-      "pname": "go-task",
-      "rev": "29916453413845e54a65b8a1cf996842300cd299",
-      "rev_count": 1003640,
-      "rev_date": "2026-05-23T03:54:30Z",
-      "scrape_date": "2026-05-24T07:34:06.615850Z",
-      "stabilities": [
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "3.48.0",
-      "outputs_to_install": [
-        "out"
-      ],
-      "outputs": {
-        "out": "/nix/store/6bafb6yz2861yxjljadd1m22v2gryl24-go-task-3.48.0"
-      },
-      "system": "aarch64-linux",
-      "group": "toplevel",
-      "priority": 5
-    },
-    {
-      "attr_path": "go-task",
-      "broken": false,
-      "derivation": "/nix/store/6lnmskpks8kkr058mplx1g06s8zz7jvs-go-task-3.48.0.drv",
-      "description": "Task runner / simpler Make alternative written in Go",
-      "install_id": "go-task",
-      "license": "MIT",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=29916453413845e54a65b8a1cf996842300cd299",
-      "name": "go-task-3.48.0",
-      "pname": "go-task",
-      "rev": "29916453413845e54a65b8a1cf996842300cd299",
-      "rev_count": 1003640,
-      "rev_date": "2026-05-23T03:54:30Z",
-      "scrape_date": "2026-05-24T08:31:58.038558Z",
-      "stabilities": [
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "3.48.0",
-      "outputs_to_install": [
-        "out"
-      ],
-      "outputs": {
-        "out": "/nix/store/ajlbzd5gnxrs1yki1sjf327rjx7qq060-go-task-3.48.0"
-      },
-      "system": "x86_64-linux",
-      "group": "toplevel",
-      "priority": 5
-    },
-    {
-      "attr_path": "markdownlint-cli",
-      "broken": false,
-      "derivation": "/nix/store/vn613bx62f63jrvj9lhqfnjm6m9604fj-markdownlint-cli-0.48.0.drv",
-      "description": "Command line interface for MarkdownLint",
-      "install_id": "markdownlint-cli",
-      "license": "MIT",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=29916453413845e54a65b8a1cf996842300cd299",
-      "name": "markdownlint-cli-0.48.0",
-      "pname": "markdownlint-cli",
-      "rev": "29916453413845e54a65b8a1cf996842300cd299",
-      "rev_count": 1003640,
-      "rev_date": "2026-05-23T03:54:30Z",
-      "scrape_date": "2026-05-24T07:06:12.912643Z",
-      "stabilities": [
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "0.48.0",
-      "outputs_to_install": [
-        "out"
-      ],
-      "outputs": {
-        "out": "/nix/store/j3p42am9dcz8zm44hic71k1cdcffyd1a-markdownlint-cli-0.48.0"
-      },
-      "system": "aarch64-darwin",
-      "group": "toplevel",
-      "priority": 5
-    },
-    {
-      "attr_path": "markdownlint-cli",
-      "broken": false,
-      "derivation": "/nix/store/l9k5y4cp8i5y0x5n78bqhqi0sygsy2a2-markdownlint-cli-0.48.0.drv",
-      "description": "Command line interface for MarkdownLint",
-      "install_id": "markdownlint-cli",
-      "license": "MIT",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=29916453413845e54a65b8a1cf996842300cd299",
-      "name": "markdownlint-cli-0.48.0",
-      "pname": "markdownlint-cli",
-      "rev": "29916453413845e54a65b8a1cf996842300cd299",
-      "rev_count": 1003640,
-      "rev_date": "2026-05-23T03:54:30Z",
-      "scrape_date": "2026-05-24T07:34:38.589451Z",
-      "stabilities": [
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "0.48.0",
-      "outputs_to_install": [
-        "out"
-      ],
-      "outputs": {
-        "out": "/nix/store/f1zjqs6fsa76am4zziv75q9gxv2lqgf6-markdownlint-cli-0.48.0"
-      },
-      "system": "aarch64-linux",
-      "group": "toplevel",
-      "priority": 5
-    },
-    {
-      "attr_path": "markdownlint-cli",
-      "broken": false,
-      "derivation": "/nix/store/ycs1ar01r257saxvrf4kb3w3sy9llms4-markdownlint-cli-0.48.0.drv",
-      "description": "Command line interface for MarkdownLint",
-      "install_id": "markdownlint-cli",
-      "license": "MIT",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=29916453413845e54a65b8a1cf996842300cd299",
-      "name": "markdownlint-cli-0.48.0",
-      "pname": "markdownlint-cli",
-      "rev": "29916453413845e54a65b8a1cf996842300cd299",
-      "rev_count": 1003640,
-      "rev_date": "2026-05-23T03:54:30Z",
-      "scrape_date": "2026-05-24T08:32:31.977045Z",
-      "stabilities": [
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "0.48.0",
-      "outputs_to_install": [
-        "out"
-      ],
-      "outputs": {
-        "out": "/nix/store/0rlnhilgb2h9vjr00i3vjmqvw885dwaq-markdownlint-cli-0.48.0"
-      },
-      "system": "x86_64-linux",
-      "group": "toplevel",
-      "priority": 5
-    },
-    {
-      "attr_path": "rustc",
-      "broken": false,
-      "derivation": "/nix/store/ga3xdqky2y8bx8l0cp34yjpqwnwgfa6m-rustc-wrapper-1.95.0.drv",
-      "description": "Safe, concurrent, practical language (wrapper script)",
-      "install_id": "rustc",
-      "license": "[ MIT, Apache-2.0 ]",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=29916453413845e54a65b8a1cf996842300cd299",
-      "name": "rustc-wrapper-1.95.0",
-      "pname": "rustc",
-      "rev": "29916453413845e54a65b8a1cf996842300cd299",
-      "rev_count": 1003640,
-      "rev_date": "2026-05-23T03:54:30Z",
-      "scrape_date": "2026-05-24T07:07:23.369208Z",
-      "stabilities": [
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "1.95.0",
-      "outputs_to_install": [
-        "man",
-        "out"
-      ],
-      "outputs": {
-        "doc": "/nix/store/2wiph2c9mpr0gbgan0ixpnr51pdfhlhj-rustc-wrapper-1.95.0-doc",
-        "man": "/nix/store/zwylsaxwxgmbl38n3n38ym2yp8d4vh3l-rustc-wrapper-1.95.0-man",
-        "out": "/nix/store/z8dhxkw9d2bclp4hj4byyxmbihr8w4an-rustc-wrapper-1.95.0"
-      },
-      "system": "aarch64-darwin",
-      "group": "toplevel",
-      "priority": 5
-    },
-    {
-      "attr_path": "rustc",
-      "broken": false,
-      "derivation": "/nix/store/31cmzg65yvkdiy8jq66q84mxkbfqvagx-rustc-wrapper-1.95.0.drv",
-      "description": "Safe, concurrent, practical language (wrapper script)",
-      "install_id": "rustc",
-      "license": "[ MIT, Apache-2.0 ]",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=29916453413845e54a65b8a1cf996842300cd299",
-      "name": "rustc-wrapper-1.95.0",
-      "pname": "rustc",
-      "rev": "29916453413845e54a65b8a1cf996842300cd299",
-      "rev_count": 1003640,
-      "rev_date": "2026-05-23T03:54:30Z",
-      "scrape_date": "2026-05-24T07:36:14.078872Z",
-      "stabilities": [
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "1.95.0",
-      "outputs_to_install": [
-        "man",
-        "out"
-      ],
-      "outputs": {
-        "doc": "/nix/store/wqzfi80f80r689n3knjqsn31zqz68z4q-rustc-wrapper-1.95.0-doc",
-        "man": "/nix/store/p3azdhlb0nk5kz1wqc22v7srwsb37m24-rustc-wrapper-1.95.0-man",
-        "out": "/nix/store/nh052ln9q9r24p3rb6zxiqqjy4anxa56-rustc-wrapper-1.95.0"
-      },
-      "system": "aarch64-linux",
-      "group": "toplevel",
-      "priority": 5
-    },
-    {
-      "attr_path": "rustc",
-      "broken": false,
-      "derivation": "/nix/store/hz2z45zb9m1m6681n1qpcq2k6b63ardp-rustc-wrapper-1.95.0.drv",
-      "description": "Safe, concurrent, practical language (wrapper script)",
-      "install_id": "rustc",
-      "license": "[ MIT, Apache-2.0 ]",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=29916453413845e54a65b8a1cf996842300cd299",
-      "name": "rustc-wrapper-1.95.0",
-      "pname": "rustc",
-      "rev": "29916453413845e54a65b8a1cf996842300cd299",
-      "rev_count": 1003640,
-      "rev_date": "2026-05-23T03:54:30Z",
-      "scrape_date": "2026-05-24T08:34:04.743640Z",
-      "stabilities": [
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "1.95.0",
-      "outputs_to_install": [
-        "man",
-        "out"
-      ],
-      "outputs": {
-        "doc": "/nix/store/m4rhqgg9qqkjy7zv9jg4z21fm92y82r2-rustc-wrapper-1.95.0-doc",
-        "man": "/nix/store/ivd567y3li0c80h3z5w77nh8m1ga340h-rustc-wrapper-1.95.0-man",
-        "out": "/nix/store/wnhmqix7bippbbzasj29qiyb422g9asg-rustc-wrapper-1.95.0"
-      },
-      "system": "x86_64-linux",
-      "group": "toplevel",
-      "priority": 5
-    },
-    {
-      "attr_path": "rustfmt",
-      "broken": false,
-      "derivation": "/nix/store/j8864zjq9m4n4ls5r4g8yyhr78zk6923-rustfmt-1.95.0.drv",
-      "description": "Tool for formatting Rust code according to style guidelines",
-      "install_id": "rustfmt",
-      "license": "[ MIT, Apache-2.0 ]",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=29916453413845e54a65b8a1cf996842300cd299",
-      "name": "rustfmt-1.95.0",
-      "pname": "rustfmt",
-      "rev": "29916453413845e54a65b8a1cf996842300cd299",
-      "rev_count": 1003640,
-      "rev_date": "2026-05-23T03:54:30Z",
-      "scrape_date": "2026-05-24T07:07:23.396359Z",
-      "stabilities": [
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "1.95.0",
-      "outputs_to_install": [
-        "out"
-      ],
-      "outputs": {
-        "out": "/nix/store/mpb5lx4grh44xg95mim3f2sbarwl13hv-rustfmt-1.95.0"
-      },
-      "system": "aarch64-darwin",
-      "group": "toplevel",
-      "priority": 5
-    },
-    {
-      "attr_path": "rustfmt",
-      "broken": false,
-      "derivation": "/nix/store/1mzq7dy87b64x2lyb2d1fzpwsh5ywxz6-rustfmt-1.95.0.drv",
-      "description": "Tool for formatting Rust code according to style guidelines",
-      "install_id": "rustfmt",
-      "license": "[ MIT, Apache-2.0 ]",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=29916453413845e54a65b8a1cf996842300cd299",
-      "name": "rustfmt-1.95.0",
-      "pname": "rustfmt",
-      "rev": "29916453413845e54a65b8a1cf996842300cd299",
-      "rev_count": 1003640,
-      "rev_date": "2026-05-23T03:54:30Z",
-      "scrape_date": "2026-05-24T07:36:14.112044Z",
-      "stabilities": [
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "1.95.0",
-      "outputs_to_install": [
-        "out"
-      ],
-      "outputs": {
-        "out": "/nix/store/lyppkpp50famfpbbmmravahq85rjbz48-rustfmt-1.95.0"
-      },
-      "system": "aarch64-linux",
-      "group": "toplevel",
-      "priority": 5
-    },
-    {
-      "attr_path": "rustfmt",
-      "broken": false,
-      "derivation": "/nix/store/3vypbsj8kvajnp58il4718mp498id4k0-rustfmt-1.95.0.drv",
-      "description": "Tool for formatting Rust code according to style guidelines",
-      "install_id": "rustfmt",
-      "license": "[ MIT, Apache-2.0 ]",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=29916453413845e54a65b8a1cf996842300cd299",
-      "name": "rustfmt-1.95.0",
-      "pname": "rustfmt",
-      "rev": "29916453413845e54a65b8a1cf996842300cd299",
-      "rev_count": 1003640,
-      "rev_date": "2026-05-23T03:54:30Z",
-      "scrape_date": "2026-05-24T08:34:04.775751Z",
-      "stabilities": [
-        "unstable"
-      ],
-      "unfree": false,
-      "version": "1.95.0",
-      "outputs_to_install": [
-        "out"
-      ],
-      "outputs": {
-        "out": "/nix/store/1x0ba5x31jqzhhk02qz4lxkznmp6q3nl-rustfmt-1.95.0"
-      },
-      "system": "x86_64-linux",
-      "group": "toplevel",
-      "priority": 5
-    },
-    {
       "attr_path": "claude-code",
       "broken": false,
-      "derivation": "/nix/store/xiaqhihk19dyrp7nmy364cslsv9bahv1-claude-code-2.1.318.drv",
+      "derivation": "/nix/store/30k15p9s5yc7jgsqjmcsyijl7xwijz9d-claude-code-2.1.321.drv",
       "description": "Agentic coding tool that lives in your terminal, understands your codebase, and helps you code faster",
       "install_id": "claude-code",
       "license": "Unfree",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=f4a03c008967841f2a0b3cb7c436fc6fc31671f6",
-      "name": "claude-code-2.1.318",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d4f25a3e562008648d45bcf2d70bcc7422cad84e",
+      "name": "claude-code-2.1.321",
       "pname": "claude-code",
-      "rev": "f4a03c008967841f2a0b3cb7c436fc6fc31671f6",
-      "rev_count": 1113206,
-      "rev_date": "2026-11-07T09:04:50Z",
-      "scrape_date": "2026-11-09T05:50:26.553817Z",
+      "rev": "d4f25a3e562008648d45bcf2d70bcc7422cad84e",
+      "rev_count": 1117658,
+      "rev_date": "2026-11-11T08:42:49Z",
+      "scrape_date": "2026-11-13T05:52:01.851365Z",
       "stabilities": [
+        "staging",
         "unstable"
       ],
       "unfree": true,
-      "version": "2.1.318",
+      "version": "2.1.321",
       "outputs_to_install": [
         "out"
       ],
       "outputs": {
-        "out": "/nix/store/wr0iwlicadfcv8gmmsk812g6pz0c91zn-claude-code-2.1.318"
+        "out": "/nix/store/j6qdb0vsn8q4bya4izkqfjic4kln17ix-claude-code-2.1.321"
       },
       "system": "aarch64-darwin",
       "group": "claude-code",
@@ -696,27 +77,28 @@
     {
       "attr_path": "claude-code",
       "broken": false,
-      "derivation": "/nix/store/ra92mscy7zbz2xkrampab6qniv6v6jyw-claude-code-2.1.318.drv",
+      "derivation": "/nix/store/np0lj2nmias156r2civsf2vra4g00fyw-claude-code-2.1.321.drv",
       "description": "Agentic coding tool that lives in your terminal, understands your codebase, and helps you code faster",
       "install_id": "claude-code",
       "license": "Unfree",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=f4a03c008967841f2a0b3cb7c436fc6fc31671f6",
-      "name": "claude-code-2.1.318",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d4f25a3e562008648d45bcf2d70bcc7422cad84e",
+      "name": "claude-code-2.1.321",
       "pname": "claude-code",
-      "rev": "f4a03c008967841f2a0b3cb7c436fc6fc31671f6",
-      "rev_count": 1113206,
-      "rev_date": "2026-11-07T09:04:50Z",
-      "scrape_date": "2026-11-09T06:19:04.359226Z",
+      "rev": "d4f25a3e562008648d45bcf2d70bcc7422cad84e",
+      "rev_count": 1117658,
+      "rev_date": "2026-11-11T08:42:49Z",
+      "scrape_date": "2026-11-13T06:21:03.049914Z",
       "stabilities": [
+        "staging",
         "unstable"
       ],
       "unfree": true,
-      "version": "2.1.318",
+      "version": "2.1.321",
       "outputs_to_install": [
         "out"
       ],
       "outputs": {
-        "out": "/nix/store/br3g8shxhznyj4nj8drs2jvfxzravnx2-claude-code-2.1.318"
+        "out": "/nix/store/gyl0jkwfazm0d3qdwvb6pa7cla3ksp3k-claude-code-2.1.321"
       },
       "system": "aarch64-linux",
       "group": "claude-code",
@@ -725,30 +107,672 @@
     {
       "attr_path": "claude-code",
       "broken": false,
-      "derivation": "/nix/store/1iddaa6pwdcicc1w4j31p2zf7x49ss4p-claude-code-2.1.318.drv",
+      "derivation": "/nix/store/kch12gvagc48m2npn1bdlf5b0p44xqq1-claude-code-2.1.321.drv",
       "description": "Agentic coding tool that lives in your terminal, understands your codebase, and helps you code faster",
       "install_id": "claude-code",
       "license": "Unfree",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=f4a03c008967841f2a0b3cb7c436fc6fc31671f6",
-      "name": "claude-code-2.1.318",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d4f25a3e562008648d45bcf2d70bcc7422cad84e",
+      "name": "claude-code-2.1.321",
       "pname": "claude-code",
-      "rev": "f4a03c008967841f2a0b3cb7c436fc6fc31671f6",
-      "rev_count": 1113206,
-      "rev_date": "2026-11-07T09:04:50Z",
-      "scrape_date": "2026-11-09T06:50:19.878221Z",
+      "rev": "d4f25a3e562008648d45bcf2d70bcc7422cad84e",
+      "rev_count": 1117658,
+      "rev_date": "2026-11-11T08:42:49Z",
+      "scrape_date": "2026-11-13T06:52:55.352405Z",
       "stabilities": [
+        "staging",
         "unstable"
       ],
       "unfree": true,
-      "version": "2.1.318",
+      "version": "2.1.321",
       "outputs_to_install": [
         "out"
       ],
       "outputs": {
-        "out": "/nix/store/z4y9gj13fc2wmc8lfwzbhjcgbr3nrb9y-claude-code-2.1.318"
+        "out": "/nix/store/5kndfzkhy9jqhizv23vcwy4mwv2r1kmc-claude-code-2.1.321"
       },
       "system": "x86_64-linux",
       "group": "claude-code",
+      "priority": 5
+    },
+    {
+      "attr_path": "codex",
+      "broken": false,
+      "derivation": "/nix/store/asfr5j6dl1av118a5ldb1ijdqg67sal5-codex-0.167.1.drv",
+      "description": "Lightweight coding agent that runs in your terminal",
+      "install_id": "codex",
+      "license": "Apache-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d4f25a3e562008648d45bcf2d70bcc7422cad84e",
+      "name": "codex-0.167.1",
+      "pname": "codex",
+      "rev": "d4f25a3e562008648d45bcf2d70bcc7422cad84e",
+      "rev_count": 1117658,
+      "rev_date": "2026-11-11T08:42:49Z",
+      "scrape_date": "2026-11-13T05:52:01.852664Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "0.167.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/wwp7ri4bc1b2y2f8zk3gwg1nhb3d4sg4-codex-0.167.1"
+      },
+      "system": "aarch64-darwin",
+      "group": "codex",
+      "priority": 5
+    },
+    {
+      "attr_path": "codex",
+      "broken": false,
+      "derivation": "/nix/store/ld54dmk3ai7bnrgplfn6hvqbh7d30mdp-codex-0.167.1.drv",
+      "description": "Lightweight coding agent that runs in your terminal",
+      "install_id": "codex",
+      "license": "Apache-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d4f25a3e562008648d45bcf2d70bcc7422cad84e",
+      "name": "codex-0.167.1",
+      "pname": "codex",
+      "rev": "d4f25a3e562008648d45bcf2d70bcc7422cad84e",
+      "rev_count": 1117658,
+      "rev_date": "2026-11-11T08:42:49Z",
+      "scrape_date": "2026-11-13T06:21:03.050960Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "0.167.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/gsbv4xr9yvxb1ai4icvqh0gl12nyjm9r-codex-0.167.1"
+      },
+      "system": "aarch64-linux",
+      "group": "codex",
+      "priority": 5
+    },
+    {
+      "attr_path": "codex",
+      "broken": false,
+      "derivation": "/nix/store/734l4h05wvvhpnpsjw36jkmjrw6wqmva-codex-0.167.1.drv",
+      "description": "Lightweight coding agent that runs in your terminal",
+      "install_id": "codex",
+      "license": "Apache-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d4f25a3e562008648d45bcf2d70bcc7422cad84e",
+      "name": "codex-0.167.1",
+      "pname": "codex",
+      "rev": "d4f25a3e562008648d45bcf2d70bcc7422cad84e",
+      "rev_count": 1117658,
+      "rev_date": "2026-11-11T08:42:49Z",
+      "scrape_date": "2026-11-13T06:52:55.353431Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "0.167.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/9l93xb9v530diycxmypp2mbdirq8cnp6-codex-0.167.1"
+      },
+      "system": "x86_64-linux",
+      "group": "codex",
+      "priority": 5
+    },
+    {
+      "attr_path": "cargo",
+      "broken": false,
+      "derivation": "/nix/store/x3542wr4wpzrpx1dqg955rk72l43hp9r-cargo-1.99.1.drv",
+      "description": "Downloads your Rust project's dependencies and builds your project",
+      "install_id": "cargo",
+      "license": "[ MIT, Apache-2.0 ]",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d4f25a3e562008648d45bcf2d70bcc7422cad84e",
+      "name": "cargo-1.99.1",
+      "pname": "cargo",
+      "rev": "d4f25a3e562008648d45bcf2d70bcc7422cad84e",
+      "rev_count": 1117658,
+      "rev_date": "2026-11-11T08:42:49Z",
+      "scrape_date": "2026-11-13T05:52:01.844644Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.99.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/pbzrwqjzlp20f7ikk5l16zsz7041f5lp-cargo-1.99.1"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "cargo",
+      "broken": false,
+      "derivation": "/nix/store/1nsn97k369s93g90wkjbirlrhkb9am1p-cargo-1.99.1.drv",
+      "description": "Downloads your Rust project's dependencies and builds your project",
+      "install_id": "cargo",
+      "license": "[ MIT, Apache-2.0 ]",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d4f25a3e562008648d45bcf2d70bcc7422cad84e",
+      "name": "cargo-1.99.1",
+      "pname": "cargo",
+      "rev": "d4f25a3e562008648d45bcf2d70bcc7422cad84e",
+      "rev_count": 1117658,
+      "rev_date": "2026-11-11T08:42:49Z",
+      "scrape_date": "2026-11-13T06:21:03.042694Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.99.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/5mgvxfka6ypzva3p3jxipf9hscgc3k9r-cargo-1.99.1"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "cargo",
+      "broken": false,
+      "derivation": "/nix/store/yddasfn48sfij7df9s9si9h6qz4rr863-cargo-1.99.1.drv",
+      "description": "Downloads your Rust project's dependencies and builds your project",
+      "install_id": "cargo",
+      "license": "[ MIT, Apache-2.0 ]",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d4f25a3e562008648d45bcf2d70bcc7422cad84e",
+      "name": "cargo-1.99.1",
+      "pname": "cargo",
+      "rev": "d4f25a3e562008648d45bcf2d70bcc7422cad84e",
+      "rev_count": 1117658,
+      "rev_date": "2026-11-11T08:42:49Z",
+      "scrape_date": "2026-11-13T06:52:55.346466Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.99.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/c2ii5nkzv440xj9igxsd49i8f5y2vr6f-cargo-1.99.1"
+      },
+      "system": "x86_64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "clippy",
+      "broken": false,
+      "derivation": "/nix/store/js8vczs3xzm3gkx4iysycvmhzlrlb5hj-clippy-1.99.1.drv",
+      "description": "Bunch of lints to catch common mistakes and improve your Rust code",
+      "install_id": "clippy",
+      "license": "[ MIT, Apache-2.0 ]",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d4f25a3e562008648d45bcf2d70bcc7422cad84e",
+      "name": "clippy-1.99.1",
+      "pname": "clippy",
+      "rev": "d4f25a3e562008648d45bcf2d70bcc7422cad84e",
+      "rev_count": 1117658,
+      "rev_date": "2026-11-11T08:42:49Z",
+      "scrape_date": "2026-11-13T05:52:01.851581Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.99.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/iy1y0jds2l1nn22rks4va7crg8r835bn-clippy-1.99.1"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "clippy",
+      "broken": false,
+      "derivation": "/nix/store/613xvl8xrs9b1jqck9fddh8xh66br981-clippy-1.99.1.drv",
+      "description": "Bunch of lints to catch common mistakes and improve your Rust code",
+      "install_id": "clippy",
+      "license": "[ MIT, Apache-2.0 ]",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d4f25a3e562008648d45bcf2d70bcc7422cad84e",
+      "name": "clippy-1.99.1",
+      "pname": "clippy",
+      "rev": "d4f25a3e562008648d45bcf2d70bcc7422cad84e",
+      "rev_count": 1117658,
+      "rev_date": "2026-11-11T08:42:49Z",
+      "scrape_date": "2026-11-13T06:21:03.050187Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.99.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "debug": "/nix/store/bqw3fh37gix72bxzmc56s8izi9dqazhz-clippy-1.99.1-debug",
+        "out": "/nix/store/r5qaimcqxjq82npphfrm85ldda5iswvz-clippy-1.99.1"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "clippy",
+      "broken": false,
+      "derivation": "/nix/store/01mw9ypxi265c99j2lp31rr5yayps8x1-clippy-1.99.1.drv",
+      "description": "Bunch of lints to catch common mistakes and improve your Rust code",
+      "install_id": "clippy",
+      "license": "[ MIT, Apache-2.0 ]",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d4f25a3e562008648d45bcf2d70bcc7422cad84e",
+      "name": "clippy-1.99.1",
+      "pname": "clippy",
+      "rev": "d4f25a3e562008648d45bcf2d70bcc7422cad84e",
+      "rev_count": 1117658,
+      "rev_date": "2026-11-11T08:42:49Z",
+      "scrape_date": "2026-11-13T06:52:55.352656Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.99.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "debug": "/nix/store/lwdzyk6wnangyl7jzj2b0sqymkb9fcb4-clippy-1.99.1-debug",
+        "out": "/nix/store/0x4hw59xdvzm6v79m1rz84a7j2j2yh0z-clippy-1.99.1"
+      },
+      "system": "x86_64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "go-task",
+      "broken": false,
+      "derivation": "/nix/store/jr2vb57z9gsxiwig0gbq5k53812lccib-go-task-3.53.1.drv",
+      "description": "Task runner / simpler Make alternative written in Go",
+      "install_id": "go-task",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d4f25a3e562008648d45bcf2d70bcc7422cad84e",
+      "name": "go-task-3.53.1",
+      "pname": "go-task",
+      "rev": "d4f25a3e562008648d45bcf2d70bcc7422cad84e",
+      "rev_count": 1117658,
+      "rev_date": "2026-11-11T08:42:49Z",
+      "scrape_date": "2026-11-13T05:52:01.883394Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "3.53.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/4xjig8cgycza9zcs1nw560xdjmxhsxbb-go-task-3.53.1"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "go-task",
+      "broken": false,
+      "derivation": "/nix/store/v5hh31mk7pi7yc9gs414hwqpjg2mb9p7-go-task-3.53.1.drv",
+      "description": "Task runner / simpler Make alternative written in Go",
+      "install_id": "go-task",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d4f25a3e562008648d45bcf2d70bcc7422cad84e",
+      "name": "go-task-3.53.1",
+      "pname": "go-task",
+      "rev": "d4f25a3e562008648d45bcf2d70bcc7422cad84e",
+      "rev_count": 1117658,
+      "rev_date": "2026-11-11T08:42:49Z",
+      "scrape_date": "2026-11-13T06:21:03.080462Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "3.53.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/15hxxrx103wrz047vnpxqlik6yyii0av-go-task-3.53.1"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "go-task",
+      "broken": false,
+      "derivation": "/nix/store/fd7dnlq7sadnb69q5nxl626f4zmn85n7-go-task-3.53.1.drv",
+      "description": "Task runner / simpler Make alternative written in Go",
+      "install_id": "go-task",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d4f25a3e562008648d45bcf2d70bcc7422cad84e",
+      "name": "go-task-3.53.1",
+      "pname": "go-task",
+      "rev": "d4f25a3e562008648d45bcf2d70bcc7422cad84e",
+      "rev_count": 1117658,
+      "rev_date": "2026-11-11T08:42:49Z",
+      "scrape_date": "2026-11-13T06:52:55.379730Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "3.53.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/r4j6r76czbmqqyslbpzcwbpqllg4cpf1-go-task-3.53.1"
+      },
+      "system": "x86_64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "markdownlint-cli",
+      "broken": false,
+      "derivation": "/nix/store/jzb59a9f1sp2xk694j7anvl4z3qf7zic-markdownlint-cli-0.50.0.drv",
+      "description": "Command line interface for MarkdownLint",
+      "install_id": "markdownlint-cli",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d4f25a3e562008648d45bcf2d70bcc7422cad84e",
+      "name": "markdownlint-cli-0.50.0",
+      "pname": "markdownlint-cli",
+      "rev": "d4f25a3e562008648d45bcf2d70bcc7422cad84e",
+      "rev_count": 1117658,
+      "rev_date": "2026-11-11T08:42:49Z",
+      "scrape_date": "2026-11-13T05:52:01.992166Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "0.50.0",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/a3j1i21kidyrmaa37q89iq5l7372lm11-markdownlint-cli-0.50.0"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "markdownlint-cli",
+      "broken": false,
+      "derivation": "/nix/store/w7ahpkjllgg8cswfv7chpzpan2afqq2x-markdownlint-cli-0.50.0.drv",
+      "description": "Command line interface for MarkdownLint",
+      "install_id": "markdownlint-cli",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d4f25a3e562008648d45bcf2d70bcc7422cad84e",
+      "name": "markdownlint-cli-0.50.0",
+      "pname": "markdownlint-cli",
+      "rev": "d4f25a3e562008648d45bcf2d70bcc7422cad84e",
+      "rev_count": 1117658,
+      "rev_date": "2026-11-11T08:42:49Z",
+      "scrape_date": "2026-11-13T06:21:03.301302Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "0.50.0",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/87zb53pyczq630ai9g1aqs1g323486mn-markdownlint-cli-0.50.0"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "markdownlint-cli",
+      "broken": false,
+      "derivation": "/nix/store/wbdpmrk1syixg8ii4rfhz92l9lbf81df-markdownlint-cli-0.50.0.drv",
+      "description": "Command line interface for MarkdownLint",
+      "install_id": "markdownlint-cli",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d4f25a3e562008648d45bcf2d70bcc7422cad84e",
+      "name": "markdownlint-cli-0.50.0",
+      "pname": "markdownlint-cli",
+      "rev": "d4f25a3e562008648d45bcf2d70bcc7422cad84e",
+      "rev_count": 1117658,
+      "rev_date": "2026-11-11T08:42:49Z",
+      "scrape_date": "2026-11-13T06:52:55.493673Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "0.50.0",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/kd177b1dgcc2m07ymk011gmmfzc6r2kc-markdownlint-cli-0.50.0"
+      },
+      "system": "x86_64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "rustc",
+      "broken": false,
+      "derivation": "/nix/store/3k2gjww2y6y1id97n161an5s7gynawir-rustc-wrapper-1.99.1.drv",
+      "description": "Safe, concurrent, practical language (wrapper script)",
+      "install_id": "rustc",
+      "license": "[ MIT, Apache-2.0 ]",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d4f25a3e562008648d45bcf2d70bcc7422cad84e",
+      "name": "rustc-wrapper-1.99.1",
+      "pname": "rustc",
+      "rev": "d4f25a3e562008648d45bcf2d70bcc7422cad84e",
+      "rev_count": 1117658,
+      "rev_date": "2026-11-11T08:42:49Z",
+      "scrape_date": "2026-11-13T05:52:02.248775Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.99.1",
+      "outputs_to_install": [
+        "man",
+        "out"
+      ],
+      "outputs": {
+        "doc": "/nix/store/3ry6d4zg18pxhafvm0sa6b3vd0wvas26-rustc-wrapper-1.99.1-doc",
+        "man": "/nix/store/lpinbm388zhpakdxcrmy99q2csjixsvk-rustc-wrapper-1.99.1-man",
+        "out": "/nix/store/h35x7ybiw8jnbvsab9w6ibnwi2q5xh24-rustc-wrapper-1.99.1"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "rustc",
+      "broken": false,
+      "derivation": "/nix/store/vhn3rndm83lzxqaa2rhm0h6yk9flwwa5-rustc-wrapper-1.99.1.drv",
+      "description": "Safe, concurrent, practical language (wrapper script)",
+      "install_id": "rustc",
+      "license": "[ MIT, Apache-2.0 ]",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d4f25a3e562008648d45bcf2d70bcc7422cad84e",
+      "name": "rustc-wrapper-1.99.1",
+      "pname": "rustc",
+      "rev": "d4f25a3e562008648d45bcf2d70bcc7422cad84e",
+      "rev_count": 1117658,
+      "rev_date": "2026-11-11T08:42:49Z",
+      "scrape_date": "2026-11-13T06:21:03.496820Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.99.1",
+      "outputs_to_install": [
+        "man",
+        "out"
+      ],
+      "outputs": {
+        "doc": "/nix/store/9hbmwm0nkf0sl09jp8s7g0fj1ymsl7la-rustc-wrapper-1.99.1-doc",
+        "man": "/nix/store/jsfrl54g7fdjgn02llgmm9sfizp39a6b-rustc-wrapper-1.99.1-man",
+        "out": "/nix/store/gpba2i84yavbcsj4idsjhsdyzfzff1kd-rustc-wrapper-1.99.1"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "rustc",
+      "broken": false,
+      "derivation": "/nix/store/37hxjf23p2rn3z4xp3xqd252pql642ka-rustc-wrapper-1.99.1.drv",
+      "description": "Safe, concurrent, practical language (wrapper script)",
+      "install_id": "rustc",
+      "license": "[ MIT, Apache-2.0 ]",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d4f25a3e562008648d45bcf2d70bcc7422cad84e",
+      "name": "rustc-wrapper-1.99.1",
+      "pname": "rustc",
+      "rev": "d4f25a3e562008648d45bcf2d70bcc7422cad84e",
+      "rev_count": 1117658,
+      "rev_date": "2026-11-11T08:42:49Z",
+      "scrape_date": "2026-11-13T06:52:55.659747Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.99.1",
+      "outputs_to_install": [
+        "man",
+        "out"
+      ],
+      "outputs": {
+        "doc": "/nix/store/139skn5v3d21l02fssq8jajhnfc4dypp-rustc-wrapper-1.99.1-doc",
+        "man": "/nix/store/lap61i3rjk4h9phdv771a2fhf14a2zhp-rustc-wrapper-1.99.1-man",
+        "out": "/nix/store/zhr33g0ywz0jw6f4gja3j3pqm8a0sf87-rustc-wrapper-1.99.1"
+      },
+      "system": "x86_64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "rustfmt",
+      "broken": false,
+      "derivation": "/nix/store/s79vm05ybs7qvax0ccsw5fisparpi05a-rustfmt-1.99.1.drv",
+      "description": "Tool for formatting Rust code according to style guidelines",
+      "install_id": "rustfmt",
+      "license": "[ MIT, Apache-2.0 ]",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d4f25a3e562008648d45bcf2d70bcc7422cad84e",
+      "name": "rustfmt-1.99.1",
+      "pname": "rustfmt",
+      "rev": "d4f25a3e562008648d45bcf2d70bcc7422cad84e",
+      "rev_count": 1117658,
+      "rev_date": "2026-11-11T08:42:49Z",
+      "scrape_date": "2026-11-13T05:52:02.248812Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.99.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/5hnc5n3xjbgfrib4sxhzpxfp56p7gph1-rustfmt-1.99.1"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "rustfmt",
+      "broken": false,
+      "derivation": "/nix/store/56k51kjgpnfsi0g0yzv62zzf4ddzal28-rustfmt-1.99.1.drv",
+      "description": "Tool for formatting Rust code according to style guidelines",
+      "install_id": "rustfmt",
+      "license": "[ MIT, Apache-2.0 ]",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d4f25a3e562008648d45bcf2d70bcc7422cad84e",
+      "name": "rustfmt-1.99.1",
+      "pname": "rustfmt",
+      "rev": "d4f25a3e562008648d45bcf2d70bcc7422cad84e",
+      "rev_count": 1117658,
+      "rev_date": "2026-11-11T08:42:49Z",
+      "scrape_date": "2026-11-13T06:21:03.496892Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.99.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/izg8xgb86vggsyzd9rs96w2jiyzjwl9j-rustfmt-1.99.1"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "rustfmt",
+      "broken": false,
+      "derivation": "/nix/store/7fipgy0bbczczxvlzpfvx3ljnvfnrj3b-rustfmt-1.99.1.drv",
+      "description": "Tool for formatting Rust code according to style guidelines",
+      "install_id": "rustfmt",
+      "license": "[ MIT, Apache-2.0 ]",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=d4f25a3e562008648d45bcf2d70bcc7422cad84e",
+      "name": "rustfmt-1.99.1",
+      "pname": "rustfmt",
+      "rev": "d4f25a3e562008648d45bcf2d70bcc7422cad84e",
+      "rev_count": 1117658,
+      "rev_date": "2026-11-11T08:42:49Z",
+      "scrape_date": "2026-11-13T06:52:55.659790Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.99.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/3kr36w0awz5q8yia6nwcriaj3f0065qw-rustfmt-1.99.1"
+      },
+      "system": "x86_64-linux",
+      "group": "toplevel",
       "priority": 5
     },
     {
