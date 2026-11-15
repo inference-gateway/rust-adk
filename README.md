@@ -1599,7 +1599,7 @@ This ADK is part of the broader Inference Gateway ecosystem:
 
 ## Requirements
 
-- **Rust**: 1.95.0 or later (matches `rust-version` in [Cargo.toml](./Cargo.toml))
+- **Rust**: 1.99.1 or later (matches `rust-version` in [Cargo.toml](./Cargo.toml))
 - **Dependencies**: See [Cargo.toml](./Cargo.toml) for full dependency list
 
 ## OCI Compliant
@@ -1607,7 +1607,7 @@ This ADK is part of the broader Inference Gateway ecosystem:
 Build and run your A2A agent application in any OCI-compliant container runtime (Docker, Podman, containerd, etc.). Here's an example Containerfile for an application using the ADK:
 
 ```dockerfile
-FROM rust:1.95 AS builder
+FROM rust:1.99 AS builder
 
 WORKDIR /app
 COPY Cargo.toml Cargo.lock ./

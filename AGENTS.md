@@ -34,7 +34,7 @@ for coding agents - human docs live in README.md and CONTRIBUTING.md.
 | `task test` | `cargo test --all-targets --all-features` |
 | `task --list` | example runners, e.g. `task examples:minimal-server` |
 
-CI runs lint -> analyse -> build -> test on Rust 1.95.0 (the crate's MSRV).
+CI runs lint -> analyse -> build -> test on Rust 1.99.1 (the crate's MSRV).
 Clippy `-D warnings` means any new warning fails CI. CI's test step is plain
 `cargo test` - `task test` (all features/targets) is the stricter local gate.
 Run one test with `cargo test --all-features <test_name>`, or one integration
