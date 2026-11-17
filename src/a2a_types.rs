@@ -157,7 +157,7 @@ pub struct AgentCard {
     #[serde(
         rename = "securitySchemes",
         default,
-        skip_serializing_if = ":: std :: collections :: HashMap::is_empty"
+        skip_serializing_if = "::std::collections::HashMap::is_empty"
     )]
     pub security_schemes: ::std::collections::HashMap<::std::string::String, SecurityScheme>,
     #[doc = "JSON Web Signatures computed for this `AgentCard`."]
@@ -534,10 +534,7 @@ pub struct ImplicitOAuthFlow {
     )]
     pub refresh_url: ::std::option::Option<::std::string::String>,
     #[doc = "The available scopes for the OAuth2 security scheme. A map between the\n scope name and a short description for it. The map MAY be empty."]
-    #[serde(
-        default,
-        skip_serializing_if = ":: std :: collections :: HashMap::is_empty"
-    )]
+    #[serde(default, skip_serializing_if = "::std::collections::HashMap::is_empty")]
     pub scopes: ::std::collections::HashMap<::std::string::String, ::std::string::String>,
 }
 impl ImplicitOAuthFlow {
@@ -898,18 +895,20 @@ impl ::std::convert::From<PartRaw> for ::std::string::String {
 impl ::std::str::FromStr for PartRaw {
     type Err = self::error::ConversionError;
     fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
-        static PATTERN: ::std::sync::LazyLock<::regress::Regex> =
-            ::std::sync::LazyLock::new(|| ::regress::Regex::new("^[A-Za-z0-9+/]*={0,2}$").unwrap());
-        if PATTERN.find(value).is_none() {
-            return Err("doesn't match pattern \"^[A-Za-z0-9+/]*={0,2}$\"".into());
-        }
-        Ok(Self(value.to_string()))
+        ::std::convert::TryFrom::try_from(value)
     }
 }
 impl ::std::convert::TryFrom<&str> for PartRaw {
     type Error = self::error::ConversionError;
     fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
-        value.parse()
+        static PATTERN: ::std::sync::LazyLock<::regress::Regex> =
+            ::std::sync::LazyLock::new(|| {
+                ::regress::Regex::with_flags("^[A-Za-z0-9+/]*={0,2}$", "u").unwrap()
+            });
+        if PATTERN.find(value).is_none() {
+            return Err("doesn't match pattern \"^[A-Za-z0-9+/]*={0,2}$\"".into());
+        }
+        Ok(Self(value.to_string()))
     }
 }
 impl ::std::convert::TryFrom<::std::string::String> for PartRaw {
@@ -917,7 +916,7 @@ impl ::std::convert::TryFrom<::std::string::String> for PartRaw {
     fn try_from(
         value: ::std::string::String,
     ) -> ::std::result::Result<Self, self::error::ConversionError> {
-        value.parse()
+        ::std::convert::TryFrom::try_from(value.as_str())
     }
 }
 impl<'de> ::serde::Deserialize<'de> for PartRaw {
@@ -925,8 +924,7 @@ impl<'de> ::serde::Deserialize<'de> for PartRaw {
     where
         D: ::serde::Deserializer<'de>,
     {
-        ::std::string::String::deserialize(deserializer)?
-            .parse()
+        ::std::convert::TryFrom::try_from(::std::string::String::deserialize(deserializer)?)
             .map_err(|e: self::error::ConversionError| {
                 <D::Error as ::serde::de::Error>::custom(e.to_string())
             })
@@ -942,10 +940,7 @@ pub struct PasswordOAuthFlow {
     )]
     pub refresh_url: ::std::option::Option<::std::string::String>,
     #[doc = "The available scopes for the OAuth2 security scheme. A map between the\n scope name and a short description for it. The map MAY be empty."]
-    #[serde(
-        default,
-        skip_serializing_if = ":: std :: collections :: HashMap::is_empty"
-    )]
+    #[serde(default, skip_serializing_if = "::std::collections::HashMap::is_empty")]
     pub scopes: ::std::collections::HashMap<::std::string::String, ::std::string::String>,
     #[doc = "The token URL to be used for this flow. This MUST be in the form of a URL.\n The OAuth2 standard requires the use of TLS."]
     #[serde(
@@ -1018,10 +1013,7 @@ impl ::std::convert::TryFrom<::std::string::String> for Role {
 #[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug, Default)]
 pub struct SecurityRequirement {
     #[doc = "A map of security schemes to the required scopes."]
-    #[serde(
-        default,
-        skip_serializing_if = ":: std :: collections :: HashMap::is_empty"
-    )]
+    #[serde(default, skip_serializing_if = "::std::collections::HashMap::is_empty")]
     pub schemes: ::std::collections::HashMap<::std::string::String, StringList>,
 }
 impl SecurityRequirement {
@@ -1445,18 +1437,6 @@ impl ::std::str::FromStr for Timestamp {
     type Err = <::chrono::DateTime<::chrono::offset::Utc> as ::std::str::FromStr>::Err;
     fn from_str(value: &str) -> ::std::result::Result<Self, Self::Err> {
         Ok(Self(value.parse()?))
-    }
-}
-impl ::std::convert::TryFrom<&str> for Timestamp {
-    type Error = <::chrono::DateTime<::chrono::offset::Utc> as ::std::str::FromStr>::Err;
-    fn try_from(value: &str) -> ::std::result::Result<Self, Self::Error> {
-        value.parse()
-    }
-}
-impl ::std::convert::TryFrom<String> for Timestamp {
-    type Error = <::chrono::DateTime<::chrono::offset::Utc> as ::std::str::FromStr>::Err;
-    fn try_from(value: String) -> ::std::result::Result<Self, Self::Error> {
-        value.parse()
     }
 }
 #[doc = "`Value`"]
