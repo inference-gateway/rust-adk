@@ -14,15 +14,20 @@ for coding agents - human docs live in README.md and CONTRIBUTING.md.
   (builder, protocol dispatch, task handlers/manager, storage, auth, TLS,
   artifacts, MCP, usage tracking).
 - `src/a2a_types.rs` - **generated** by `cargo-typify` from `schema.json`.
-  Do not hand-edit. Regenerate with `task a2a:generate-types` (installs
-  `cargo-typify` if missing - run `task a2a:download-schema` first to refresh
-  the schema). The task also prepends the `#![allow(...)]` attributes the
-  generated code needs. They live in the task, so don't paste them by hand.
+  Do not hand-edit. Regenerate with `task schemas-sync`, which downloads the
+  schema (pin a version with `SCHEMAS_REF=refs/tags/vX.Y.Z`) and then runs
+  `task a2a:generate-types` (installs `cargo-typify` if missing). The task
+  also removes `#[serde(deny_unknown_fields)]` and prepends the
+  `#![allow(...)]` attributes the generated code needs. They live in the
+  task, so don't paste them by hand.
 - `tests/` - integration tests (`a2a_server_test.rs`, `auth_test.rs`,
   `tls_test.rs`, `artifacts_integration_test.rs`).
 - `examples/<scenario>/{server,client}/` - workspace members, one binary per
   directory, each with its own `Cargo.toml`. `examples/README.md` catalogs
   them. `examples/tls/make-certs.sh` mints dev certificates.
+- `examples/tck-sut/` - standalone workspace member: the system-under-test
+  binary for the official A2A TCK. CI's `tck` job builds it, serves it on
+  port 9999 and runs the JSON-RPC conformance suite against it.
 
 ## Commands
 
@@ -34,7 +39,8 @@ for coding agents - human docs live in README.md and CONTRIBUTING.md.
 | `task test` | `cargo test --all-targets --all-features` |
 | `task --list` | example runners, e.g. `task examples:minimal-server` |
 
-CI runs lint -> analyse -> build -> test on Rust 1.99.1 (the crate's MSRV).
+CI runs lint -> analyse -> build -> test on Rust 1.99.1 (the crate's MSRV),
+plus a `tck` job that runs the A2A conformance suite against `examples/tck-sut`.
 Clippy `-D warnings` means any new warning fails CI. CI's test step is plain
 `cargo test` - `task test` (all features/targets) is the stricter local gate.
 Run one test with `cargo test --all-features <test_name>`, or one integration
