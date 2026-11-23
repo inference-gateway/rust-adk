@@ -60,7 +60,7 @@ jobs:
           toolchain: 1.99.1
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v10.3.3
+        uses: astral-sh/setup-uv@v10.4.0
 
       - name: Start TCK system under test
         run: |
